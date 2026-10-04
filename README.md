@@ -1,18 +1,17 @@
-# Cue
 <p align="center">
   <img src="./justina-miles.gif" alt="Idiot Sandwich" width="600"/>
 </p>
 
-<h1 align="center">🙌 Cue 🙌</h1>
+<h1 align="center">🌸 Iris 🌸</h1>
 
 <p align="center">
-Video calls have become the default way people meet, but they're built entirely around spoken language. For someone who is deaf or hard of hearing and doesn't have a hearing interpreter on the call, a Google Meet is functionally unusable. Captions only work one direction, and there's no way to sign back and be understood. Cue is a real-time translation layer for video meetings. It uses computer vision and machine learning to read a user's sign language through their camera and speak it aloud to hearing participants, while simultaneously converting hearing participants' speech into on-screen captions for the signer. Unlike existing sign-recognition tools that require specialized hardware or are built purely for teaching, Cue is designed to sit invisibly inside a call people are already having, turning a one-way captioning feature into an actual two-way conversation.
+Video calls have become the default way people meet, but they're built entirely around spoken language. For someone who is deaf or hard of hearing and doesn't have a hearing interpreter on the call, a Google Meet is functionally unusable. Captions only work one direction, and there's no way to sign back and be understood. Iris is a real-time translation layer for video meetings. It uses computer vision and machine learning to read a user's sign language through their camera and speak it aloud to hearing participants, while simultaneously converting hearing participants' speech into on-screen captions for the signer. Unlike existing sign-recognition tools that require specialized hardware or are built purely for teaching, Iris is designed to sit invisibly inside a call people are already having, turning a one-way captioning feature into an actual two-way conversation.
 </p>
 
 ---
 
 ## MVP ✅
-* **Meeting Integration** → Connection to Google Meet  
+* **Meeting Integration** → Connection to Google Meet
 * **Sign Recognition Pipeline** → Gesture classification using the pretrained Pose-TGCN model
 * **Speech Output** → ASL converted to Speech
 * **Type-To-Voice** → Alternative Type to Speech
@@ -23,7 +22,7 @@ Video calls have become the default way people meet, but they're built entirely 
 
 ## Stretch Goals 💪
 * **Phrase Predictions** → Predictive text/phrase suggestions
-* **Multiple Languages** → Support sign language dialects beyond ASL (e.g., BSL, LSF)  
+* **Multiple Languages** → Support sign language dialects beyond ASL (e.g., BSL, LSF)
 
 ---
 
@@ -32,12 +31,12 @@ Video calls have become the default way people meet, but they're built entirely 
 <details>
 <summary>📱 Frontend</summary>
 
-* [React Documentation](https://react.dev/learn)  
-* [Tailwind CSS Documentation](https://tailwindcss.com/docs)  
-* [Chrome Extensions Documentation](https://developer.chrome.com/docs/extensions/)  
-* [Chrome Extensions: Get Started Tutorial](https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world)  
-* [VIDEO: React JS Full Course for Beginners](https://www.youtube.com/watch?v=SqcY0GlETPk)  
-* [VIDEO: Chrome Extension Development Tutorial for Beginners](https://www.youtube.com/watch?v=0n809nd4Zu4)  
+* [React Documentation](https://react.dev/learn)
+* [Tailwind CSS Documentation](https://tailwindcss.com/docs)
+* [Chrome Extensions Documentation](https://developer.chrome.com/docs/extensions/)
+* [Chrome Extensions: Get Started Tutorial](https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world)
+* [VIDEO: React JS Full Course for Beginners](https://www.youtube.com/watch?v=SqcY0GlETPk)
+* [VIDEO: Chrome Extension Development Tutorial for Beginners](https://www.youtube.com/watch?v=0n809nd4Zu4)
 * [VIDEO: Tailwind CSS Full Course for Beginners](https://www.youtube.com/watch?v=DenUCuq4G04)
 
 </details>
@@ -45,8 +44,8 @@ Video calls have become the default way people meet, but they're built entirely 
 <details>
 <summary>🔐 Auth</summary>
 
-* [Google OAuth with FastAPI](https://developers.google.com/identity/protocols/oauth2)  
-* [Passport.js](http://www.passportjs.org/)  
+* [Google OAuth with FastAPI](https://developers.google.com/identity/protocols/oauth2)
+* [Passport.js](http://www.passportjs.org/)
 * [Firebase Authentication](https://firebase.google.com/docs/auth)
 * [VIDEO: Code with Me: Learning FastAPI + Google OAuth2](https://www.youtube.com/watch?v=EIZTy4XyXjU)
 * [VIDEO: FastAPI Authentication Example With OAuth2, JSON Web Tokens and Tortoise ORM](https://www.youtube.com/watch?v=6hTRw_HK3Ts)
@@ -58,8 +57,8 @@ Video calls have become the default way people meet, but they're built entirely 
 <details>
 <summary>👀 Vision & Recognition</summary>
 
-* [MediaPipe (Hollistic Landmarker)](https://developers.google.com/mediapipe/solutions/vision/holistic_landmarker/python)  
-* [Sign Classification: Pose-TGCN](https://github.com/dxli94/WLASL/blob/master/README.md)  
+* [MediaPipe (Hollistic Landmarker)](https://developers.google.com/mediapipe/solutions/vision/holistic_landmarker/python)
+* [Sign Classification: Pose-TGCN](https://github.com/dxli94/WLASL/blob/master/README.md)
 * [PyTorch + scikit-learn](https://docs.pytorch.org/docs/stable/index.html)
 
 </details>
@@ -67,8 +66,8 @@ Video calls have become the default way people meet, but they're built entirely 
 <details>
 <summary>💬 Speech Layer</summary>
 
-* [Speech-to-Text](https://join.elevenlabs.io/agents/v6?utm_source=google&utm_medium=cpc&utm_campaign=us_nonbrandsearch_conversationalai_english&utm_id=22795646787&utm_term=how+to+build+voice+ai+agents&utm_content=conversational_ai_-_voice_ai_agents&gad_source=1&gad_campaignid=22795646787&gbraid=0AAAAA_PU6Fb9mgQFDnfTH_B0gHF7C80RW&gclid=CjwKCAjwtp7VBhBjEiwAJfpV-9GOsq60wrkT_VC4EjzUBjuPIBa1IhkQBesTuZZTo3z8JTdz6yOGjRoCvs8QAvD_BwE)  
-* [Virtual Audio Cable](https://vb-audio.com/Cable/?utm_source=chatgpt.com)  
+* [Speech-to-Text](https://join.elevenlabs.io/agents/v6?utm_source=google&utm_medium=cpc&utm_campaign=us_nonbrandsearch_conversationalai_english&utm_id=22795646787&utm_term=how+to+build+voice+ai+agents&utm_content=conversational_ai_-_voice_ai_agents&gad_source=1&gad_campaignid=22795646787&gbraid=0AAAAA_PU6Fb9mgQFDnfTH_B0gHF7C80RW&gclid=CjwKCAjwtp7VBhBjEiwAJfpV-9GOsq60wrkT_VC4EjzUBjuPIBa1IhkQBesTuZZTo3z8JTdz6yOGjRoCvs8QAvD_BwE)
+* [Virtual Audio Cable](https://vb-audio.com/Cable/?utm_source=chatgpt.com)
 * [PyTorch + scikit-learn](https://docs.pytorch.org/docs/stable/index.html)
 * [OBS Virtual Camera](https://obsproject.com/)
 
@@ -77,9 +76,9 @@ Video calls have become the default way people meet, but they're built entirely 
 <details>
 <summary>🗄️ Database</summary>
 
-* [Firebase Firestore](https://firebase.google.com/docs/firestore)  
-* [PostgreSQL Docs](https://www.postgresql.org/docs/)  
-* [Supabase](https://supabase.com/)  
+* [Firebase Firestore](https://firebase.google.com/docs/firestore)
+* [PostgreSQL Docs](https://www.postgresql.org/docs/)
+* [Supabase](https://supabase.com/)
 * [AWS S3](https://aws.amazon.com/s3/)
 * [VIDEO: Firebase Firestore Tutorial #1 - Introduction (full series)](https://www.youtube.com/watch?v=4d-gIPGzmK4)
 * [VIDEO: PostgreSQL Tutorial Full Course 2022](https://www.youtube.com/watch?v=85pG_pDkITY)
@@ -90,7 +89,7 @@ Video calls have become the default way people meet, but they're built entirely 
 <details>
 <summary>🎨 Design</summary>
 
-* [Figma](https://www.figma.com/)  
+* [Figma](https://www.figma.com/)
 * [LottieFiles](https://lottiefiles.com/)
 * [VIDEO: Figma Tutorial for Beginners](https://www.youtube.com/watch?v=ezldKx-jPag&pp=0gcJCfwAo7VqN5tD)
 
@@ -99,25 +98,25 @@ Video calls have become the default way people meet, but they're built entirely 
 <details>
 <summary>🛠️ Dev Tools</summary>
 
-* Node.js:  
-Download: [Node.js LTS](https://nodejs.org/en/download/)  
-Tutorial: [Installing Node.js and npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)  
+* Node.js:
+Download: [Node.js LTS](https://nodejs.org/en/download/)
+Tutorial: [Installing Node.js and npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
 
-* VS Code:  
-Download: [Visual Studio Code](https://code.visualstudio.com/download)  
-Tutorial: [VS Code Tips for React Native](https://code.visualstudio.com/docs/nodejs/reactjs-tutorial)  
+* VS Code:
+Download: [Visual Studio Code](https://code.visualstudio.com/download)
+Tutorial: [VS Code Tips for React Native](https://code.visualstudio.com/docs/nodejs/reactjs-tutorial)
 
-* Postman (API Testing):  
-Download: [Postman](https://www.postman.com/downloads/)  
-Tutorial: [Postman API Testing for Beginners](https://www.guru99.com/postman-tutorial.html)  
+* Postman (API Testing):
+Download: [Postman](https://www.postman.com/downloads/)
+Tutorial: [Postman API Testing for Beginners](https://www.guru99.com/postman-tutorial.html)
 
-* Git:  
-Download: [Git](https://git-scm.com/downloads)  
-Tutorial: [Git Handbook](https://guides.github.com/introduction/git-handbook/)  
+* Git:
+Download: [Git](https://git-scm.com/downloads)
+Tutorial: [Git Handbook](https://guides.github.com/introduction/git-handbook/)
 
-* Python:  
-Download: [Python](https://www.python.org/downloads/)  
-Tutorial: [FastAPI Quickstart](https://fastapi.tiangolo.com/tutorial/) 
+* Python:
+Download: [Python](https://www.python.org/downloads/)
+Tutorial: [FastAPI Quickstart](https://fastapi.tiangolo.com/tutorial/)
 
 </details>
 
