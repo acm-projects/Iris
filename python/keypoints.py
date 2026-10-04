@@ -1,63 +1,86 @@
 import collections
 import numpy as np
-import torch
 
-NUM_SAMPLES = 50   # replace with num_samples from your TGCN config.ini
-
-# MediaPipe pose index for each of the 13 body joints, in the model's order.
-# None = computed (neck = shoulder midpoint, mid-hip = hip midpoint)
-BODY_MAP = [0, None, 12, 14, 16, 11, 13, 15, None, 5, 2, 8, 7]
+NUM_SAMPLES = 50   # frames the model expects (check num_samples in the TGCN config)
 
 
-def _pts(landmarks):
-    if landmarks is None:
+def hand_xy(hand):
+    if hand is None:
         return None
-    return np.array([[l.x, l.y] for l in landmarks.landmark], dtype=np.float32)
+    points = []
+    for lm in hand.landmark:
+        points.append([lm.x, lm.y])
+    return np.array(points)
+
+
+def body_xy(pose):
+    if pose is None:
+        return None
+    pts = np.array([[lm.x, lm.y] for lm in pose.landmark])   # (33, 2)
+
+    neck = (pts[11] + pts[12]) / 2
+
+    hips_visible = pose.landmark[23].visibility > 0.5 and pose.landmark[24].visibility > 0.5
+    if hips_visible:
+        mid_hip = (pts[23] + pts[24]) / 2
+    else:
+        mid_hip = np.array([0.0, 0.0])
+
+    rows = [
+        pts[0],     # 0  nose
+        neck,       # 1  neck
+        pts[12],    # 2  right shoulder
+        pts[14],    # 3  right elbow
+        pts[16],    # 4  right wrist
+        pts[11],    # 5  left shoulder
+        pts[13],    # 6  left elbow
+        pts[15],    # 7  left wrist
+        mid_hip,    # 8  mid-hip
+        pts[5],     # 9  right eye
+        pts[2],     # 10 left eye
+        pts[8],     # 11 right ear
+        pts[7],     # 12 left ear
+    ]
+    return np.array(rows)
+
+
+def normalize(raw):
+    # 0..1 becomes -1..1, so the frame center is 0
+    return 2 * (raw - 0.5)
 
 
 def frame_to_keypoints(results):
-    """MediaPipe Holistic results -> (55, 2) in the model's format, or None if no body."""
-    pose = _pts(results.pose_landmarks)
-    if pose is None:
-        return None  # caller repeats the previous frame
+    """MediaPipe results -> normalized (55, 2) array, or None if no body."""
+    body = body_xy(results.pose_landmarks)
+    if body is None:
+        return None
 
-    raw = np.zeros((55, 2), dtype=np.float32)  # undetected stays (0,0), which becomes -1 below
-    neck = (pose[11] + pose[12]) / 2
-    lm = results.pose_landmarks.landmark
-    hips_ok = lm[23].visibility > 0.5 and lm[24].visibility > 0.5
-    hip = (pose[23] + pose[24]) / 2
+    left = hand_xy(results.left_hand_landmarks)
+    right = hand_xy(results.right_hand_landmarks)
 
-    for i, idx in enumerate(BODY_MAP):
-        if idx is not None:
-            raw[i] = pose[idx]
-        elif i == 1:
-            raw[i] = neck
-        elif hips_ok:
-            raw[i] = hip  # otherwise stays 0 (missing)
-
-    lh = _pts(results.left_hand_landmarks)
-    rh = _pts(results.right_hand_landmarks)
-    if lh is not None:
-        raw[13:34] = lh
-    if rh is not None:
-        raw[34:55] = rh
-
-    return 2 * (raw - 0.5)  # same transform as sign_dataset.py
+    raw = np.zeros((55, 2), dtype=np.float32)   # undetected stays 0 (becomes -1 after normalize)
+    raw[0:13] = body
+    if left is not None:
+        raw[13:34] = left
+    if right is not None:
+        raw[34:55] = right
+    return normalize(raw)
 
 
-class PoseBuffer:
-    def __init__(self):
-        self.frames = collections.deque(maxlen=NUM_SAMPLES)
+def new_buffer():
+    return collections.deque(maxlen=NUM_SAMPLES)
 
-    def add(self, kp):
-        if kp is None and self.frames:
-            kp = self.frames[-1]  # repeat last frame, like the dataset code
-        if kp is not None:
-            self.frames.append(kp)
 
-    def tensor(self):
-        if len(self.frames) < NUM_SAMPLES:
-            return None
-        clip = np.stack(self.frames)                       # (T, 55, 2)
-        x = clip.transpose(1, 0, 2).reshape(55, -1)        # (55, T*2), x and y interleaved per frame
-        return torch.from_numpy(x).float().unsqueeze(0)    # (1, 55, T*2)
+def add_frame(buffer, kp):
+    if kp is None and len(buffer) > 0:
+        kp = buffer[-1]          # nothing detected: repeat the previous frame
+    if kp is not None:
+        buffer.append(kp)
+
+
+def buffer_to_model_input(buffer):
+    if len(buffer) < NUM_SAMPLES:
+        return None
+    clip = np.stack(buffer)                          # (50, 55, 2)
+    x = clip.transpose(1, 0, 2).reshape(55, -1)      # (55, 100): x and y interleaved per frame
+    return x[np.newaxis, ...]                        # (1, 55, 100)
