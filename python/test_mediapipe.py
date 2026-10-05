@@ -1,7 +1,10 @@
 import cv2
+import numpy as np
 import mediapipe as mp
 
-from keypoints import frame_to_keypoints, new_buffer, add_frame, buffer_to_model_input, NUM_SAMPLES
+from keypoints import frame_to_keypoints, new_buffer, add_frame, NUM_SAMPLES
+
+np.set_printoptions(precision=3, suppress=True)   # shorter, cleaner numbers
 
 mp_holistic = mp.solutions.holistic
 mp_draw = mp.solutions.drawing_utils
@@ -19,7 +22,7 @@ with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = holistic.process(rgb)
 
-        kp = frame_to_keypoints(results)
+        kp = frame_to_keypoints(results)   # the layer's output: normalized (55, 2) array
         add_frame(buffer, kp)
 
         mp_draw.draw_landmarks(frame, results.pose_landmarks, mp_holistic.POSE_CONNECTIONS)
@@ -31,12 +34,10 @@ with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=
         cv2.imshow('Camera test', frame)
 
         key = cv2.waitKey(1) & 0xFF      # call waitKey only once per loop
-        if key == ord('p'):              # press p to print the model input
-            x = buffer_to_model_input(buffer)
-            if x is None:
-                print("buffer not full yet")
-            else:
-                print("model input shape:", x.shape)   # you want (1, 55, 100)
+        if key == ord('k') and kp is not None:   # press k to print the keypoints
+            print("normalized keypoints (55, 2):")
+            print("rows 0-12 body, 13-33 left hand, 34-54 right hand")
+            print(kp)
         if key == ord('q'):
             break
 

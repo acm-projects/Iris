@@ -1,7 +1,8 @@
 import collections
 import numpy as np
 
-NUM_SAMPLES = 50   # frames the model expects (check num_samples in the TGCN config)
+NUM_SAMPLES = 50            # frames the model expects (check num_samples in the TGCN config)
+USE_SHOULDER_NORM = True    # True = shoulder-based, False = the model's original frame-based scaling
 
 
 def hand_xy(hand):
@@ -44,13 +45,26 @@ def body_xy(pose):
     return np.array(rows)
 
 
-def normalize(raw):
-    # 0..1 becomes -1..1, so the frame center is 0
+def normalize_frame(raw):
+    # the model's original scaling: 0..1 becomes -1..1 across the whole frame
     return 2 * (raw - 0.5)
 
 
+def normalize_shoulder(raw):
+    # shift so the neck is (0, 0), then scale so the shoulder width is 1
+    neck = raw[1]
+    shoulder_width = np.linalg.norm(raw[2] - raw[5])   # right shoulder to left shoulder
+    if shoulder_width < 1e-6:
+        return None                                    # can't scale, caller repeats the last frame
+
+    missing = np.all(raw == 0, axis=1)                 # points that were never detected
+    out = (raw - neck) / shoulder_width
+    out[missing] = 0                                   # keep missing points as 0, not garbage
+    return out.astype(np.float32)
+
+
 def frame_to_keypoints(results):
-    """MediaPipe results -> normalized (55, 2) array, or None if no body."""
+    """MediaPipe results -> normalized (55, 2) array, or None if unusable."""
     body = body_xy(results.pose_landmarks)
     if body is None:
         return None
@@ -58,13 +72,16 @@ def frame_to_keypoints(results):
     left = hand_xy(results.left_hand_landmarks)
     right = hand_xy(results.right_hand_landmarks)
 
-    raw = np.zeros((55, 2), dtype=np.float32)   # undetected stays 0 (becomes -1 after normalize)
+    raw = np.zeros((55, 2), dtype=np.float32)   # undetected stays 0
     raw[0:13] = body
     if left is not None:
         raw[13:34] = left
     if right is not None:
         raw[34:55] = right
-    return normalize(raw)
+
+    if USE_SHOULDER_NORM:
+        return normalize_shoulder(raw)
+    return normalize_frame(raw)
 
 
 def new_buffer():
@@ -73,7 +90,7 @@ def new_buffer():
 
 def add_frame(buffer, kp):
     if kp is None and len(buffer) > 0:
-        kp = buffer[-1]          # nothing detected: repeat the previous frame
+        kp = buffer[-1]          # nothing usable: repeat the previous frame
     if kp is not None:
         buffer.append(kp)
 
