@@ -40,6 +40,167 @@ def make_detection(side, score, landmarks):
     return landmarks, [category]
 
 
+class PivotNormalizationTests(unittest.TestCase):
+    def setUp(self):
+        indices = np.arange(55, dtype=np.float32)
+        self.points = np.column_stack((100 + indices * 3, 250 - indices * 2))
+        self.points[1] = (180, 120)
+        self.points[2] = (220, 120)
+        self.points[5] = (140, 120)
+
+    def test_pivots_are_zero_and_scale_references_have_unit_length(self):
+        actual = normalize_landmarks(self.points)
+        for pivot in (1, 13, 34):
+            np.testing.assert_array_equal(actual[pivot], [0, 0])
+        for a, b in ((2, 5), (13, 22), (34, 43)):
+            self.assertAlmostEqual(float(np.linalg.norm(actual[a] - actual[b])), 1, places=6)
+        np.testing.assert_allclose(actual[2], [0.5, 0], atol=1e-6)
+        np.testing.assert_allclose(actual[5], [-0.5, 0], atol=1e-6)
+        np.testing.assert_allclose(actual[0], [-1, 1.625], atol=1e-6)
+
+    def test_translation_and_uniform_scale_preserve_all_xy_coordinates(self):
+        expected = normalize_landmarks(self.points)
+        for scale in (0.25, 0.5, 2, 4):
+            with self.subTest(scale=scale):
+                actual = normalize_landmarks(self.points * scale + [35, -20])
+                np.testing.assert_allclose(actual, expected, atol=1e-6)
+
+    def test_each_hand_can_move_and_scale_independently(self):
+        expected = normalize_landmarks(self.points)
+        for start, end in ((13, 34), (34, 55)):
+            with self.subTest(hand=start):
+                points = self.points.copy()
+                points[start:end] = points[start:end] * 2.5 + [70, -90]
+                np.testing.assert_allclose(normalize_landmarks(points), expected, atol=1e-6)
+
+    def test_missing_or_degenerate_references_mask_only_their_group(self):
+        expected = normalize_landmarks(self.points)
+        for start, end, pivot, a, b in ((0, 13, 1, 2, 5),
+                                      (13, 34, 13, 13, 22),
+                                      (34, 55, 34, 34, 43)):
+            for failure in ('pivot', 'scale', 'zero scale'):
+                with self.subTest(group=start, failure=failure):
+                    points = self.points.copy()
+                    if failure == 'pivot':
+                        points[pivot] = [np.nan, 0]
+                    elif failure == 'scale':
+                        points[b] = [0, np.inf]
+                    else:
+                        points[b] = points[a]
+                    actual = normalize_landmarks(points)
+                    np.testing.assert_array_equal(actual[start:end], -np.ones((end-start, 2)))
+                    other = np.ones(55, dtype=bool)
+                    other[start:end] = False
+                    np.testing.assert_array_equal(actual[other], expected[other])
+                    self.assertTrue(np.isfinite(actual).all())
+
+    def test_missing_nonreference_point_is_masked_without_mutation(self):
+        self.points[18] = [np.nan, 42]
+        original = self.points.copy()
+        actual = normalize_landmarks(self.points)
+        np.testing.assert_array_equal(actual[18], [-1, -1])
+        np.testing.assert_array_equal(actual[13], [0, 0])
+        np.testing.assert_array_equal(self.points, original)
+        self.assertEqual(actual.dtype, np.float32)
+
+    def test_training_json_and_live_coordinates_use_identical_normalization(self):
+        from sign_dataset import read_pose_file
+        retained = [0, 1, 2, 3, 4, 5, 6, 7, 8, 15, 16, 17, 18]
+        body = np.zeros((25, 3), dtype=np.float32)
+        body[retained, :2] = self.points[:13]
+        body[retained, 2] = 1
+        left = np.column_stack((self.points[13:34], np.ones(21)))
+        right = np.column_stack((self.points[34:], np.ones(21)))
+        # Training and MediaPipe both mark this point as missing.
+        left[5] = 0
+        points = self.points.copy()
+        points[18] = np.nan
+        content = {'people': [{
+            'pose_keypoints_2d': body.ravel().tolist(),
+            'hand_left_keypoints_2d': left.ravel().tolist(),
+            'hand_right_keypoints_2d': right.ravel().tolist(),
+        }]}
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'image_00001_keypoints.json'
+            path.write_text(json.dumps(content), encoding='utf-8')
+            actual = read_pose_file(str(path)).numpy()
+        np.testing.assert_allclose(actual, normalize_landmarks(points), atol=1e-6)
+
+    def test_pixel_threshold_for_all_groups_and_dataset_parity(self):
+        from landmark_normalization import MIN_SCALE_PIXELS
+        from sign_dataset import read_pose_file
+        groups = ((0, 13, 2, 5), (13, 34, 13, 22), (34, 55, 34, 43))
+        for start, end, a, b in groups:
+            for distance in (1e-5, 0.5, MIN_SCALE_PIXELS, 2.0):
+                with self.subTest(group=start, distance=distance):
+                    points = self.points.copy()
+                    points[a] = [100, 100]
+                    points[b] = [100 + distance, 100]
+                    original = points.copy()
+                    actual = normalize_landmarks(points)
+                    baseline = normalize_landmarks(self.points)
+                    other = np.ones(55, dtype=bool)
+                    other[start:end] = False
+                    np.testing.assert_array_equal(actual[other], baseline[other])
+                    if distance < MIN_SCALE_PIXELS:
+                        np.testing.assert_array_equal(actual[start:end], -np.ones((end-start, 2)))
+                    else:
+                        self.assertAlmostEqual(float(np.linalg.norm(actual[a]-actual[b])), 1)
+                    self.assertTrue(np.isfinite(actual).all())
+                    self.assertEqual(actual.dtype, np.float32)
+                    np.testing.assert_array_equal(points, original)
+                    body = np.ones((25, 3), dtype=np.float32)
+                    body[[0,1,2,3,4,5,6,7,8,15,16,17,18], :2] = points[:13]
+                    content = {'people': [{
+                        'pose_keypoints_2d': body.ravel().tolist(),
+                        'hand_left_keypoints_2d': np.column_stack((points[13:34], np.ones(21))).ravel().tolist(),
+                        'hand_right_keypoints_2d': np.column_stack((points[34:], np.ones(21))).ravel().tolist(),
+                    }]}
+                    with tempfile.TemporaryDirectory() as directory:
+                        path = Path(directory) / 'pose.json'
+                        path.write_text(json.dumps(content))
+                        np.testing.assert_array_equal(read_pose_file(path).numpy(), actual)
+
+
+class CheckpointCompatibilityTests(unittest.TestCase):
+    def test_compatible_incompatible_unknown_and_missing_audits(self):
+        from checkpoint_compatibility import PreprocessingAudit, require_compatible
+        require_compatible(PreprocessingAudit('compatible', 'Synthetic reviewed fixture'))
+        for status in ('incompatible', 'unknown', 'invalid'):
+            with self.subTest(status=status), self.assertRaisesRegex(RuntimeError, 'predictions blocked'):
+                require_compatible(PreprocessingAudit(status, 'Synthetic fixture'))
+        with self.assertRaises(RuntimeError):
+            require_compatible(None)
+
+    def test_synthetic_compatible_model_can_predict(self):
+        import torch
+        from mediapipe_preview import predict_top_words
+        from checkpoint_compatibility import PreprocessingAudit
+        class FixtureModel:
+            preprocessing_audit = PreprocessingAudit('compatible', 'Synthetic reviewed fixture')
+            def __call__(self, inputs):
+                self.shape = tuple(inputs.shape)
+                return torch.arange(100, dtype=torch.float32).reshape(1, 100)
+        model = FixtureModel()
+        result = predict_top_words(model, [str(i) for i in range(100)], 'cpu',
+                                   np.zeros((1,55,100), dtype=np.float32))
+        self.assertEqual(model.shape, (1,55,100))
+        self.assertEqual([word for word, score in result], ['99', '98', '97'])
+
+    def test_actual_checkpoint_is_blocked_before_loading_weights(self):
+        from mediapipe_preview import load_asl100_model
+        with self.assertRaisesRegex(RuntimeError, 'unknown.*predictions blocked'):
+            load_asl100_model()
+
+    def test_prediction_gate_blocks_before_model_execution(self):
+        from mediapipe_preview import predict_top_words
+        from checkpoint_compatibility import PreprocessingAudit
+        for status in ('unknown', 'incompatible'):
+            model = SimpleNamespace(preprocessing_audit=PreprocessingAudit(status, 'fixture'))
+            with self.assertRaisesRegex(RuntimeError, 'predictions blocked'):
+                predict_top_words(model, ['word'] * 100, 'cpu', np.zeros((1,55,100), dtype=np.float32))
+
+
 class RemapLandmarksTests(unittest.TestCase):
     def test_maps_body_landmarks_in_model_order_and_computes_midpoints(self):
         points, detected_sides = remap_landmarks(
@@ -160,20 +321,6 @@ class RemapLandmarksTests(unittest.TestCase):
             [[landmark.x, landmark.y] for landmark in higher_score_hand],
         )
         self.assertTrue(np.isnan(points[34:]).all())
-
-    def test_normalizes_coordinates_and_maps_missing_points_to_training_sentinel(self):
-        points = np.array([[0.0, 0.5], [1.0, np.nan]], dtype=np.float32)
-        points = np.concatenate(
-            [points, np.zeros((53, 2), dtype=np.float32)],
-            axis=0,
-        )
-
-        normalized = normalize_landmarks(points)
-
-        self.assertEqual(normalized.dtype, np.float32)
-        np.testing.assert_allclose(normalized[0], [-1.0, 0.0])
-        np.testing.assert_allclose(normalized[1], [-1.0, -1.0])
-        self.assertTrue(np.isfinite(normalized).all())
 
     def test_normalization_rejects_wrong_landmark_shape(self):
         with self.assertRaisesRegex(ValueError, "Expected \\(55, 2\\)"):

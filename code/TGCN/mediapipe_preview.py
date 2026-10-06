@@ -1,4 +1,4 @@
-import json
+﻿import json
 from pathlib import Path
 import time
 import numpy as np
@@ -9,9 +9,10 @@ import torch
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
+from landmark_normalization import NORMALIZATION_VERSION, preprocess_keypoints
+from checkpoint_compatibility import ASL100_AUDIT, require_compatible
 from configs import Config
 from tgcn_model import GCN_muti_att
-
 
 MODEL_DIR = Path(__file__).resolve().parent / "mediapipe_models"
 CHECKPOINT_DIR = Path(__file__).resolve().parent / "checkpoints" / "asl100"
@@ -54,207 +55,15 @@ def draw_connections(frame, landmarks, connections, color):
         ):
             cv2.line(frame, start_xy, end_xy, color, 2)
 
-def remap_landmarks(pose_result, hand_result):
-    # NaN marks missing coordinates during this debugging stage.
-    points = np.full((55, 2), np.nan, dtype=np.float32)
-
-    if pose_result.pose_landmarks:
-        pose = pose_result.pose_landmarks[0]
-
-        def xy(index):
-            return np.array(
-                [pose[index].x, pose[index].y],
-                dtype=np.float32,
-            )
-
-        # Retained OpenPose BODY_25 order.
-        points[:13] = np.array([
-            xy(0),                  # Nose
-            (xy(11) + xy(12)) / 2,  # Estimated neck
-            xy(12),                 # Right shoulder
-            xy(14),                 # Right elbow
-            xy(16),                 # Right wrist
-            xy(11),                 # Left shoulder
-            xy(13),                 # Left elbow
-            xy(15),                 # Left wrist
-            (xy(23) + xy(24)) / 2,  # Hip midpoint
-            xy(5),                  # Right eye
-            xy(2),                  # Left eye
-            xy(8),                  # Right ear
-            xy(7),                  # Left ear
-        ])
-
-    # Use handedness labels, not detection-list order.
-    best_score = {"Left": -1.0, "Right": -1.0}
-    detected_sides = []
-
-    for landmarks, categories in zip(
-        hand_result.hand_landmarks,
-        hand_result.handedness,
-    ):
-        if not categories:
-            continue
-
-        category = categories[0]
-        side = category.category_name
-        detected_sides.append(side)
-
-        if side not in best_score or len(landmarks) != 21:
-            continue
-
-        # If two detections receive the same label, keep the stronger one.
-        if category.score <= best_score[side]:
-            continue
-
-        best_score[side] = category.score
-        start = 13 if side == "Left" else 34
-
-        points[start:start + 21] = np.array(
-            [[landmark.x, landmark.y] for landmark in landmarks],
-            dtype=np.float32,
-        )
-
-    return points, detected_sides
-
-def normalize_landmarks(points):
-    """Map full-frame MediaPipe coordinates to [-1, 1] provisionally.
-
-    The original OpenPose loader divides pixel coordinates by 256, but the
-    training crop origin and exact relationship between that crop and the
-    keypoint coordinates are not established. This assumes MediaPipe's
-    normalized coordinates span the model's coordinate frame; it does not
-    reproduce the paper's person-box diagonal scaling.
-
-    A point with either coordinate missing maps to (-1, -1), matching an
-    undetected OpenPose point encoded as (0, 0) by the original loader.
-    """
-    points = np.asarray(points, dtype=np.float32)
-    if points.shape != (MODEL_NUM_LANDMARKS, 2):
-        raise ValueError(
-            f"Expected ({MODEL_NUM_LANDMARKS}, 2) landmarks; got {points.shape}."
-        )
-
-    normalized = 2.0 * points - 1.0
-    point_is_valid = np.isfinite(points).all(axis=1)
-    normalized[~point_is_valid] = MODEL_MISSING_COORDINATE
-    return normalized.astype(np.float32, copy=False)
-
-
-def assemble_model_input(normalized_frames):
-    """Pack 50 normalized frames as (1, 55, 100), preserving frame order."""
-    frames = np.asarray(normalized_frames, dtype=np.float32)
-    expected_shape = (MODEL_NUM_FRAMES, MODEL_NUM_LANDMARKS, 2)
-    if frames.shape != expected_shape:
-        raise ValueError(
-            f"Expected {expected_shape} normalized frames; got {frames.shape}."
-        )
-    if not np.isfinite(frames).all():
-        raise ValueError("Model input cannot contain NaN or infinite coordinates.")
-
-    return frames.transpose(1, 0, 2).reshape(
-        1,
-        MODEL_NUM_LANDMARKS,
-        MODEL_NUM_FRAMES * 2,
-    )
-
-
-def prepare_recording(records, num_frames=MODEL_NUM_FRAMES):
-    """Select/pad a recording to a fixed count without dropping missing frames.
-
-    Long recordings use a consecutive middle window, with an odd extra frame
-    taken from the end of that window. Short recordings repeat the last frame
-    and timestamp. No temporal interpolation or compression is performed.
-    """
-    if not records:
-        raise ValueError("No frames were recorded; press R before S.")
-    if num_frames <= 0:
-        raise ValueError("The prepared frame count must be positive.")
-
-    validated_records = []
-    for index, record in enumerate(records):
-        if len(record) != 2:
-            raise ValueError(
-                f"Recorded item {index} must contain a timestamp and landmarks."
-            )
-        timestamp, points = record
-        try:
-            timestamp = float(timestamp)
-        except (TypeError, ValueError) as error:
-            raise ValueError(
-                f"Recorded item {index} has an invalid timestamp."
-            ) from error
-        if not np.isfinite(timestamp):
-            raise ValueError(f"Recorded item {index} has a non-finite timestamp.")
-
-        points = np.asarray(points, dtype=np.float32)
-        if points.shape != (MODEL_NUM_LANDMARKS, 2):
-            raise ValueError(
-                f"Recorded item {index} has landmark shape {points.shape}; "
-                f"expected ({MODEL_NUM_LANDMARKS}, 2)."
-            )
-        validated_records.append((timestamp, points))
-
-    if len(validated_records) > num_frames:
-        start = (len(validated_records) - num_frames) // 2
-        validated_records = validated_records[start:start + num_frames]
-    elif len(validated_records) < num_frames:
-        validated_records.extend(
-            [validated_records[-1]] * (num_frames - len(validated_records))
-        )
-
-    timestamps = [timestamp for timestamp, _ in validated_records]
-    frames = np.stack([points for _, points in validated_records])
-    return frames, timestamps
-
-
-def count_missing_points(frames):
-    """Count missing joint observations by body, left hand, and right hand."""
-    frames = np.asarray(frames)
-    if frames.ndim != 3 or frames.shape[1:] != (MODEL_NUM_LANDMARKS, 2):
-        raise ValueError(
-            "Expected frames shaped (T, 55, 2) to count missing landmarks."
-        )
-    point_missing = ~np.isfinite(frames).all(axis=2)
-    return (
-        int(point_missing[:, :13].sum()),
-        int(point_missing[:, 13:34].sum()),
-        int(point_missing[:, 34:55].sum()),
-    )
-
-
-def class_labels_from_entries(entries, expected_class_count=100):
-    """Match Sign_Dataset's alphabetically sorted gloss-label encoding."""
-    if not isinstance(entries, list):
-        raise ValueError("ASL split JSON must contain a list of gloss entries.")
-    labels = []
-    for index, entry in enumerate(entries):
-        gloss = entry.get("gloss") if isinstance(entry, dict) else None
-        if not isinstance(gloss, str) or not gloss:
-            raise ValueError(f"ASL split entry {index} has no valid gloss label.")
-        labels.append(gloss)
-
-    sorted_labels = sorted(labels)
-    if len(sorted_labels) != expected_class_count:
-        raise ValueError(
-            f"Expected {expected_class_count} gloss labels; "
-            f"found {len(sorted_labels)}."
-        )
-    if len(set(sorted_labels)) != expected_class_count:
-        raise ValueError(
-            f"Expected {expected_class_count} unique gloss labels; "
-            f"found {len(set(sorted_labels))}."
-        )
-    return sorted_labels
-
-
-def load_class_labels(split_file=SPLIT_FILE, expected_class_count=100):
-    with open(split_file, "r", encoding="utf-8") as split:
-        entries = json.load(split)
-    return class_labels_from_entries(entries, expected_class_count)
+from inference_utils import (
+    remap_landmarks, normalize_landmarks, assemble_model_input, prepare_recording,
+    count_missing_points, class_labels_from_entries, load_class_labels,
+)
 
 
 def load_asl100_model():
     """Load and validate the matching ASL100 configuration and checkpoint."""
+    require_compatible(ASL100_AUDIT)
     config_path = CHECKPOINT_DIR / "config.ini"
     checkpoint_path = CHECKPOINT_DIR / "pytorch_model.bin"
     for required_path in (config_path, checkpoint_path, SPLIT_FILE):
@@ -293,6 +102,7 @@ def load_asl100_model():
             "refusing to run inference."
         )
 
+    model.preprocessing_audit = ASL100_AUDIT
     model.eval()
     print(f"Loaded ASL100 model on {device}; labels: {len(labels)}")
     return model, labels, device, config
@@ -313,6 +123,7 @@ def predict_top_words(model, labels, device, model_input):
     if len(labels) != 100:
         raise ValueError(f"Expected 100 class labels; got {len(labels)}.")
 
+    require_compatible(getattr(model, "preprocessing_audit", None))
     input_tensor = torch.from_numpy(model_input).to(device)
     with torch.inference_mode():
         logits = model(input_tensor)
@@ -350,7 +161,11 @@ def format_landmark_debug(points, normalized_points, detected_sides):
     )
 
 def main():
-    model, labels, device, config = load_asl100_model()
+    try:
+        model, labels, device, config = load_asl100_model()
+    except (RuntimeError, ValueError, OSError) as error:
+        model, labels, device, config = None, None, None, None
+        print(f"Predictions disabled: {error}")
     recording = []
     recording_active = False
     prediction_lines = []
@@ -410,6 +225,9 @@ def main():
                 hand_result = hands.detect_for_video(image, timestamp)
 
                 points, detected_sides = remap_landmarks(pose_result, hand_result)
+                # Convert to pixels so x/y distances respect camera aspect ratio.
+                height, width = frame.shape[:2]
+                points *= np.array([width, height], dtype=np.float32)
 
                 normalized_points = normalize_landmarks(points)
                 if recording_active:
@@ -500,7 +318,7 @@ def main():
                     try:
                         frames, frame_timestamps = prepare_recording(
                             recording,
-                            config.num_samples,
+                            MODEL_NUM_FRAMES,
                         )
                         missing_body, missing_left, missing_right = (
                             count_missing_points(frames)
@@ -517,6 +335,11 @@ def main():
                             f"all_finite={input_is_finite}"
                         )
                         print(input_diagnostic)
+                        if model is None:
+                            prediction_lines = []
+                            message = f"Recording stopped: {captured_count} frames. Predictions disabled."
+                            print(message)
+                            continue
                         top_words = predict_top_words(
                             model,
                             labels,

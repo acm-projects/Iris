@@ -10,6 +10,7 @@ import torch
 import torch.nn as nn
 
 import utils
+from landmark_normalization import NORMALIZATION_VERSION, preprocess_keypoints
 
 from torch.utils.data import Dataset
 from sklearn.preprocessing import OneHotEncoder, LabelEncoder
@@ -29,83 +30,37 @@ def compute_difference(x):
     return diff
 
 
-def read_pose_file(filepath):
+def read_pose_file(filepath, preprocessing=NORMALIZATION_VERSION):
     body_pose_exclude = {9, 10, 11, 22, 23, 24, 12, 13, 14, 19, 20, 21}
 
     try:
-        content = json.load(open(filepath))["people"][0]
+        with open(filepath, encoding="utf-8") as pose_file:
+            content = json.load(pose_file)["people"][0]
     except IndexError:
         return None
 
-    path_parts = os.path.split(filepath)
-
-    frame_id = path_parts[1][:11]
-    vid = os.path.split(path_parts[0])[-1]
-
-    save_to = os.path.join('/home/dxli/workspace/nslt/code/Pose-GCN/posegcn/features', vid)
-
-    try:
-        ft = torch.load(os.path.join(save_to, frame_id + '_ft.pt'))
-
-        xy = ft[:, :2]
-        # angles = torch.atan(ft[:, 110:]) / 90
-        # ft = torch.cat([xy, angles], dim=1)
-        return xy
-
-    except FileNotFoundError:
-        print(filepath)
-        body_pose = content["pose_keypoints_2d"]
-        left_hand_pose = content["hand_left_keypoints_2d"]
-        right_hand_pose = content["hand_right_keypoints_2d"]
-
-        body_pose.extend(left_hand_pose)
-        body_pose.extend(right_hand_pose)
-
-        x = [v for i, v in enumerate(body_pose) if i % 3 == 0 and i // 3 not in body_pose_exclude]
-        y = [v for i, v in enumerate(body_pose) if i % 3 == 1 and i // 3 not in body_pose_exclude]
-        # conf = [v for i, v in enumerate(body_pose) if i % 3 == 2 and i // 3 not in body_pose_exclude]
-
-        x = 2 * ((torch.FloatTensor(x) / 256.0) - 0.5)
-        y = 2 * ((torch.FloatTensor(y) / 256.0) - 0.5)
-        # conf = torch.FloatTensor(conf)
-
-        x_diff = torch.FloatTensor(compute_difference(x)) / 2
-        y_diff = torch.FloatTensor(compute_difference(y)) / 2
-
-        zero_indices = (x_diff == 0).nonzero()
-
-        orient = y_diff / x_diff
-        orient[zero_indices] = 0
-
-        xy = torch.stack([x, y]).transpose_(0, 1)
-
-        ft = torch.cat([xy, x_diff, y_diff, orient], dim=1)
-
-        path_parts = os.path.split(filepath)
-
-        frame_id = path_parts[1][:11]
-        vid = os.path.split(path_parts[0])[-1]
-
-        save_to = os.path.join('code/Pose-GCN/posegcn/features', vid)
-        if not os.path.exists(save_to):
-            os.mkdir(save_to)
-        torch.save(ft, os.path.join(save_to, frame_id + '_ft.pt'))
-
-        xy = ft[:, :2]
-        # angles = torch.atan(ft[:, 110:]) / 90
-        # ft = torch.cat([xy, angles], dim=1)
-        #
-        return xy
-
-    # return ft
+    # Read raw JSON every time: legacy feature caches use incompatible affine
+    # coordinates and must not bypass the shared pivot normalization.
+    body = np.asarray(content["pose_keypoints_2d"], dtype=np.float32).reshape(-1, 3)
+    left = np.asarray(content["hand_left_keypoints_2d"], dtype=np.float32).reshape(-1, 3)
+    right = np.asarray(content["hand_right_keypoints_2d"], dtype=np.float32).reshape(-1, 3)
+    retained = [index for index in range(25) if index not in body_pose_exclude]
+    landmarks = np.concatenate((body[retained], left, right))
+    points = landmarks[:, :2].copy()
+    # OpenPose uses (0,0) and zero confidence for undetected joints.
+    missing = (landmarks[:, 2] <= 0) | (points == 0).all(axis=1)
+    if preprocessing == NORMALIZATION_VERSION:
+        points[missing] = np.nan
+    return torch.from_numpy(preprocess_keypoints(points, preprocessing))
 
 
 class Sign_Dataset(Dataset):
     def __init__(self, index_file_path, split, pose_root, sample_strategy='rnd_start', num_samples=25, num_copies=4,
-                 img_transforms=None, video_transforms=None, test_index_file=None):
+                 img_transforms=None, video_transforms=None, test_index_file=None, preprocessing=NORMALIZATION_VERSION):
         assert os.path.exists(index_file_path), "Non-existent indexing file path: {}.".format(index_file_path)
         assert os.path.exists(pose_root), "Path to poses does not exist: {}.".format(pose_root)
 
+        self.preprocessing = preprocessing
         self.data = []
         self.label_encoder, self.onehot_encoder = LabelEncoder(), OneHotEncoder(categories='auto')
 
@@ -191,7 +146,7 @@ class Sign_Dataset(Dataset):
             pose_path = os.path.join(self.pose_root, video_id, self.framename.format(str(i).zfill(5)))
             # pose = cv2.imread(frame_path, cv2.COLOR_BGR2RGB)
             try:
-                pose = read_pose_file(pose_path)
+                pose = read_pose_file(pose_path, self.preprocessing)
             except OSError:
                 print("Skipping unreadable keypoint file:", pose_path)
                 pose = None

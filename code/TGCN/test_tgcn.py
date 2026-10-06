@@ -91,13 +91,20 @@ def compute_top_n_accuracy(truths, preds, n):
 if __name__ == '__main__':
 
     root = r'C:\Users\hi\OneDrive\Documents\ACM\Cue\WLASL'
-    trained_on = 'asl2000'
+    trained_on = 'asl100'
+    #testing bc the training on model isnt asl 100 and im js checking
+    
+    hf_root = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    'checkpoints',
+    'asl100'
+)
 
-    hf_root = os.path.expanduser(
-        r'~\.cache\huggingface\hub\models--sharonn18--tgcn-wlasl'
-        r'\snapshots\dacb4568719caa03c44764034f599a9f8a0f63f4'
-        r'\checkpoints\asl2000'
-    )
+    config_file = os.path.join(hf_root, 'config.ini')
+    checkpoint_file = os.path.join(hf_root, 'pytorch_model.bin')
+
+    configs = Config(config_file)
+    
 
     split_file = os.path.join(root, 'data', 'splits', '{}.json'.format(trained_on))
     pose_data_root = os.path.join(
