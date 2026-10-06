@@ -45,6 +45,11 @@ venv.bak/
 
 # production
 /build
+!/build/
+/build/*
+!/build/icon.png
+/build/dev/
+/release/
 
 # misc
 .DS_Store
