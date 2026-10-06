@@ -24,7 +24,7 @@ app.setName("Iris");
 
 function assetPath(filename: string) {
   return process.env.VITE_DEV_SERVER_URL
-    ? path.join(process.cwd(), "public", filename)
+    ? path.join(process.cwd(), "assets", filename)
     : app.isPackaged
       ? path.join(process.resourcesPath, "brand", filename)
       : path.join(__dirname, "../../dist", filename);

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
-import type { Meeting } from "../App";
-import type { GoogleEvent } from "../lib/google";
+import type { Meeting } from "../../App";
+import type { GoogleEvent } from "../../utils/google";
 import {
   DEFAULT_GOOGLE_COLOR,
   DEFAULT_IRIS_COLOR,
@@ -9,8 +9,8 @@ import {
   colorHex,
   isEventColor,
   type EventColorKey,
-} from "../lib/colors";
-import "./calendar-page.css";
+} from "../../utils/colors";
+import "../css/calendar-page.css";
 
 type View = "month" | "week" | "day";
 type CalendarItem = {

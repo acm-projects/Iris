@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { PASSWORD_HINT, type AuthNotice } from "../lib/auth";
+import { PASSWORD_HINT, type AuthNotice } from "../../utils/auth";
 import { AuthMessage, AuthShell, Field, PasswordInput } from "./LoginPage";
 type Props = {
   email: string;

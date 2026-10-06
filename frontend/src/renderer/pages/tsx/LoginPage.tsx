@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
-import type { AuthNotice } from "../lib/auth";
-import "./auth.css";
+import type { AuthNotice } from "../../utils/auth";
+import "../css/auth.css";
 type Props = {
   email: string;
   password: string;

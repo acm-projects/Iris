@@ -1,5 +1,5 @@
 import type { FormEvent } from "react";
-import type { AuthNotice } from "../lib/auth";
+import type { AuthNotice } from "../../utils/auth";
 import { AuthMessage, AuthShell, Field } from "./LoginPage";
 
 /** Asks for an email and sends a password reset link to it. */

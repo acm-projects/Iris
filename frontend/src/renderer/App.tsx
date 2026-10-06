@@ -5,7 +5,7 @@ import {
   getSupabase,
   isSupabaseConfigured,
   oauthRedirectUrl,
-} from "./lib/supabase";
+} from "./utils/supabase";
 import {
   clearGoogleToken,
   googleCalendarScope,
@@ -14,22 +14,22 @@ import {
   loadGoogleToken,
   normalizeMeetUrl,
   saveGoogleToken,
-} from "./lib/google";
+} from "./utils/google";
 import {
   friendlyAuthError,
   passwordProblem,
   type AuthNotice,
-} from "./lib/auth";
+} from "./utils/auth";
 import {
   DEFAULT_IRIS_COLOR,
   googleIdFor,
   type EventColorKey,
-} from "./lib/colors";
-import HomePage from "./pages/HomePage";
-import LoginPage from "./pages/LoginPage";
-import CreateAccountPage from "./pages/CreateAccountPage";
-import ForgotPasswordPage from "./pages/ForgotPasswordPage";
-import ResetPasswordPage from "./pages/ResetPasswordPage";
+} from "./utils/colors";
+import HomePage from "./pages/tsx/HomePage";
+import LoginPage from "./pages/tsx/LoginPage";
+import CreateAccountPage from "./pages/tsx/CreateAccountPage";
+import ForgotPasswordPage from "./pages/tsx/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/tsx/ResetPasswordPage";
 
 export type Meeting = {
   id: string;

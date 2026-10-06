@@ -49,7 +49,7 @@
     "productName": "Iris",
     "directories": {
       "output": "release",
-      "buildResources": "build"
+      "buildResources": "assets"
     },
     "files": [
       "dist/**/*",
@@ -58,7 +58,7 @@
     ],
     "extraResources": [
       {
-        "from": "public",
+        "from": "assets",
         "to": "brand",
         "filter": [
           "iris-dock-light.png",
@@ -74,20 +74,20 @@
     ],
     "mac": {
       "category": "public.app-category.productivity",
-      "icon": "build/icon.png",
+      "icon": "assets/icon.png",
       "target": [
         "dmg",
         "zip"
       ]
     },
     "win": {
-      "icon": "build/icon.png",
+      "icon": "assets/icon.png",
       "target": [
         "nsis"
       ]
     },
     "linux": {
-      "icon": "build/icon.png",
+      "icon": "assets/icon.png",
       "category": "Office",
       "target": [
         "AppImage",

@@ -1,18 +1,18 @@
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
-import type { Meeting, MeetingDraft } from "../App";
-import type { GoogleEvent } from "../lib/google";
+import type { Meeting, MeetingDraft } from "../../App";
+import type { GoogleEvent } from "../../utils/google";
 import {
   DEFAULT_IRIS_COLOR,
   colorHex,
   isEventColor,
   type EventColorKey,
-} from "../lib/colors";
+} from "../../utils/colors";
 import MeetingsPage from "./MeetingsPage";
 import CalendarPage from "./CalendarPage";
 import TranslationPage from "./TranslationPage";
 import SettingsPage from "./SettingsPage";
-import Sidebar from "../components/Sidebar";
-import "./calendar.css";
+import Sidebar from "../../components/Sidebar";
+import "../css/calendar.css";
 
 type Props = {
   account: { email: string; hasPassword: boolean; providers: string[] };
