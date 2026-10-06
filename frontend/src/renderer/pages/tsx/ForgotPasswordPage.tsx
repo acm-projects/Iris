@@ -1,3 +1,4 @@
+// Forgot password screen: requests a password reset email.
 import type { FormEvent } from "react";
 import type { AuthNotice } from "../../utils/auth";
 import { AuthMessage, AuthShell, Field } from "./LoginPage";

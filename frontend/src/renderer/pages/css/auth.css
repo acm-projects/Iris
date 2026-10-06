@@ -1,3 +1,4 @@
+/* Imported by LoginPage.tsx (and SettingsPage.tsx for shared inputs). */
 /* Sign-in and create-account screens. */
 .login-shell {
   min-height: 100vh;
@@ -17,7 +18,13 @@
   overflow: hidden;
   padding: 3.5rem 4rem;
   color: #fff;
-  background: linear-gradient(150deg, #00224e 0%, #2a5c95 45%, #4376ab 62%, #0d9da4 100%);
+  background: linear-gradient(
+    150deg,
+    #00224e 0%,
+    #2a5c95 45%,
+    #4376ab 62%,
+    #0d9da4 100%
+  );
 }
 .brand-orb {
   position: absolute;
@@ -93,11 +100,6 @@
 }
 .brand-features li span {
   color: #fce688;
-}
-.brand-footnote {
-  margin: 0;
-  color: #cfe3f1;
-  font-size: 0.85rem;
 }
 
 /* Form panel */
@@ -278,9 +280,6 @@
   }
   .brand-copy {
     margin: 2.5rem 0;
-  }
-  .brand-footnote {
-    display: none;
   }
 }
 @media (prefers-reduced-motion: reduce) {

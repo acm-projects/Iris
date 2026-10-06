@@ -1,3 +1,4 @@
+// Signed-in dashboard: sidebar, Home page, and the meeting dialogs.
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import type { Meeting, MeetingDraft } from "../../App";
 import type { GoogleEvent } from "../../utils/google";
@@ -7,28 +8,40 @@ import {
   isEventColor,
   type EventColorKey,
 } from "../../utils/colors";
-import MeetingsPage from "./MeetingsPage";
 import CalendarPage from "./CalendarPage";
 import TranslationPage from "./TranslationPage";
 import SettingsPage from "./SettingsPage";
 import Sidebar from "../../components/Sidebar";
 import "../css/calendar.css";
+import { asset } from "../../utils/assets";
 
+/** Everything App passes down: user data, meetings, Google state, and actions. */
 type Props = {
-  account: { email: string; hasPassword: boolean; providers: string[] };
+  account: {
+    id: string;
+    email: string;
+    hasPassword: boolean;
+    providers: string[];
+  };
   avatarUrl: string | null;
   fileInput: React.RefObject<HTMLInputElement | null>;
   joinUrl: string;
+  googleChecked: boolean;
   googleConnected: boolean;
+  googleConnecting: boolean;
   meetingBusy: boolean;
   meetings: Meeting[];
   name: string;
   notice: string;
   now: Date;
   onAvatarChange: (event: ChangeEvent<HTMLInputElement>) => void;
-  onChangePassword: (current: string | null, next: string) => Promise<string | null>;
+  onChangePassword: (
+    current: string | null,
+    next: string,
+  ) => Promise<string | null>;
   onSendPasswordReset: () => Promise<string | null>;
   onConnectGoogle: () => void;
+  onDisconnectGoogle: () => Promise<{ revoked: boolean }>;
   onCreate: (draft: MeetingDraft) => Promise<boolean>;
   onDelete: (meeting: Meeting, keepGoogleEvent?: boolean) => Promise<boolean>;
   onDismissNotice: () => void;
@@ -41,16 +54,16 @@ type Props = {
     target: { meetingId?: string; googleEventId?: string },
     color: EventColorKey,
   ) => Promise<string | null>;
-  onShiftWeek: (days: number) => void;
   onSignOut: () => void;
   setShowCreate: (open: boolean) => void;
   showCreate: boolean;
   setShowJoin: (open: boolean) => void;
   showJoin: boolean;
-  weekStart: Date;
 };
+/** "YYYY-MM-DD" in local time, for comparing calendar days. */
 const dateKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+/** Formats an ISO timestamp as a short local time, e.g. "2:30 PM". */
 const time = (v: string) =>
   new Intl.DateTimeFormat(undefined, {
     hour: "numeric",
@@ -58,32 +71,41 @@ const time = (v: string) =>
   }).format(new Date(v));
 
 /** The full signed-in dashboard lives here; App.tsx supplies data and actions. */
+/**
+ * Signed-in shell: the sidebar plus whichever page is selected. The Home page
+ * (meeting launcher + today's schedule) is rendered here; dialogs, the Google
+ * Calendar prompt and the toast sit on top of every page.
+ */
 export default function HomePage(p: Props) {
+  // Selected sidebar page.
   const [page, setPage] = useState("Home");
   const [startMenuOpen, setStartMenuOpen] = useState(false);
   // Pre-fills the Create dialog when a day or time slot is clicked on the calendar.
   const [createAt, setCreateAt] = useState<Date | null>(null);
+  // Ask users without a Google connection to connect once per launch,
+  // unless they chose "Don't ask me again" (remembered per account).
+  const promptKey = `iris-google-prompt-dismissed:${p.account.id}`;
+  const [promptClosed, setPromptClosed] = useState(() => {
+    try {
+      return localStorage.getItem(promptKey) === "true";
+    } catch {
+      return false;
+    }
+  });
+  const showGooglePrompt =
+    p.googleChecked && !p.googleConnected && !promptClosed;
+  // Meeting waiting for delete confirmation.
   const [pendingDelete, setPendingDelete] = useState<Meeting | null>(null);
+  // Meetings that have not ended yet, and the ones happening today.
   const upcoming = p.meetings.filter(
     (meeting) => new Date(meeting.ends_at) >= p.now,
   );
   const selectedMeetings = upcoming.filter(
     (meeting) => dateKey(new Date(meeting.starts_at)) === dateKey(p.now),
   );
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(p.weekStart);
-    d.setDate(d.getDate() + i);
-    return d;
-  });
-  const Page = page === "Meetings" ? MeetingsPage : TranslationPage;
-  const greeting =
-    p.now.getHours() < 12
-      ? "Good morning"
-      : p.now.getHours() < 18
-        ? "Good afternoon"
-        : "Good evening";
   return (
     <main className="dashboard-shell">
+      {/* Left navigation */}
       <Sidebar
         active={page}
         avatarUrl={p.avatarUrl}
@@ -93,9 +115,11 @@ export default function HomePage(p: Props) {
         onNavigate={setPage}
         onSignOut={p.onSignOut}
       />
+      {/* Selected page: Calendar, Settings, a placeholder, or Home */}
       {page === "Calendar" ? (
         <CalendarPage
           googleConnected={p.googleConnected}
+          googleConnecting={p.googleConnecting}
           meetings={p.meetings}
           now={p.now}
           onConnectGoogle={p.onConnectGoogle}
@@ -110,15 +134,35 @@ export default function HomePage(p: Props) {
         />
       ) : page === "Settings" ? (
         <SettingsPage
-          {...p.account}
+          avatarUrl={p.avatarUrl}
+          email={p.account.email}
+          hasPassword={p.account.hasPassword}
+          name={p.name}
+          onChangePhoto={() => p.fileInput.current?.click()}
+          providers={p.account.providers}
+          googleConnected={p.googleConnected}
+          googleConnecting={p.googleConnecting}
+          onConnectGoogle={p.onConnectGoogle}
+          onDisconnectGoogle={async () => {
+            const result = await p.onDisconnectGoogle();
+            // They chose to disconnect, so don't nag with the connect popup.
+            setPromptClosed(true);
+            try {
+              localStorage.setItem(promptKey, "true");
+            } catch {
+              /* storage unavailable: harmless */
+            }
+            return result;
+          }}
           onChangePassword={p.onChangePassword}
           onSendReset={p.onSendPasswordReset}
         />
-      ) : page !== "Home" ? (
-        <Page />
+      ) : page === "Translation" ? (
+        <TranslationPage />
       ) : (
         <section className="calendar-dashboard">
           <div className="iris-control-center">
+            {/* Launcher: Start / Join / Schedule / Translation tiles */}
             <section className="iris-actions" aria-label="Meeting actions">
               <div className="start-action-wrap">
                 <button
@@ -195,6 +239,7 @@ export default function HomePage(p: Props) {
                 <span>Translation</span>
               </button>
             </section>
+            {/* Today's schedule: clock banner and upcoming meeting cards */}
             <section className="iris-schedule">
               <header className="iris-hero">
                 <span className="petal p1" />
@@ -216,18 +261,19 @@ export default function HomePage(p: Props) {
                   </span>
                 </div>
               </header>
-              {(selectedMeetings.length ? selectedMeetings : upcoming.slice(0, 3)).map(
-                (m) => (
-                  <MeetingCard
-                    key={m.id}
-                    meeting={m}
-                    now={p.now}
-                    onDelete={() => setPendingDelete(m)}
-                    onJoin={p.onJoin}
-                    showDate={!selectedMeetings.length}
-                  />
-                ),
-              )}
+              {(selectedMeetings.length
+                ? selectedMeetings
+                : upcoming.slice(0, 3)
+              ).map((m) => (
+                <MeetingCard
+                  key={m.id}
+                  meeting={m}
+                  now={p.now}
+                  onDelete={() => setPendingDelete(m)}
+                  onJoin={p.onJoin}
+                  showDate={!selectedMeetings.length}
+                />
+              ))}
               {!upcoming.length && (
                 <div className="schedule-empty">
                   <p>No upcoming meetings</p>
@@ -238,99 +284,9 @@ export default function HomePage(p: Props) {
               )}
             </section>
           </div>
-          <header className="calendar-header">
-            <div>
-              <h1>
-                {greeting}, {p.name}
-              </h1>
-              <p>
-                {new Intl.DateTimeFormat(undefined, {
-                  weekday: "long",
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric",
-                }).format(p.now)}
-              </p>
-            </div>
-            <div className="header-actions">
-              <button onClick={() => setPage("Calendar")}>▦ Schedule</button>
-              <button
-                onClick={() =>
-                  void navigator.mediaDevices
-                    ?.getDisplayMedia({ video: true })
-                    .then((stream) =>
-                      stream.getTracks().forEach((track) => track.stop()),
-                    )
-                }
-              >
-                ↑ Share screen
-              </button>
-              <button onClick={() => p.setShowJoin(true)}>
-                ▣ Join meeting
-              </button>
-              <button
-                className="create-button"
-                onClick={() => p.setShowCreate(true)}
-              >
-                ＋ Create meeting
-              </button>
-            </div>
-          </header>
-          <section className="week-card">
-            <header>
-              <h2>Your week</h2>
-              <div>
-                <button onClick={() => p.onShiftWeek(-7)}>‹</button>
-                <span>
-                  {new Intl.DateTimeFormat(undefined, {
-                    month: "short",
-                    day: "numeric",
-                  }).format(days[0])}{" "}
-                  –{" "}
-                  {new Intl.DateTimeFormat(undefined, {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  }).format(days[6])}
-                </span>
-                <button onClick={() => p.onShiftWeek(7)}>›</button>
-              </div>
-            </header>
-            <div className="week-days">
-              {days.map((day) => (
-                <article
-                  className={dateKey(day) === dateKey(p.now) ? "today" : ""}
-                  key={dateKey(day)}
-                >
-                  <b>
-                    {new Intl.DateTimeFormat(undefined, {
-                      weekday: "short",
-                    }).format(day)}
-                  </b>
-                  <strong>{day.getDate()}</strong>
-                  {p.meetings
-                    .filter(
-                      (m) => dateKey(new Date(m.starts_at)) === dateKey(day),
-                    )
-                    .map((m) => (
-                      <button
-                        className={`week-event event-${m.color || "blue"}`}
-                        key={m.id}
-                        onClick={() =>
-                          m.meeting_url && void p.onJoin(m.meeting_url)
-                        }
-                        type="button"
-                      >
-                        <small>{time(m.starts_at)}</small>
-                        {m.title}
-                      </button>
-                    ))}
-                </article>
-              ))}
-            </div>
-          </section>
         </section>
       )}
+      {/* Dialogs and overlays, shown on top of any page */}
       {p.showJoin && <JoinDialog {...p} />}
       {p.showCreate && (
         <CreateDialog
@@ -351,6 +307,26 @@ export default function HomePage(p: Props) {
           onDelete={p.onDelete}
         />
       )}
+      {showGooglePrompt && (
+        <GoogleCalendarPrompt
+          connecting={p.googleConnecting}
+          hasGoogle={p.account.providers.includes("google")}
+          onClose={(remember) => {
+            setPromptClosed(true);
+            if (remember)
+              try {
+                localStorage.setItem(promptKey, "true");
+              } catch {
+                /* storage unavailable: the prompt simply returns next launch */
+              }
+          }}
+          onConnect={() => {
+            setPromptClosed(true);
+            p.onConnectGoogle();
+          }}
+        />
+      )}
+      {/* Toast message (bottom-right), with Connect Google when relevant */}
       {p.notice && (
         <div className="iris-toast" role="status">
           <span>{p.notice}</span>
@@ -372,6 +348,7 @@ export default function HomePage(p: Props) {
     </main>
   );
 }
+/** Brand icon for a launcher tile, drawn as a CSS mask so CSS can colour it. */
 function ActionIcon({
   type,
 }: {
@@ -383,10 +360,13 @@ function ActionIcon({
     <i
       aria-hidden="true"
       className="action-icon"
-      style={{ ["--icon" as string]: `url(/action-icons/${type}.svg)` }}
+      style={{
+        ["--icon" as string]: `url(${asset(`action-icons/${type}.svg`)})`,
+      }}
     />
   );
 }
+/** One meeting in today's schedule: time, code, Join / Copy link, delete. */
 function MeetingCard({
   meeting,
   now,
@@ -401,6 +381,7 @@ function MeetingCard({
   showDate: boolean;
 }) {
   const [copied, setCopied] = useState(false);
+  // "Live now" from 10 minutes before the start until the meeting ends.
   const live =
     new Date(meeting.starts_at).getTime() - 10 * 60_000 <= now.getTime() &&
     new Date(meeting.ends_at) > now;
@@ -412,7 +393,9 @@ function MeetingCard({
           ? undefined
           : {
               borderLeftColor: colorHex(
-                isEventColor(meeting.color) ? meeting.color : DEFAULT_IRIS_COLOR,
+                isEventColor(meeting.color)
+                  ? meeting.color
+                  : DEFAULT_IRIS_COLOR,
               ),
             }
       }
@@ -496,6 +479,7 @@ function Modal({
   onClose: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
+  // Close on Escape.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -528,6 +512,71 @@ function Modal({
     </div>
   );
 }
+/** Popup asking the user to connect (or reconnect) Google Calendar. */
+function GoogleCalendarPrompt({
+  connecting,
+  hasGoogle,
+  onClose,
+  onConnect,
+}: {
+  connecting: boolean;
+  hasGoogle: boolean;
+  onClose: (remember: boolean) => void;
+  onConnect: () => void;
+}) {
+  const [remember, setRemember] = useState(false);
+  return (
+    <Modal
+      className="google-prompt"
+      label={
+        hasGoogle ? "Reconnect Google Calendar" : "Connect Google Calendar"
+      }
+      onClose={() => onClose(remember)}
+      onSubmit={(event) => {
+        event.preventDefault();
+        onConnect();
+      }}
+    >
+      <p className="modal-copy">
+        {hasGoogle
+          ? "Your Google Calendar connection has expired. Reconnect to keep your calendar in sync."
+          : "Link your Google account so Iris can work with your schedule."}
+      </p>
+      <ul className="google-prompt-list">
+        <li>See your Google Calendar events in the Calendar tab</li>
+        <li>Create meetings with Google Meet links in one click</li>
+        <li>Keep colours and changes in sync both ways</li>
+      </ul>
+      <label className="google-prompt-remember">
+        <input
+          checked={remember}
+          onChange={(event) => setRemember(event.target.checked)}
+          type="checkbox"
+        />
+        Don't ask me again
+      </label>
+      <div className="modal-actions">
+        <button
+          className="modal-secondary"
+          onClick={() => onClose(remember)}
+          type="button"
+        >
+          Not now
+        </button>
+        <button
+          autoFocus
+          className="modal-connect"
+          disabled={connecting}
+          type="submit"
+        >
+          <span aria-hidden="true" className="google-mark" />
+          {connecting ? "Opening Google…" : "Connect Google Calendar"}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+/** Join a meeting: paste a Meet link or code and open it in the browser. */
 function JoinDialog(p: Props) {
   const [joining, setJoining] = useState(false);
   return (
@@ -569,6 +618,10 @@ function JoinDialog(p: Props) {
     </Modal>
   );
 }
+/**
+ * Create meeting: name, date/time, duration, accessibility, and either a new
+ * Meet link (via Google Calendar) or an existing/pasted one.
+ */
 function CreateDialog(p: Props & { initialStart?: Date | null }) {
   const [generate, setGenerate] = useState(true);
   // Past slots fall back to the next half hour today so the form stays valid.
@@ -621,12 +674,7 @@ function CreateDialog(p: Props & { initialStart?: Date | null }) {
         </label>
         <label>
           Time
-          <input
-            defaultValue={startTime}
-            name="time"
-            required
-            type="time"
-          />
+          <input defaultValue={startTime} name="time" required type="time" />
         </label>
       </div>
       <div className="modal-fields">
@@ -649,6 +697,7 @@ function CreateDialog(p: Props & { initialStart?: Date | null }) {
           </select>
         </label>
       </div>
+      {/* Generate a Meet link vs. use an existing one */}
       <fieldset className="link-choice">
         <legend>Google Meet link</legend>
         <label className={generate ? "selected" : ""}>
@@ -704,6 +753,7 @@ function CreateDialog(p: Props & { initialStart?: Date | null }) {
     </Modal>
   );
 }
+/** Confirms deleting a meeting from Iris (and from Google Calendar if linked). */
 function DeleteDialog({
   googleConnected,
   meeting,
@@ -743,8 +793,8 @@ function DeleteDialog({
           day: "numeric",
         }).format(new Date(meeting.starts_at))}{" "}
         at {time(meeting.starts_at)} will be removed
-        {inGoogle ? " from Iris and your Google Calendar." : " from Iris."}{" "}
-        This can't be undone.
+        {inGoogle ? " from Iris and your Google Calendar." : " from Iris."} This
+        can't be undone.
       </p>
       {inGoogle && !googleConnected && (
         <div className="google-connect">
@@ -787,6 +837,7 @@ function meetingCode(url: string | null) {
     return null;
   }
 }
+/** Default start time for new meetings: the next :00 or :30. */
 function nextHalfHour(now: Date) {
   const next = new Date(now);
   next.setMinutes(now.getMinutes() < 30 ? 30 : 60, 0, 0);

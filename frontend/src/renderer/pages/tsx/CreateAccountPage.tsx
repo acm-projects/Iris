@@ -1,6 +1,8 @@
+// Create account screen.
 import { useState, type FormEvent } from "react";
 import { PASSWORD_HINT, type AuthNotice } from "../../utils/auth";
 import { AuthMessage, AuthShell, Field, PasswordInput } from "./LoginPage";
+/** Values and actions App passes to the sign-up screen. */
 type Props = {
   email: string;
   password: string;
@@ -11,7 +13,9 @@ type Props = {
   onSubmit: (e: FormEvent<HTMLFormElement>) => void;
   onSwitch: () => void;
 };
+/** Sign-up screen: email, password + confirmation (checked in App.signUp). */
 export default function CreateAccountPage(p: Props) {
+  // The confirmation is only needed here; App reads it from the form on submit.
   const [confirm, setConfirm] = useState("");
   return (
     <AuthShell
@@ -30,11 +34,7 @@ export default function CreateAccountPage(p: Props) {
             value={p.email}
           />
         </Field>
-        <Field
-          hint={PASSWORD_HINT}
-          htmlFor="signup-password"
-          label="Password"
-        >
+        <Field hint={PASSWORD_HINT} htmlFor="signup-password" label="Password">
           <PasswordInput
             autoComplete="new-password"
             id="signup-password"

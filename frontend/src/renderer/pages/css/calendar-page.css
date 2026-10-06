@@ -1,3 +1,4 @@
+/* Imported by CalendarPage.tsx. */
 /* Calendar page: a calm, Notion-like layout in the Iris palette. */
 .calendar-page {
   --cal-line: #e9edf3;
@@ -450,11 +451,7 @@
       transparent 0 51px,
       var(--cal-line) 51px 52px
     ),
-    repeating-linear-gradient(
-      to bottom,
-      transparent 0 25px,
-      #f3f5f8 25px 26px
-    );
+    repeating-linear-gradient(to bottom, transparent 0 25px, #f3f5f8 25px 26px);
   cursor: cell;
 }
 .cal-column:hover {
@@ -530,7 +527,8 @@
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: url(/brand/iris-flower-pattern.svg) center top / 600px 600px repeat;
+  background: url(/brand/iris-flower-pattern.svg) center top / 600px 600px
+    repeat;
   pointer-events: none;
 }
 

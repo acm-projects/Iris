@@ -8,11 +8,13 @@ import {
 } from "./utils/supabase";
 import {
   clearGoogleToken,
+  disconnectGoogleCalendar,
   googleCalendarScope,
   ipcErrorMessage,
   isGoogleAuthError,
-  loadGoogleToken,
+  getGoogleAccessToken,
   normalizeMeetUrl,
+  saveGoogleRefreshToken,
   saveGoogleToken,
 } from "./utils/google";
 import {
@@ -31,6 +33,11 @@ import CreateAccountPage from "./pages/tsx/CreateAccountPage";
 import ForgotPasswordPage from "./pages/tsx/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/tsx/ResetPasswordPage";
 
+// ---------------------------------------------------------------------------
+// Shared types and small helpers
+// ---------------------------------------------------------------------------
+
+/** A row from the Supabase `meetings` table. */
 export type Meeting = {
   id: string;
   title: string;
@@ -42,7 +49,9 @@ export type Meeting = {
   description: string | null;
   google_event_id: string | null;
 };
+/** A row from the Supabase `profiles` table (name and avatar). */
 type Profile = { display_name: string | null; avatar_path: string | null };
+/** Best display name for a user: their Google name, else a tidied email prefix. */
 const displayNameFor = (user: Session["user"]) => {
   const metadata = user.user_metadata as Record<string, unknown>;
   const fullName =
@@ -55,13 +64,10 @@ const displayNameFor = (user: Session["user"]) => {
     .replace(/[._-]+/g, " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 };
-const weekStartFor = (date: Date) => {
-  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
-  return start;
-};
+/** Columns selected whenever meetings are read from Supabase. */
 const meetingColumns =
   "id,title,starts_at,ends_at,meeting_url,accessibility_mode,color,description,google_event_id";
+/** What the Create meeting dialog hands to App when the form is submitted. */
 export type MeetingDraft = {
   title: string;
   startsAt: Date;
@@ -71,7 +77,13 @@ export type MeetingDraft = {
   accessibility: string;
 };
 
+/**
+ * Root component. Owns the signed-in session and all data/actions (auth,
+ * meetings, Google Calendar) and decides which screen to show: the sign-in
+ * screens, the "choose a new password" screen, or the main dashboard.
+ */
 export default function App() {
+  // --- Auth state -----------------------------------------------------------
   const [session, setSession] = useState<Session | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -82,21 +94,31 @@ export default function App() {
   // True after a password reset link signs the user in: ask for a new password.
   const [recovering, setRecovering] = useState(false);
   const [busy, setBusy] = useState(false);
+  // --- Signed-in user data --------------------------------------------------
   const [profile, setProfile] = useState<Profile | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
-  const [weekStart, setWeekStart] = useState(() => weekStartFor(new Date()));
+  // --- Dashboard UI state ---------------------------------------------------
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
   const [joinUrl, setJoinUrl] = useState("");
   const [now, setNow] = useState(() => new Date());
+  // Message shown in the dashboard's bottom-right toast.
   const [notice, setNotice] = useState("");
+  // --- Google Calendar connection --------------------------------------------
   const [googleConnected, setGoogleConnected] = useState(false);
+  // False until the stored Google token has been checked, so the "connect
+  // Google Calendar" prompt does not flash for users who are connected.
+  const [googleChecked, setGoogleChecked] = useState(false);
+  const [googleConnecting, setGoogleConnecting] = useState(false);
   const [meetingBusy, setMeetingBusy] = useState(false);
+  // Which provider started the current browser sign-in (to know when to save a Google token).
   const oauthProvider = useRef<"google" | "azure" | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  // Guards against handling the same sign-in callback twice.
   const handledCallbackUrls = useRef(new Set<string>());
   const configured = isSupabaseConfigured();
+  // Keeps `now` current for the clock and "Live now" badges.
   useEffect(() => {
     // Tick exactly on each minute boundary (rather than 60s after launch) so the
     // clock never shows the previous minute, and resync after sleep or focus.
@@ -122,8 +144,11 @@ export default function App() {
       document.removeEventListener("visibilitychange", resync);
     };
   }, []);
+  // Completes browser sign-ins: exchanges the one-time code in an
+  // iris://auth/callback URL for a Supabase session (and Google token).
   useEffect(() => {
     if (!configured || !window.iris?.auth) return;
+    // Handles one callback URL; ignores duplicates of the same URL.
     const completeCallback = async (url: string) => {
       if (handledCallbackUrls.current.has(url)) return;
       handledCallbackUrls.current.add(url);
@@ -133,13 +158,21 @@ export default function App() {
       const linkError =
         callback.searchParams.get("error_description") ||
         callback.searchParams.get("error");
-      if (!code)
-        return setAuthNotice({
-          text: linkError
-            ? `${linkError}. Request a new link and try again.`
-            : "That link didn't include a sign-in code. Request a new one.",
-          tone: "error",
-        });
+      if (!code) {
+        const errorCode = callback.searchParams.get("error_code");
+        const text =
+          errorCode === "identity_already_exists"
+            ? "That Google account already belongs to a different Iris account. Choose another Google account, or sign in with Google instead."
+            : linkError
+              ? `${linkError}. Please try again.`
+              : "That link didn't include a sign-in code. Please try again.";
+        setGoogleConnecting(false);
+        oauthProvider.current = null;
+        // Show it on the sign-in screen and, when signed in, on the dashboard.
+        setAuthNotice({ text, tone: "error" });
+        setNotice(text);
+        return;
+      }
       setBusy(true);
       const { data, error } = await getSupabase().auth.exchangeCodeForSession(
         code,
@@ -151,15 +184,30 @@ export default function App() {
         const provider =
           oauthProvider.current ?? data.session.user.app_metadata.provider;
         if (provider === "google" && data.session.provider_token) {
-          await saveGoogleToken(data.session.provider_token);
+          await saveGoogleToken(
+            data.session.user.id,
+            data.session.provider_token,
+          );
+          // Lets Iris renew access later without asking the user again.
+          void saveGoogleRefreshToken(data.session.provider_refresh_token);
           setGoogleConnected(true);
-          setNotice("Google connected. Iris can now create Meet links.");
+          setGoogleConnecting(false);
+          setNotice(
+            "Google Calendar connected. Your events will appear in the Calendar tab.",
+          );
         }
         oauthProvider.current = null;
         setSession(data.session);
       }
-      if (error)
-        setAuthNotice({ text: friendlyAuthError(error), tone: "error" });
+      if (error) {
+        setGoogleConnecting(false);
+        const text =
+          error.code === "identity_already_exists"
+            ? "That Google account already belongs to a different Iris account. Choose another Google account, or sign in with Google instead."
+            : friendlyAuthError(error);
+        setAuthNotice({ text, tone: "error" });
+        setNotice(text);
+      }
     };
     const unsubscribe = window.iris.auth.onCallback(completeCallback);
     void window.iris.auth.consumeCallback().then((url) => {
@@ -167,6 +215,7 @@ export default function App() {
     });
     return unsubscribe;
   }, [configured]);
+  // Restores a saved session on launch and follows sign-in/sign-out events.
   useEffect(() => {
     if (!configured) return;
     const supabase = getSupabase();
@@ -182,10 +231,15 @@ export default function App() {
     });
     return () => subscription.unsubscribe();
   }, [configured]);
+  // After sign-in: check the Google connection, then load the profile,
+  // avatar and meetings for this user.
   useEffect(() => {
     if (!session || !configured) return;
     const fallback = displayNameFor(session.user);
-    void loadGoogleToken().then((token) => setGoogleConnected(Boolean(token)));
+    void getGoogleAccessToken(session.user.id).then((token) => {
+      setGoogleConnected(Boolean(token));
+      setGoogleChecked(true);
+    });
     void (async () => {
       const supabase = getSupabase();
       const { data } = await supabase
@@ -225,11 +279,23 @@ export default function App() {
       else setMeetings(records || []);
     })();
   }, [configured, session]);
+  // ---------------------------------------------------------------------------
+  // Email/password authentication
+  // ---------------------------------------------------------------------------
+
+  /** Switches between Sign in, Create account and Forgot password. */
   function showAuthView(view: "signin" | "signup" | "forgot") {
     setAuthView(view);
     setAuthNotice(null);
     setPassword("");
   }
+  // Google token helpers bound to the signed-in Iris account.
+  const googleToken = () =>
+    session ? getGoogleAccessToken(session.user.id) : Promise.resolve(null);
+  const forgetGoogleToken = async () => {
+    if (session) await clearGoogleToken(session.user.id);
+  };
+  /** Sends the sign-up confirmation email again. */
   async function resendConfirmation() {
     setBusy(true);
     const { error } = await getSupabase().auth.resend({
@@ -241,9 +307,13 @@ export default function App() {
     setAuthNotice(
       error
         ? { text: friendlyAuthError(error), tone: "error" }
-        : { text: `We sent a new confirmation link to ${email}.`, tone: "success" },
+        : {
+            text: `We sent a new confirmation link to ${email}.`,
+            tone: "success",
+          },
     );
   }
+  /** Signs in with email and password, offering a fix for common errors. */
   async function signIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!configured) return;
@@ -260,16 +330,22 @@ export default function App() {
       tone: "error",
       action:
         error.code === "email_not_confirmed"
-          ? { label: "Resend confirmation email", run: () => void resendConfirmation() }
+          ? {
+              label: "Resend confirmation email",
+              run: () => void resendConfirmation(),
+            }
           : error.code === "invalid_credentials"
             ? { label: "Forgot password?", run: () => showAuthView("forgot") }
             : undefined,
     });
   }
+  /** Creates an account, detecting emails that are already registered. */
   async function signUp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!configured) return;
-    const confirm = String(new FormData(event.currentTarget).get("confirm") ?? "");
+    const confirm = String(
+      new FormData(event.currentTarget).get("confirm") ?? "",
+    );
     const problem = passwordProblem(password, confirm);
     if (problem) return setAuthNotice({ text: problem, tone: "error" });
     setBusy(true);
@@ -290,7 +366,10 @@ export default function App() {
       return setAuthNotice({
         text: "An account with this email already exists. Sign in instead, or reset your password if you've forgotten it.",
         tone: "info",
-        action: { label: "Forgot your password?", run: () => showAuthView("forgot") },
+        action: {
+          label: "Forgot your password?",
+          run: () => showAuthView("forgot"),
+        },
       });
     if (error)
       return setAuthNotice({ text: friendlyAuthError(error), tone: "error" });
@@ -303,6 +382,7 @@ export default function App() {
       action: { label: "Resend email", run: () => void resendConfirmation() },
     });
   }
+  /** Emails a password reset link; returns an error message or null. */
   async function sendPasswordReset(target: string) {
     const { error } = await getSupabase().auth.resetPasswordForEmail(
       target.trim(),
@@ -310,6 +390,7 @@ export default function App() {
     );
     return error ? friendlyAuthError(error) : null;
   }
+  /** Forgot password form submit. */
   async function requestReset(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
@@ -326,6 +407,7 @@ export default function App() {
           },
     );
   }
+  /** Sets the signed-in user's password; returns an error message or null. */
   async function updatePassword(next: string) {
     const { error } = await getSupabase().auth.updateUser({ password: next });
     return error ? friendlyAuthError(error) : null;
@@ -345,6 +427,7 @@ export default function App() {
     }
     return updatePassword(next);
   }
+  /** Starts browser sign-in with Google (also asks for Calendar access). */
   async function oauth(provider: "google" | "azure") {
     if (!configured) return;
     oauthProvider.current = provider;
@@ -356,7 +439,13 @@ export default function App() {
         // Google sign-in also asks for Calendar access so Iris can create Meet links.
         ...(provider === "google" && {
           scopes: googleCalendarScope,
-          queryParams: { include_granted_scopes: "true", prompt: "consent" },
+          // "offline" makes Google return a refresh token so the connection
+          // can be renewed without the user reconnecting every hour.
+          queryParams: {
+            access_type: "offline",
+            include_granted_scopes: "true",
+            prompt: "consent",
+          },
         }),
       },
     });
@@ -368,37 +457,76 @@ export default function App() {
     }
     await window.iris.auth.openExternal(data.url);
   }
-  /** Grants Calendar access; links Google if this account signed in another way. */
+  /**
+   * Connects Google Calendar. Accounts that already sign in with Google just
+   * re-authorise; email/password accounts link a Google identity to the same
+   * Iris user (requires "Manual linking" to be enabled in Supabase Auth).
+   */
+  // ---------------------------------------------------------------------------
+  // Google Calendar connection
+  // ---------------------------------------------------------------------------
+
   async function connectGoogle() {
-    if (!session) return;
+    if (!session || googleConnecting) return;
     const hasGoogle = session.user.identities?.some(
       (identity) => identity.provider === "google",
     );
-    if (hasGoogle) return oauth("google");
-    oauthProvider.current = "google";
-    const { data, error } = await getSupabase().auth.linkIdentity({
-      provider: "google",
-      options: {
-        redirectTo: oauthRedirectUrl,
-        skipBrowserRedirect: true,
-        scopes: googleCalendarScope,
-        queryParams: { include_granted_scopes: "true", prompt: "consent" },
-      },
-    });
-    if (error || !data.url)
-      return setNotice(
-        error?.message ||
-          "Could not connect Google. Enable manual identity linking in Supabase.",
-      );
-    await window.iris.auth.openExternal(data.url);
-    setNotice("Finish connecting Google in your browser, then return to Iris.");
+    setGoogleConnecting(true);
+    if (hasGoogle) {
+      await oauth("google");
+    } else {
+      oauthProvider.current = "google";
+      const { data, error } = await getSupabase().auth.linkIdentity({
+        provider: "google",
+        options: {
+          redirectTo: oauthRedirectUrl,
+          skipBrowserRedirect: true,
+          scopes: googleCalendarScope,
+          // "offline" makes Google return a refresh token so the connection
+          // can be renewed without the user reconnecting every hour.
+          queryParams: {
+            access_type: "offline",
+            include_granted_scopes: "true",
+            prompt: "consent",
+          },
+        },
+      });
+      if (error || !data.url) {
+        oauthProvider.current = null;
+        setGoogleConnecting(false);
+        return setNotice(
+          error?.code === "manual_linking_disabled" ||
+            /manual linking/i.test(error?.message ?? "")
+            ? "Google Calendar linking is turned off for this Iris project. In Supabase, enable Authentication → Sign In / Providers → Allow manual linking, then try again."
+            : error?.message || "Could not start connecting Google Calendar.",
+        );
+      }
+      await window.iris.auth.openExternal(data.url);
+    }
+    setNotice(
+      "Finish connecting Google in your browser, then click “Open Iris” to come back.",
+    );
+    // If the browser tab is abandoned, let the button be used again.
+    window.setTimeout(() => setGoogleConnecting(false), 60_000);
   }
-  async function signOut() {
-    await clearGoogleToken();
+  /** Settings → Disconnect: revokes access and forgets the stored token. */
+  async function disconnectGoogle() {
+    if (!session) return { revoked: false };
+    const result = await disconnectGoogleCalendar(session.user.id);
     setGoogleConnected(false);
+    setNotice("Google Calendar disconnected.");
+    return result;
+  }
+  /** Signs out of Iris (the Google connection is kept for next time). */
+  async function signOut() {
+    // The Google connection stays stored for this account, so it is still
+    // there the next time the same user signs in.
+    setGoogleConnected(false);
+    setGoogleChecked(false);
     await getSupabase().auth.signOut();
     setSession(null);
   }
+  /** Uploads a new profile photo to the `avatars` bucket and saves its path. */
   async function uploadAvatar(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file || !session) return;
@@ -418,6 +546,11 @@ export default function App() {
     setAvatarUrl(data?.signedUrl || null);
     event.target.value = "";
   }
+  // ---------------------------------------------------------------------------
+  // Meetings
+  // ---------------------------------------------------------------------------
+
+  /** Opens a Meet link or code in the browser; returns false if it is invalid. */
   async function openMeeting(value: string) {
     const url = normalizeMeetUrl(value);
     if (!url) {
@@ -437,7 +570,7 @@ export default function App() {
   }
   /** Asks Google Calendar for an event with a fresh Meet link. */
   async function createMeetLink(title: string, startsAt: Date, endsAt: Date) {
-    const token = await loadGoogleToken();
+    const token = await googleToken();
     if (!token) {
       setGoogleConnected(false);
       throw new Error(
@@ -454,12 +587,13 @@ export default function App() {
       return created;
     } catch (error) {
       if (isGoogleAuthError(error)) {
-        await clearGoogleToken();
+        await forgetGoogleToken();
         setGoogleConnected(false);
       }
       throw new Error(ipcErrorMessage(error, "Could not create a Meet link."));
     }
   }
+  /** Saves a meeting row in Supabase and adds it to the list in time order. */
   async function insertMeeting(
     title: string,
     startsAt: Date,
@@ -492,6 +626,7 @@ export default function App() {
     );
     return data;
   }
+  /** Create meeting dialog: use a pasted link or generate one, then save. */
   async function saveMeeting(draft: MeetingDraft) {
     if (!session || meetingBusy) return false;
     const pasted = draft.meetingUrl.trim();
@@ -531,8 +666,12 @@ export default function App() {
     }
   }
   /** Reads Google Calendar events for the Calendar page; null if not connected. */
+  // ---------------------------------------------------------------------------
+  // Calendar page helpers
+  // ---------------------------------------------------------------------------
+
   async function listGoogleEvents(start: Date, end: Date) {
-    const token = await loadGoogleToken();
+    const token = await googleToken();
     if (!token) {
       setGoogleConnected(false);
       return null;
@@ -545,11 +684,13 @@ export default function App() {
       );
     } catch (error) {
       if (isGoogleAuthError(error)) {
-        await clearGoogleToken();
+        await forgetGoogleToken();
         setGoogleConnected(false);
         return null;
       }
-      throw new Error(ipcErrorMessage(error, "Could not load Google Calendar."));
+      throw new Error(
+        ipcErrorMessage(error, "Could not load Google Calendar."),
+      );
     }
   }
   /**
@@ -574,7 +715,7 @@ export default function App() {
     // An Iris window started before this feature existed has an older preload.
     if (typeof window.iris.google.setEventColor !== "function")
       return "Restart Iris to finish updating, then change the colour again.";
-    const token = await loadGoogleToken();
+    const token = await googleToken();
     if (!token) {
       setGoogleConnected(false);
       return target.meetingId
@@ -590,12 +731,13 @@ export default function App() {
       return null;
     } catch (error) {
       if (isGoogleAuthError(error)) {
-        await clearGoogleToken();
+        await forgetGoogleToken();
         setGoogleConnected(false);
       }
       return ipcErrorMessage(error, "Could not update Google Calendar.");
     }
   }
+  /** Opens an event's page in Google Calendar. */
   async function openInGoogleCalendar(url: string) {
     try {
       await window.iris.google.openEvent(url);
@@ -612,7 +754,7 @@ export default function App() {
     setNotice("");
     let removedFromGoogle = false;
     if (meeting.google_event_id && !keepGoogleEvent) {
-      const token = await loadGoogleToken();
+      const token = await googleToken();
       if (!token) {
         setGoogleConnected(false);
         setNotice(
@@ -625,7 +767,7 @@ export default function App() {
         removedFromGoogle = true;
       } catch (error) {
         if (isGoogleAuthError(error)) {
-          await clearGoogleToken();
+          await forgetGoogleToken();
           setGoogleConnected(false);
         }
         setNotice(ipcErrorMessage(error, "Could not remove the Google event."));
@@ -651,7 +793,7 @@ export default function App() {
   /** Starts a meeting right now and opens Google Meet's pre-join screen. */
   async function startInstantMeeting() {
     if (meetingBusy) return;
-    const token = await loadGoogleToken();
+    const token = await googleToken();
     if (!token) {
       // Without Calendar access, Google can still create a meeting in the browser.
       await openMeeting("https://meet.google.com/new");
@@ -683,6 +825,11 @@ export default function App() {
       setMeetingBusy(false);
     }
   }
+  // ---------------------------------------------------------------------------
+  // Which screen to show
+  // ---------------------------------------------------------------------------
+
+  // Signed out: one of the three auth screens.
   if (!session) {
     if (authView === "forgot")
       return (
@@ -723,6 +870,7 @@ export default function App() {
       />
     );
   }
+  // Arrived from a password reset link: choose a new password first.
   if (recovering)
     return (
       <ResetPasswordPage
@@ -738,6 +886,7 @@ export default function App() {
         onSkip={() => setRecovering(false)}
       />
     );
+  // Signed in: the main dashboard, which receives all data and actions as props.
   const name = profile?.display_name || displayNameFor(session.user);
   return (
     <HomePage
@@ -747,22 +896,24 @@ export default function App() {
       meetings={meetings}
       name={name}
       now={now}
+      googleChecked={googleChecked}
       googleConnected={googleConnected}
+      googleConnecting={googleConnecting}
       meetingBusy={meetingBusy}
       notice={notice}
       account={{
+        id: session.user.id,
         email: session.user.email ?? "",
         hasPassword: Boolean(
           session.user.identities?.some((i) => i.provider === "email"),
         ),
         providers: [
-          ...new Set(
-            (session.user.identities ?? []).map((i) => i.provider),
-          ),
+          ...new Set((session.user.identities ?? []).map((i) => i.provider)),
         ],
       }}
       onAvatarChange={uploadAvatar}
       onChangePassword={changePassword}
+      onDisconnectGoogle={disconnectGoogle}
       onSendPasswordReset={() => sendPasswordReset(session.user.email ?? "")}
       onConnectGoogle={() => void connectGoogle()}
       onCreate={saveMeeting}
@@ -774,19 +925,11 @@ export default function App() {
       onOpenInGoogle={(url) => void openInGoogleCalendar(url)}
       onSetEventColor={setEventColor}
       onJoinUrlChange={setJoinUrl}
-      onShiftWeek={(days) =>
-        setWeekStart((current) => {
-          const next = new Date(current);
-          next.setDate(next.getDate() + days);
-          return next;
-        })
-      }
       onSignOut={() => void signOut()}
       setShowCreate={setShowCreate}
       showCreate={showCreate}
       setShowJoin={setShowJoin}
       showJoin={showJoin}
-      weekStart={weekStart}
     />
   );
 }

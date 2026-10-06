@@ -1,11 +1,10 @@
+// Sidebar shown on every signed-in page.
 import { useEffect, useState, type ChangeEvent } from "react";
-const nav = [
-  "Home",
-  "Meetings",
-  "Calendar",
-  "Translation",
-  "Settings",
-];
+import { asset } from "../utils/assets";
+// Pages in the order they appear. Each name maps to an icon in
+// assets/sidebar-icons/<name>.svg (and <name>-active.svg when selected).
+const nav = ["Home", "Calendar", "Translation", "Settings"];
+/** Left navigation: page links, profile photo/name, and sign out. */
 export default function Sidebar({
   active,
   avatarUrl,
@@ -23,6 +22,7 @@ export default function Sidebar({
   onNavigate: (page: string) => void;
   onSignOut: () => void;
 }) {
+  // Collapsed (icons only) or expanded; remembered between launches.
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem("iris-sidebar-collapsed") === "true",
   );
@@ -32,6 +32,7 @@ export default function Sidebar({
   );
   return (
     <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
+      {/* Collapse / expand toggle on the sidebar's edge */}
       <button
         className="sidebar-toggle"
         onClick={() => setCollapsed((value) => !value)}
@@ -41,9 +42,10 @@ export default function Sidebar({
         {collapsed ? "›" : "‹"}
       </button>
       <a className="wordmark" href="#home">
-        <img src="/iris-mark.png" alt="" />
+        <img src={asset("iris-mark.png")} alt="" />
         <span>Iris</span>
       </a>
+      {/* Page links; the active page gets the gold icon and highlight */}
       <nav>
         {nav.map((item) => (
           <button
@@ -58,6 +60,7 @@ export default function Sidebar({
           </button>
         ))}
       </nav>
+      {/* Profile: clicking the photo opens a file picker to change it */}
       <div className="sidebar-footer">
         <button
           className="user-chip"
@@ -83,6 +86,7 @@ export default function Sidebar({
           ref={fileInput}
           type="file"
         />
+        {/* Sign out */}
         <button
           className="sidebar-sign-out"
           onClick={onSignOut}
@@ -101,7 +105,9 @@ function Icon({ active, item }: { active: boolean; item: string }) {
     <img
       alt=""
       className="sidebar-icon"
-      src={`/sidebar-icons/${item.toLowerCase()}${active ? "-active" : ""}.svg`}
+      src={asset(
+        `sidebar-icons/${item.toLowerCase()}${active ? "-active" : ""}.svg`,
+      )}
     />
   );
 }

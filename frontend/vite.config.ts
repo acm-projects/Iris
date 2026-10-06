@@ -6,4 +6,6 @@ export default defineConfig({
   plugins: [react()],
   // Images and icons live in assets/ and are served from the site root.
   publicDir: "assets",
+  // Relative paths so the packaged app can load its files from file://.
+  base: "./",
 });

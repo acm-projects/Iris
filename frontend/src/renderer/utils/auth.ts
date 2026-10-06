@@ -1,3 +1,5 @@
+// Sign-in helpers shared by the auth screens and Settings: password rules
+// and plain-language versions of Supabase's error messages.
 import type { AuthError } from "@supabase/supabase-js";
 
 /** A message shown on the auth screens, optionally with a follow-up action. */
@@ -15,7 +17,11 @@ export function passwordProblem(password: string, confirm?: string) {
   if (password.length < MIN_PASSWORD_LENGTH)
     return `Use at least ${MIN_PASSWORD_LENGTH} characters for your password.`;
   // Mirrors the Supabase project's password policy (lower, upper, digit).
-  if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password))
+  if (
+    !/[a-z]/.test(password) ||
+    !/[A-Z]/.test(password) ||
+    !/\d/.test(password)
+  )
     return "Use at least one lowercase letter, one uppercase letter, and one number.";
   if (confirm !== undefined && password !== confirm)
     return "The two passwords don't match.";

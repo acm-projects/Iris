@@ -1,122 +1,608 @@
-/* Settings page: simple stacked cards in the Iris palette. */
+/* Settings page. Imported by SettingsPage.tsx. Colours are variables so dark
+   mode only has to redefine them (see the bottom of this file). */
 .settings-page {
-  min-height: 100vh;
+  --s-bg: #f6f9fc;
+  --s-card: #ffffff;
+  --s-raised: #f2f6fb;
+  --s-border: #e2eaf3;
+  --s-border-strong: #cfdbe8;
+  --s-text: #00224e;
+  --s-muted: #5f7896;
+  --s-accent: #4376ab;
+  --s-accent-soft: #e8f0f9;
+  --s-gold: #f6bf41;
+  height: 100vh;
   margin-left: 240px;
-  padding: 40px 48px;
-  background: #fff;
+  overflow-y: auto;
+  padding: 40px 48px 64px;
+  color: var(--s-text);
+  background:
+    radial-gradient(circle at 92% 0, #e6f6f7 0, transparent 32%),
+    radial-gradient(circle at 0 100%, #fff4d1 0, transparent 30%), var(--s-bg);
 }
 .sidebar.collapsed ~ .settings-page {
   margin-left: 80px;
 }
-.settings-page > header {
-  max-width: 640px;
-  margin-bottom: 24px;
+
+/* ---- Page header ---- */
+.settings-hero {
+  max-width: 980px;
+  margin: 0 auto 28px;
 }
-.settings-page > header p {
-  margin: 0 0 4px;
-  color: #8592a6;
+.settings-hero p {
+  margin: 0 0 6px;
+  color: var(--s-accent);
   font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
-.settings-page > header h1 {
+.settings-hero h1 {
   margin: 0;
-  color: #00224e;
-  font-size: 1.9rem;
-  letter-spacing: -0.03em;
+  font-size: 2.1rem;
+  letter-spacing: -0.035em;
 }
-.settings-card {
+.settings-hero span {
+  display: block;
+  margin-top: 6px;
+  color: var(--s-muted);
+}
+
+/* ---- Two columns: section menu + cards ---- */
+.settings-layout {
   display: grid;
-  gap: 16px;
-  max-width: 640px;
-  margin-bottom: 20px;
-  padding: 26px 28px;
-  border: 1px solid #e3ecf3;
-  border-radius: 18px;
-  background: #fff;
-  box-shadow: 0 10px 28px #00224e0d;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 28px;
+  max-width: 980px;
+  margin: 0 auto;
 }
-.settings-card h2 {
+.settings-nav {
+  position: sticky;
+  /* align-self keeps the grid item short so it can stick while scrolling */
+  top: 16px;
+  align-self: start;
+  display: grid;
+  align-content: start;
+  gap: 4px;
+}
+.settings-nav button {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--s-muted);
+  background: transparent;
+  font-weight: 600;
+  text-align: left;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.settings-nav button:hover {
+  color: var(--s-text);
+  background: var(--s-raised);
+}
+.settings-nav button.active {
+  color: var(--s-text);
+  background: var(--s-card);
+  box-shadow:
+    inset 3px 0 0 var(--s-gold),
+    0 4px 14px #00224e12;
+}
+.settings-sections {
+  display: grid;
+  gap: 20px;
+}
+
+/* ---- Section cards ---- */
+.settings-section {
+  scroll-margin-top: 20px;
+  border: 1px solid var(--s-border);
+  border-radius: 20px;
+  background: var(--s-card);
+  box-shadow: 0 12px 30px #00224e0d;
+}
+.settings-section > header {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 22px 26px;
+  border-bottom: 1px solid var(--s-border);
+}
+.settings-section h2 {
   margin: 0;
-  color: #00224e;
   font-size: 1.15rem;
 }
-.settings-copy {
-  margin: -8px 0 0;
-  color: #5278a4;
-}
-.settings-card dl {
-  display: grid;
-  gap: 14px;
-  margin: 0;
-}
-.settings-card dl div {
-  display: grid;
-  grid-template-columns: 160px 1fr;
-  align-items: center;
-}
-.settings-card dt {
-  color: #8592a6;
+.settings-section > header p {
+  margin: 2px 0 0;
+  color: var(--s-muted);
   font-size: 0.9rem;
 }
-.settings-card dd {
-  margin: 0;
-  color: #00224e;
+.settings-badge {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  color: #fff;
+  background: linear-gradient(140deg, #00224e, #4376ab 60%, #0d9da4);
+}
+.settings-section-body {
+  display: grid;
+  gap: 24px;
+  padding: 22px 26px 26px;
+}
+.settings-group h3 {
+  margin: 0 0 4px;
+  font-size: 0.95rem;
+}
+.settings-help {
+  margin: 0 0 12px;
+  color: var(--s-muted);
+  font-size: 0.86rem;
+}
+.settings-group > h3 + .choice-grid {
+  margin-top: 12px;
+}
+.settings-note {
+  margin: 10px 0 0;
+  color: #b4762a;
+  font-size: 0.86rem;
+}
+
+/* ---- Theme cards with miniature previews ---- */
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.choice-card,
+.icon-choice {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1.5px solid var(--s-border);
+  border-radius: 16px;
+  color: var(--s-text);
+  background: var(--s-card);
+  text-align: left;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    transform 0.15s;
+}
+.choice-card:hover,
+.icon-choice:hover {
+  border-color: var(--s-border-strong);
+  transform: translateY(-1px);
+}
+.choice-card.selected,
+.icon-choice.selected {
+  border-color: var(--s-accent);
+  box-shadow: 0 0 0 4px #4376ab26;
+}
+.choice-card:focus-visible,
+.icon-choice:focus-visible {
+  outline: 2px solid var(--s-accent);
+  outline-offset: 2px;
+}
+.choice-label {
+  display: grid;
+  gap: 1px;
+  padding: 0 4px 2px;
+}
+.choice-label small {
+  color: var(--s-muted);
+}
+.choice-check {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: none;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--s-accent);
+  box-shadow: 0 0 0 2px var(--s-card);
+}
+.selected > .choice-check {
+  display: grid;
+}
+.theme-preview {
+  position: relative;
+  display: block;
+  height: 92px;
+  overflow: hidden;
+  border-radius: 10px;
+}
+.mini-window {
+  position: absolute;
+  inset: 0;
+}
+.mini-window i {
+  position: absolute;
+  border-radius: 4px;
+}
+.mini-window .tp-sidebar {
+  inset: 0 auto 0 0;
+  width: 24%;
+  border-radius: 0;
+}
+.mini-window .tp-title {
+  top: 14px;
+  left: 32%;
+  width: 34%;
+  height: 8px;
+}
+.mini-window .tp-card {
+  top: 32px;
+  left: 32%;
+  width: 58%;
+  height: 22px;
+  border-radius: 6px;
+}
+.mini-window .tp-card.short {
+  top: 60px;
+  width: 38%;
+}
+.mini-window.light {
+  background: #f4f8fc;
+}
+.mini-window.light .tp-sidebar {
+  background: linear-gradient(170deg, #061d4b, #4caab4);
+}
+.mini-window.light .tp-title {
+  background: #00224e;
+}
+.mini-window.light .tp-card {
+  background: #fff;
+  box-shadow: 0 2px 6px #00224e1a;
+}
+.mini-window.dark {
+  background: #08111f;
+}
+.mini-window.dark .tp-sidebar {
+  background: linear-gradient(170deg, #040c1a, #146b73);
+}
+.mini-window.dark .tp-title {
+  background: #e6edf7;
+}
+.mini-window.dark .tp-card {
+  background: #16253d;
+}
+/* System: the dark copy covers the right side along one diagonal. */
+.theme-preview.system .mini-window.dark {
+  clip-path: polygon(62% 0, 100% 0, 100% 100%, 38% 100%);
+}
+
+/* ---- App icon tiles ---- */
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.icon-choice {
+  justify-items: center;
+  padding: 16px 10px 12px;
+  font-size: 0.9rem;
   font-weight: 600;
+}
+.icon-choice img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 10px #00224e26);
+}
+.icon-choice .choice-check {
+  top: 8px;
+  right: 8px;
+}
+/* Auto: left half light icon, right half dark icon */
+.icon-auto {
+  position: relative;
+  width: 64px;
+  height: 64px;
+}
+.icon-auto img {
+  position: absolute;
+  inset: 0;
+}
+.icon-auto img:last-child {
+  clip-path: inset(0 0 0 50%);
+}
+
+/* ---- Rows: profile, integrations, password ---- */
+.profile-row,
+.integration-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.profile-avatar {
+  position: relative;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+  overflow: hidden;
+  padding: 0;
+  border: 3px solid var(--s-card);
+  border-radius: 50%;
+  color: #00224e;
+  background: var(--s-gold);
+  box-shadow: 0 0 0 2px var(--s-border);
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.profile-avatar em {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 3px 0 5px;
+  color: #fff;
+  background: #00224ecc;
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 700;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.profile-avatar:hover em {
+  opacity: 1;
+}
+.profile-copy,
+.integration-copy {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+}
+.profile-copy strong {
+  font-size: 1.1rem;
+}
+.profile-copy > span,
+.integration-copy > span {
+  color: var(--s-muted);
+  font-size: 0.9rem;
+}
+.integration-copy strong {
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 .settings-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  margin-top: 6px;
 }
 .settings-tags span {
   padding: 4px 10px;
   border-radius: 999px;
-  color: #2a5c95;
-  background: #eef4fb;
-  font-size: 0.82rem;
+  color: var(--s-accent);
+  background: var(--s-accent-soft);
+  font-size: 0.8rem;
+  font-weight: 600;
 }
-.settings-fields {
+.integration {
   display: grid;
   gap: 14px;
 }
-/* Reuse the sign-in input styling inside settings cards. */
-.settings-card input {
+.integration-logo {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 48px;
   height: 48px;
-  padding: 0 1rem;
-  border: 1.5px solid #d5e0ec;
-  border-radius: 12px;
-  color: #00224e;
-  background: #fbfdff;
-  font-size: 1rem;
-}
-.settings-card input:focus {
-  border-color: #4376ab;
-  outline: none;
+  border: 1px solid var(--s-border);
+  border-radius: 14px;
   background: #fff;
-  box-shadow: 0 0 0 4px #4376ab26;
 }
-.settings-card .primary-button {
-  justify-self: start;
-  width: auto;
-  height: 46px;
-  margin: 0;
-  padding: 0 22px;
-  border-radius: 12px;
+.integration-logo.key {
+  color: var(--s-accent);
+  background: var(--s-accent-soft);
+}
+.settings-status {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  color: #6a7a90;
+  background: var(--s-raised);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+.settings-status::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #a7b3c4;
+}
+.settings-status.on {
+  color: #1d7a4c;
+  background: #e2f6ea;
+}
+.settings-status.on::before {
+  background: #2fa36b;
+}
+
+/* ---- Buttons ---- */
+.settings-button {
+  flex-shrink: 0;
+  height: 40px;
+  padding: 0 16px;
+  border: 1.5px solid var(--s-border-strong);
+  border-radius: 11px;
+  color: var(--s-text);
+  background: var(--s-card);
+  font-weight: 700;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+.settings-button:hover {
+  background: var(--s-raised);
+}
+.settings-button.primary {
+  border-color: transparent;
+  color: #fff;
   background: #00224e;
 }
-.settings-card .primary-button:disabled {
+.settings-button.primary:hover {
+  background: #0b336b;
+}
+.settings-button.danger {
+  border-color: #f0c9c3;
+  color: #b23a2a;
+}
+.settings-button.danger:hover {
+  background: #fdf1ef;
+}
+.settings-button.danger.solid {
+  border-color: transparent;
+  color: #fff;
+  background: #c2412d;
+}
+.settings-button:disabled {
   cursor: progress;
-  opacity: 0.7;
+  opacity: 0.65;
+}
+
+/* ---- Disconnect confirmation and password form ---- */
+.settings-confirm {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid #f0d6d2;
+  border-radius: 12px;
+  background: #fff8f7;
+}
+.settings-confirm p {
+  margin: 0;
+  color: #5a2a24;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.settings-confirm div,
+.password-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.password-form {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--s-border);
+  border-radius: 14px;
+  background: var(--s-raised);
+}
+.password-form .field-label {
+  color: var(--s-text);
+}
+.password-form input {
+  height: 46px;
+  padding: 0 1rem;
+  border: 1.5px solid var(--s-border-strong);
+  border-radius: 11px;
+  color: var(--s-text);
+  background: var(--s-card);
+  font-size: 0.98rem;
+}
+.password-form input:focus {
+  border-color: var(--s-accent);
+  outline: none;
+  box-shadow: 0 0 0 4px #4376ab26;
+}
+
+/* ---- Dark mode: swap the colour variables and a few fixed colours ---- */
+:root[data-theme="dark"] .settings-page {
+  --s-bg: #08111f;
+  --s-card: #0f1b2e;
+  --s-raised: #16253d;
+  --s-border: #22344f;
+  --s-border-strong: #2e4466;
+  --s-text: #e6edf7;
+  --s-muted: #93a6c2;
+  --s-accent: #7fa8d8;
+  --s-accent-soft: #18304f;
+  background:
+    radial-gradient(circle at 92% 0, #0d2a3a 0, transparent 32%),
+    radial-gradient(circle at 0 100%, #2a2512 0, transparent 30%), var(--s-bg);
+}
+:root[data-theme="dark"] .settings-section {
+  box-shadow: none;
+}
+:root[data-theme="dark"] .settings-button.primary {
+  color: #00224e;
+  background: #e6edf7;
+}
+:root[data-theme="dark"] .settings-button.danger {
+  border-color: #5a2a24;
+  color: #ff9d8f;
+}
+:root[data-theme="dark"] .settings-button.danger:hover {
+  background: #3a1d1d;
+}
+:root[data-theme="dark"] .settings-status.on {
+  color: #7ee0aa;
+  background: #123a2a;
+}
+:root[data-theme="dark"] .settings-confirm {
+  border-color: #5a2a24;
+  background: #2a1616;
+}
+:root[data-theme="dark"] .settings-confirm p {
+  color: #ffc9c0;
+}
+:root[data-theme="dark"] .password-form input {
+  background: var(--s-bg);
+}
+
+/* ---- Narrow windows: menu above the cards ---- */
+@media (max-width: 900px) {
+  .settings-layout {
+    grid-template-columns: 1fr;
+  }
+  .settings-nav {
+    position: static;
+    grid-auto-flow: column;
+    overflow-x: auto;
+  }
+  .icon-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 @media (max-width: 700px) {
   .settings-page {
+    height: auto;
     margin-left: 0;
     padding: 24px 20px;
   }
-  .settings-card dl div {
+  .choice-grid {
     grid-template-columns: 1fr;
-    gap: 4px;
+  }
+  .profile-row,
+  .integration-row {
+    flex-wrap: wrap;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .choice-card,
+  .icon-choice,
+  .settings-nav button {
+    transition: none;
   }
 }

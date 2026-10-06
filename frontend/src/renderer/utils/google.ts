@@ -1,24 +1,40 @@
+// Google helpers: storing/renewing the Google Calendar access token per Iris
+// account, disconnecting, and parsing Google Meet links.
+import { getSupabase } from "./supabase";
+
 /** Google Calendar scope that lets Iris create events with Meet links. */
 export const googleCalendarScope =
   "https://www.googleapis.com/auth/calendar.events";
 
-const tokenKey = "iris-google-calendar-token";
+// Access tokens are kept per Iris account (encrypted by Electron safeStorage)
+// so signing out and back in does not lose the Google connection.
+const tokenKey = (userId: string) => `iris-google-calendar-token:${userId}`;
 // Google access tokens last an hour; treat them as stale a little early.
 const tokenLifetimeMs = 55 * 60_000;
+// Edge Function that stores the Google refresh token server-side and trades it
+// for fresh access tokens (it holds the OAuth client secret, the app never does).
+const tokenFunction = "google-calendar-token";
 
 type StoredToken = { token: string; expiresAt: number };
 
-/** Saves the Google access token returned alongside a Supabase OAuth session. */
-export async function saveGoogleToken(token: string | null | undefined) {
+/** Saves a Google access token for this Iris account. */
+export async function saveGoogleToken(
+  userId: string,
+  token: string | null | undefined,
+  lifetimeSeconds?: number,
+) {
   if (!token) return;
-  const stored: StoredToken = { token, expiresAt: Date.now() + tokenLifetimeMs };
-  await window.iris.auth.secureSet(tokenKey, JSON.stringify(stored));
+  const lifetime = lifetimeSeconds
+    ? Math.min(lifetimeSeconds * 1000 - 5 * 60_000, tokenLifetimeMs)
+    : tokenLifetimeMs;
+  const stored: StoredToken = { token, expiresAt: Date.now() + lifetime };
+  await window.iris.auth.secureSet(tokenKey(userId), JSON.stringify(stored));
 }
 
-/** Returns a still-valid Google access token, or null if Google must be reconnected. */
-export async function loadGoogleToken() {
+/** Returns this account's stored access token if it has not expired yet. */
+async function loadStoredToken(userId: string) {
   try {
-    const raw = await window.iris.auth.secureGet(tokenKey);
+    const raw = await window.iris.auth.secureGet(tokenKey(userId));
     if (!raw) return null;
     const stored = JSON.parse(raw) as StoredToken;
     return stored.expiresAt > Date.now() ? stored.token : null;
@@ -27,8 +43,42 @@ export async function loadGoogleToken() {
   }
 }
 
-export async function clearGoogleToken() {
-  await window.iris.auth.secureSet(tokenKey, null);
+export async function clearGoogleToken(userId: string) {
+  await window.iris.auth.secureSet(tokenKey(userId), null);
+}
+
+/** Sends the long-lived refresh token to the Edge Function for safekeeping. */
+export async function saveGoogleRefreshToken(
+  refreshToken: string | null | undefined,
+) {
+  if (!refreshToken) return;
+  const { error } = await getSupabase().functions.invoke(tokenFunction, {
+    body: { action: "save", refreshToken },
+  });
+  // Without the function, Iris still works; users just reconnect hourly.
+  if (error)
+    console.warn("Could not save the Google refresh token:", error.message);
+}
+
+/**
+ * Returns a valid Google access token for this account: the stored one if it
+ * is still fresh, otherwise a new one from the Edge Function. Null means the
+ * user needs to connect (or reconnect) Google Calendar.
+ */
+export async function getGoogleAccessToken(userId: string) {
+  const stored = await loadStoredToken(userId);
+  if (stored) return stored;
+  try {
+    const { data, error } = await getSupabase().functions.invoke<{
+      accessToken?: string;
+      expiresIn?: number;
+    }>(tokenFunction, { body: { action: "token" } });
+    if (error || !data?.accessToken) return null;
+    await saveGoogleToken(userId, data.accessToken, data.expiresIn);
+    return data.accessToken;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -43,7 +93,9 @@ export function normalizeMeetUrl(value: string) {
     return `https://meet.google.com/${code.slice(0, 3)}-${code.slice(3, 7)}-${code.slice(7)}`;
   }
   try {
-    const url = new URL(/^https?:\/\//i.test(input) ? input : `https://${input}`);
+    const url = new URL(
+      /^https?:\/\//i.test(input) ? input : `https://${input}`,
+    );
     if (url.hostname !== "meet.google.com" || url.pathname === "/") return null;
     url.protocol = "https:";
     return url.toString();
@@ -69,3 +121,23 @@ export const isGoogleAuthError = (error: unknown) =>
 export type GoogleEvent = Awaited<
   ReturnType<Window["iris"]["google"]["listEvents"]>
 >[number];
+
+/**
+ * Disconnects Google Calendar for this account: revokes access at Google and
+ * deletes the stored refresh token (via the Edge Function), then forgets the
+ * token kept on this computer. `revoked` is false if the server step failed,
+ * in which case access can still be removed from the Google Account page.
+ */
+export async function disconnectGoogleCalendar(userId: string) {
+  let revoked = false;
+  try {
+    const { error } = await getSupabase().functions.invoke(tokenFunction, {
+      body: { action: "disconnect" },
+    });
+    revoked = !error;
+  } catch {
+    revoked = false;
+  }
+  await clearGoogleToken(userId);
+  return { revoked };
+}

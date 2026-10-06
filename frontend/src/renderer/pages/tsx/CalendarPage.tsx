@@ -1,3 +1,5 @@
+// Calendar page: Month / Week / Day views of Iris meetings and Google Calendar
+// events, with live sync, event details, and per-event colours.
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import type { Meeting } from "../../App";
 import type { GoogleEvent } from "../../utils/google";
@@ -12,7 +14,13 @@ import {
 } from "../../utils/colors";
 import "../css/calendar-page.css";
 
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+/** Which calendar layout is showing. */
 type View = "month" | "week" | "day";
+/** One event as the calendar draws it, whether it came from Iris or Google. */
 type CalendarItem = {
   id: string;
   title: string;
@@ -31,8 +39,10 @@ type CalendarItem = {
 /** Inline style that hands an event's colour to the CSS as --ev. */
 const evStyle = (item: CalendarItem) =>
   ({ "--ev": colorHex(item.color) }) as React.CSSProperties;
+/** Data and actions supplied by App (via HomePage). */
 type Props = {
   googleConnected: boolean;
+  googleConnecting: boolean;
   meetings: Meeting[];
   now: Date;
   onConnectGoogle: () => void;
@@ -46,19 +56,31 @@ type Props = {
   ) => Promise<string | null>;
 };
 
+// ---------------------------------------------------------------------------
+// Layout constants and date helpers
+// ---------------------------------------------------------------------------
+
+// Pixel height of one hour in Week/Day view (must match the grid lines in CSS).
 const HOUR_HEIGHT = 52;
+// Events shown per day in Month view before "N more".
 const MONTH_CHIP_LIMIT = 3;
+// How often Google Calendar is re-fetched while the page is open.
 const SYNC_INTERVAL_MS = 60_000;
 
+/** Midnight at the start of `d`. */
 const startOfDay = (d: Date) =>
   new Date(d.getFullYear(), d.getMonth(), d.getDate());
+/** `d` moved by a number of whole days (DST-safe). */
 const addDays = (d: Date, days: number) =>
   new Date(d.getFullYear(), d.getMonth(), d.getDate() + days);
 // Weeks start on Monday, matching the dashboard.
-const startOfWeek = (d: Date) => addDays(startOfDay(d), -((d.getDay() + 6) % 7));
+const startOfWeek = (d: Date) =>
+  addDays(startOfDay(d), -((d.getDay() + 6) % 7));
 const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString();
+/** Locale-aware date formatting shortcut. */
 const format = (date: Date, options: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat(undefined, options).format(date);
+/** Short local time, e.g. "9:30 AM". */
 const clock = (date: Date) =>
   format(date, { hour: "numeric", minute: "2-digit" });
 /** Google all-day dates ("2026-10-06") are local calendar days, not UTC instants. */
@@ -67,12 +89,14 @@ const parseGoogleDate = (value: string, allDay: boolean) => {
   const [year, month, day] = value.split("-").map(Number);
   return new Date(year, month - 1, day);
 };
+/** The abc-defg-hij code from a Meet link, or null. */
 const meetCode = (url: string | null) => {
   if (!url) return null;
   const code = url.split("/").pop()?.split("?")[0] ?? "";
   return /^[a-z]{3}-[a-z]{4}-[a-z]{3}$/i.test(code) ? code : null;
 };
 
+/** First and last day shown for the current view (Month shows whole weeks). */
 function visibleRange(view: View, cursor: Date) {
   if (view === "day") {
     const start = startOfDay(cursor);
@@ -89,10 +113,11 @@ function visibleRange(view: View, cursor: Date) {
     cursor.getMonth() + 1,
     0,
   ).getDate();
-  const weeks = Math.ceil(((first.getDay() + 6) % 7 + daysInMonth) / 7);
+  const weeks = Math.ceil((((first.getDay() + 6) % 7) + daysInMonth) / 7);
   return { start, end: addDays(start, weeks * 7), weeks };
 }
 
+/** Events that touch the given day, all-day first, then by start time. */
 function itemsOnDay(items: CalendarItem[], day: Date) {
   const dayStart = day.getTime();
   const dayEnd = addDays(day, 1).getTime();
@@ -109,6 +134,7 @@ function itemsOnDay(items: CalendarItem[], day: Date) {
     );
 }
 
+/** A positioned event block in Week/Day view (pixels + overlap column). */
 type Block = {
   item: CalendarItem;
   top: number;
@@ -169,13 +195,21 @@ function layoutDay(items: CalendarItem[], day: Date): Block[] {
 }
 
 /** Notion-style calendar showing Iris meetings and the user's Google Calendar. */
+// ---------------------------------------------------------------------------
+// Calendar page
+// ---------------------------------------------------------------------------
+
+/** Notion-style calendar showing Iris meetings and the user's Google Calendar. */
 export default function CalendarPage(p: Props) {
+  // Current view and the date it is centred on.
   const [view, setView] = useState<View>("month");
   const [cursor, setCursor] = useState(() => startOfDay(new Date()));
+  // Google Calendar sync state.
   const [googleEvents, setGoogleEvents] = useState<GoogleEvent[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [syncedAt, setSyncedAt] = useState<Date | null>(null);
   const [syncError, setSyncError] = useState("");
+  // Event whose details card is open, and where the user clicked.
   const [selected, setSelected] = useState<{
     item: CalendarItem;
     x: number;
@@ -187,6 +221,7 @@ export default function CalendarPage(p: Props) {
   >({});
   const [colorError, setColorError] = useState("");
   const range = useMemo(() => visibleRange(view, cursor), [view, cursor]);
+  // Refs so the sync effect always calls the latest loader and ignores stale responses.
   const loader = useRef(p.onLoadGoogleEvents);
   const requestId = useRef(0);
   const syncNow = useRef<() => void>(() => {});
@@ -275,28 +310,27 @@ export default function CalendarPage(p: Props) {
     });
     const iris = p.meetings
       .filter((m) => !fromGoogle.has(m.id))
-      .map(
-        (m): CalendarItem => ({
-          id: `iris-${m.id}`,
-          title: m.title,
-          start: new Date(m.starts_at),
-          end: new Date(m.ends_at),
-          allDay: false,
-          source: "iris",
-          meetUrl: m.meeting_url,
-          htmlLink: null,
-          location: null,
-          note: m.accessibility_mode,
-          color:
-            colorOverrides[`iris-${m.id}`] ??
-            (isEventColor(m.color) ? m.color : DEFAULT_IRIS_COLOR),
-          meetingId: m.id,
-          googleEventId: m.google_event_id ?? undefined,
-        }),
-      );
+      .map((m): CalendarItem => ({
+        id: `iris-${m.id}`,
+        title: m.title,
+        start: new Date(m.starts_at),
+        end: new Date(m.ends_at),
+        allDay: false,
+        source: "iris",
+        meetUrl: m.meeting_url,
+        htmlLink: null,
+        location: null,
+        note: m.accessibility_mode,
+        color:
+          colorOverrides[`iris-${m.id}`] ??
+          (isEventColor(m.color) ? m.color : DEFAULT_IRIS_COLOR),
+        meetingId: m.id,
+        googleEventId: m.google_event_id ?? undefined,
+      }));
     return [...google, ...iris];
   }, [googleEvents, p.meetings, colorOverrides]);
 
+  /** Recolours an event immediately, then saves; reverts if a Google-only save fails. */
   const changeColor = async (item: CalendarItem, color: EventColorKey) => {
     const previous = item.color;
     setColorError("");
@@ -321,6 +355,7 @@ export default function CalendarPage(p: Props) {
     setColorError(error);
   };
 
+  // Toolbar navigation: previous/next month, week or day.
   const go = (direction: -1 | 1) =>
     setCursor((current) =>
       view === "month"
@@ -337,6 +372,7 @@ export default function CalendarPage(p: Props) {
   };
 
   // Notion/Google-style shortcuts: T today, M/W/D views, arrows to move.
+  // Keyboard shortcuts while the calendar is focused (not while typing).
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -362,6 +398,7 @@ export default function CalendarPage(p: Props) {
     return () => window.removeEventListener("keydown", onKey);
   });
 
+  // Heading text for the current view.
   const title =
     view === "month"
       ? format(cursor, { month: "long", year: "numeric" })
@@ -376,6 +413,7 @@ export default function CalendarPage(p: Props) {
 
   return (
     <section className="calendar-page" onClick={() => setSelected(null)}>
+      {/* Toolbar: title, sync status, Today, ‹ ›, view switch, + New */}
       <header className="cal-toolbar">
         <div className="cal-heading">
           <p>Calendar</p>
@@ -384,6 +422,7 @@ export default function CalendarPage(p: Props) {
         <div className="cal-controls">
           <SyncStatus
             connected={p.googleConnected}
+            connecting={p.googleConnecting}
             error={syncError}
             onConnect={p.onConnectGoogle}
             onRefresh={refresh}
@@ -454,6 +493,7 @@ export default function CalendarPage(p: Props) {
         </div>
       </header>
 
+      {/* The grid for the current view */}
       {view === "month" ? (
         <MonthView
           cursor={cursor}
@@ -477,6 +517,7 @@ export default function CalendarPage(p: Props) {
         />
       )}
 
+      {/* Details card for the clicked event */}
       {selected && (
         <EventPopover
           colorError={colorError}
@@ -496,14 +537,17 @@ export default function CalendarPage(p: Props) {
   );
 }
 
+/** "October 5 – 11, 2026" (or across months/years when needed). */
 function weekTitle(start: Date, end: Date) {
   if (start.getMonth() === end.getMonth())
     return `${format(start, { month: "long" })} ${start.getDate()} – ${end.getDate()}, ${end.getFullYear()}`;
   return `${format(start, { month: "short", day: "numeric" })} – ${format(end, { month: "short", day: "numeric", year: "numeric" })}`;
 }
 
+/** Google Calendar status in the toolbar: Connect button, or synced time + refresh. */
 function SyncStatus({
   connected,
+  connecting,
   error,
   onConnect,
   onRefresh,
@@ -511,6 +555,7 @@ function SyncStatus({
   syncing,
 }: {
   connected: boolean;
+  connecting: boolean;
   error: string;
   onConnect: () => void;
   onRefresh: () => void;
@@ -519,9 +564,14 @@ function SyncStatus({
 }) {
   if (!connected)
     return (
-      <button className="cal-connect" onClick={onConnect} type="button">
+      <button
+        className="cal-connect"
+        disabled={connecting}
+        onClick={onConnect}
+        type="button"
+      >
         <span className="cal-google-dot" />
-        Connect Google Calendar
+        {connecting ? "Finish in your browser…" : "Connect Google Calendar"}
       </button>
     );
   return (
@@ -549,6 +599,7 @@ function SyncStatus({
   );
 }
 
+/** A compact event in Month view or the all-day row. */
 function EventChip({
   item,
   onSelect,
@@ -571,6 +622,7 @@ function EventChip({
   );
 }
 
+/** Month grid: weekday header, then one cell per day with its events. */
 function MonthView({
   cursor,
   items,
@@ -594,7 +646,9 @@ function MonthView({
   return (
     <div
       className="cal-month"
-      style={{ gridTemplateRows: `auto repeat(${range.weeks}, minmax(0, 1fr))` }}
+      style={{
+        gridTemplateRows: `auto repeat(${range.weeks}, minmax(0, 1fr))`,
+      }}
     >
       {days.slice(0, 7).map((day) => (
         <div className="cal-weekday" key={`head-${day.getDay()}`}>
@@ -682,6 +736,7 @@ function MonthView({
   );
 }
 
+/** Week/Day view: day headers, all-day row, and a scrolling 24-hour grid. */
 function TimeGrid({
   days,
   items,
@@ -745,6 +800,7 @@ function TimeGrid({
           className="cal-grid-body"
           style={{ ...columns, height: 24 * HOUR_HEIGHT }}
         >
+          {/* Hour labels in the left gutter */}
           <div className="cal-hours">
             {Array.from({ length: 23 }, (_, i) => i + 1).map((hour) => (
               <span key={hour} style={{ top: hour * HOUR_HEIGHT }}>
@@ -752,6 +808,7 @@ function TimeGrid({
               </span>
             ))}
           </div>
+          {/* One column per day; clicking empty space creates a meeting at that time */}
           {days.map((day) => (
             <div
               className="cal-column"
@@ -760,9 +817,8 @@ function TimeGrid({
                 if (event.target !== event.currentTarget) return;
                 const rect = event.currentTarget.getBoundingClientRect();
                 const minutes =
-                  Math.floor(
-                    ((event.clientY - rect.top) / HOUR_HEIGHT) * 2,
-                  ) * 30;
+                  Math.floor(((event.clientY - rect.top) / HOUR_HEIGHT) * 2) *
+                  30;
                 onCreateAt(
                   new Date(
                     day.getFullYear(),
@@ -813,6 +869,7 @@ function TimeGrid({
   );
 }
 
+/** Event details card: time, source, Meet code, colour picker, actions. */
 function EventPopover({
   colorError,
   item,
@@ -872,6 +929,7 @@ function EventPopover({
           Meeting code <code>{code}</code>
         </p>
       )}
+      {/* Colour swatches (brand palette) */}
       <div className="cal-colors" role="radiogroup" aria-label="Event colour">
         {EVENT_COLORS.map((color) => (
           <button
@@ -888,6 +946,7 @@ function EventPopover({
         ))}
       </div>
       {colorError && <p className="cal-popover-error">{colorError}</p>}
+      {/* Join, Copy link, Open in Google */}
       <div className="cal-popover-actions">
         {item.meetUrl && (
           <button

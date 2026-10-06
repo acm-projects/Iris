@@ -1,5 +1,10 @@
+// Choose a new password: shown after a reset link signs the user in.
 import { useState } from "react";
-import { PASSWORD_HINT, passwordProblem, type AuthNotice } from "../../utils/auth";
+import {
+  PASSWORD_HINT,
+  passwordProblem,
+  type AuthNotice,
+} from "../../utils/auth";
 import { AuthMessage, AuthShell, Field, PasswordInput } from "./LoginPage";
 
 /** Shown after a password reset link opens Iris: choose a new password. */

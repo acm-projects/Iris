@@ -1,6 +1,10 @@
+// Sign-in screen plus the building blocks shared by every auth screen
+// (layout, fields, messages, password input).
 import { useState, type FormEvent } from "react";
 import type { AuthNotice } from "../../utils/auth";
 import "../css/auth.css";
+import { asset } from "../../utils/assets";
+/** Values and actions App passes to the sign-in screen. */
 type Props = {
   email: string;
   password: string;
@@ -13,6 +17,7 @@ type Props = {
   onForgot: () => void;
   onGoogle: () => void;
 };
+/** Sign-in screen: email/password, Forgot password, and Continue with Google. */
 export default function LoginPage(p: Props) {
   return (
     <AuthShell
@@ -20,6 +25,7 @@ export default function LoginPage(p: Props) {
       subtitle="Sign in to continue making meetings more inclusive."
     >
       <form className="sign-in-card" onSubmit={p.onSubmit}>
+        {/* Email and password */}
         <Field htmlFor="signin-email" label="Email">
           <input
             autoComplete="email"
@@ -47,9 +53,11 @@ export default function LoginPage(p: Props) {
             value={p.password}
           />
         </Field>
+        {/* Submit */}
         <button className="primary-button" disabled={p.busy} type="submit">
           {p.busy ? "Signing in…" : "Sign in"}
         </button>
+        {/* Divider, then third-party sign-in */}
         <div className="auth-divider">
           <span>or</span>
         </div>
@@ -60,6 +68,7 @@ export default function LoginPage(p: Props) {
             Continue with Google
           </button>
         </div>
+        {/* Error/success message with an optional follow-up action */}
         <AuthMessage notice={p.notice} />
         <p className="create-account">
           Don't have an account?{" "}
@@ -71,6 +80,10 @@ export default function LoginPage(p: Props) {
     </AuthShell>
   );
 }
+/**
+ * Shared two-column layout for all auth screens: the branded gradient panel
+ * on the left and the title + form on the right.
+ */
 export function AuthShell({
   children,
   title,
@@ -82,6 +95,7 @@ export function AuthShell({
 }) {
   return (
     <main className="login-shell">
+      {/* Left: brand panel (decorative glows, flower, headline, features) */}
       <section className="brand-panel">
         {/* Decorative layers: soft light orbs and a large Iris flower. */}
         <span aria-hidden="true" className="brand-orb orb-glow" />
@@ -90,10 +104,10 @@ export function AuthShell({
           alt=""
           aria-hidden="true"
           className="brand-flower"
-          src="/brand/iris-flower-solid.svg"
+          src={asset("brand/iris-flower-solid.svg")}
         />
         <a className="wordmark" href="#sign-in">
-          <img src="/iris-mark.png" alt="" />
+          <img src={asset("iris-mark.png")} alt="" />
           <span>Iris</span>
         </a>
         <div className="brand-copy">
@@ -114,8 +128,8 @@ export function AuthShell({
             </li>
           </ul>
         </div>
-        <p className="brand-footnote">Built for signers and hearing teammates alike.</p>
       </section>
+      {/* Right: page title and the form passed in as children */}
       <section className="sign-in-panel" id="sign-in">
         <div className="sign-in-content">
           <p className="kicker">WELCOME TO IRIS</p>
@@ -127,6 +141,7 @@ export function AuthShell({
     </main>
   );
 }
+/** A labelled form field with an optional action (e.g. "Forgot password?") and hint. */
 export function Field({
   aside,
   children,
@@ -160,7 +175,11 @@ export function AuthMessage({ notice }: { notice: AuthNotice | null }) {
     <div className={`form-message ${notice.tone}`} role="status">
       <span>{notice.text}</span>
       {notice.action && (
-        <button className="text-button" onClick={notice.action.run} type="button">
+        <button
+          className="text-button"
+          onClick={notice.action.run}
+          type="button"
+        >
           {notice.action.label}
         </button>
       )}
@@ -206,6 +225,7 @@ export function PasswordInput({
     </span>
   );
 }
+/** Google's multicolour "G" logo for the sign-in button. */
 function GoogleLogo() {
   return (
     <svg aria-hidden="true" viewBox="0 0 48 48" width="20" height="20">

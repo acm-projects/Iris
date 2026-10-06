@@ -62,14 +62,24 @@
         "to": "brand",
         "filter": [
           "iris-dock-light.png",
-          "iris-dock-dark.png"
+          "iris-dock-dark.png",
+          "iris-dock-mono.png"
+        ]
+      },
+      {
+        "from": "../backend/engine",
+        "to": "backend/engine",
+        "filter": [
+          "*.py"
         ]
       }
     ],
     "protocols": [
       {
         "name": "Iris authentication",
-        "schemes": ["iris"]
+        "schemes": [
+          "iris"
+        ]
       }
     ],
     "mac": {
@@ -78,7 +88,11 @@
       "target": [
         "dmg",
         "zip"
-      ]
+      ],
+      "extendInfo": {
+        "NSCameraUsageDescription": "Iris uses your camera to show your preview and translate your signing during meetings.",
+        "NSMicrophoneUsageDescription": "Iris uses your microphone to check your audio and caption meetings."
+      }
     },
     "win": {
       "icon": "assets/icon.png",

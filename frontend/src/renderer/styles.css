@@ -1,3 +1,5 @@
+/* Global styles: base typography, shared form controls, and the sidebar. */
+/* ---- Base: font, colours and element resets ---- */
 :root {
   font-family: Inter, system-ui, sans-serif;
   color: #09275b;
@@ -18,6 +20,7 @@ textarea {
 button {
   cursor: pointer;
 }
+/* ---- Iris logo + name (sidebar and sign-in panel) ---- */
 .wordmark {
   display: inline-flex;
   gap: 0.7rem;
@@ -30,6 +33,7 @@ button {
 .wordmark img {
   width: 2.8rem;
 }
+/* ---- Shared form controls and buttons ---- */
 .field-group,
 label {
   display: grid;
@@ -65,12 +69,14 @@ textarea {
   background: none;
   color: #4075ae;
 }
+/* ---- Signed-in app shell (soft gradient background) ---- */
 .dashboard-shell {
   min-height: 100vh;
   background:
     radial-gradient(circle at 60% 0, #dff6f8, transparent 35%),
     radial-gradient(circle at 100% 50%, #fff4ce, transparent 28%), #f5fbfc;
 }
+/* ---- Sidebar: layout, collapse toggle, nav links, profile, sign out ---- */
 .sidebar {
   position: fixed;
   inset: 0 auto 0 0;
@@ -81,9 +87,9 @@ textarea {
   color: #fff;
   background: linear-gradient(160deg, #061d4b, #254d86 60%, #4caab4);
 }
+/* Smoothly animate the sidebar and page when the sidebar collapses */
 .sidebar,
-.calendar-dashboard,
-.blank-page {
+.calendar-dashboard {
   transition:
     width 220ms ease,
     margin-left 220ms ease;
@@ -100,6 +106,7 @@ textarea {
   background: #fff;
   z-index: 2;
 }
+/* Collapsed sidebar: icons only, page content shifts left */
 .sidebar.collapsed {
   width: 80px;
   padding: 30px 14px;
@@ -114,8 +121,7 @@ textarea {
   justify-content: center;
   padding: 16px 8px;
 }
-.sidebar.collapsed ~ .calendar-dashboard,
-.sidebar.collapsed ~ .blank-page {
+.sidebar.collapsed ~ .calendar-dashboard {
   margin-left: 80px;
 }
 .sidebar nav em {
@@ -123,11 +129,11 @@ textarea {
 }
 @media (prefers-reduced-motion: reduce) {
   .sidebar,
-  .calendar-dashboard,
-  .blank-page {
+  .calendar-dashboard {
     transition: none;
   }
 }
+/* Navigation links */
 .sidebar nav {
   display: grid;
   gap: 13px;
@@ -154,6 +160,7 @@ textarea {
   width: 18px;
   height: 18px;
 }
+/* Profile photo, name and sign out at the bottom */
 .sidebar-footer {
   margin-top: auto;
 }
@@ -198,6 +205,7 @@ textarea {
   background: #ffffff18;
   color: #fff;
 }
+/* Hidden visually but still available to screen readers */
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -205,29 +213,7 @@ textarea {
   clip: rect(0, 0, 0, 0);
   overflow: hidden;
 }
-.blank-page {
-  min-height: 100vh;
-  margin-left: 240px;
-  display: grid;
-  place-items: center;
-  padding: 48px;
-  background:
-    radial-gradient(circle at 25% 18%, #dcf5f7 0, transparent 29%),
-    radial-gradient(circle at 93% 82%, #fff0be 0, transparent 31%), #f6fcfd;
-}
-.blank-page > div {
-  width: min(100%, 680px);
-  padding: 42px;
-  border: 1px solid #e2ecef;
-  border-radius: 26px;
-  background: #ffffffb8;
-}
-.page-kicker {
-  color: #2c74aa;
-  font-size: 0.73rem;
-  font-weight: 800;
-  letter-spacing: 0.13em;
-}
+/* ---- Small windows: sidebar becomes a top bar ---- */
 @media (max-width: 700px) {
   .sidebar {
     position: static;
@@ -239,9 +225,5 @@ textarea {
   }
   .dashboard-shell {
     display: block;
-  }
-  .blank-page {
-    margin: 0;
-    padding: 20px;
   }
 }

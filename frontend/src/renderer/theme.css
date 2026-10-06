@@ -1,0 +1,285 @@
+/* Dark mode for the whole app. Active when <html data-theme="dark"> (set by
+   utils/theme.ts). Each rule is prefixed with :root[data-theme="dark"] so it
+   outranks the light styles in the page stylesheets regardless of load order.
+   Palette: Midnight / Deep Navy surfaces with Iris Blue, Turquoise and Gold. */
+
+:root[data-theme="dark"] {
+  --d-bg: #08111f;
+  --d-surface: #0f1b2e;
+  --d-surface-2: #16253d;
+  --d-surface-3: #1d2f4c;
+  --d-border: #233653;
+  --d-border-strong: #2e4466;
+  --d-text: #e6edf7;
+  --d-muted: #93a6c2;
+  --d-accent: #7fa8d8;
+  color: var(--d-text);
+  background: var(--d-bg);
+}
+
+/* ---- Shared controls ---- */
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea {
+  border-color: var(--d-border-strong);
+  color: var(--d-text);
+  background: var(--d-surface-2);
+}
+:root[data-theme="dark"] input::placeholder {
+  color: #6f83a1;
+}
+:root[data-theme="dark"] .text-button,
+:root[data-theme="dark"] .kicker,
+:root[data-theme="dark"] .subtitle,
+:root[data-theme="dark"] .create-account {
+  color: var(--d-accent);
+}
+:root[data-theme="dark"] .modal-submit,
+:root[data-theme="dark"] .primary-button {
+  color: #00224e;
+  background: #e6edf7;
+}
+
+/* ---- App shell and sidebar ---- */
+:root[data-theme="dark"] .dashboard-shell {
+  background:
+    radial-gradient(circle at 60% 0, #0d2a3a, transparent 35%),
+    radial-gradient(circle at 100% 50%, #2a2512, transparent 28%), var(--d-bg);
+}
+:root[data-theme="dark"] .sidebar {
+  background: linear-gradient(160deg, #040c1a, #0f2a52 60%, #146b73);
+}
+:root[data-theme="dark"] .sidebar-toggle {
+  border-color: var(--d-border-strong);
+  color: var(--d-text);
+  background: var(--d-surface-2);
+}
+
+/* ---- Home page ---- */
+:root[data-theme="dark"] .iris-control-center {
+  background: transparent;
+}
+:root[data-theme="dark"] .iris-action {
+  color: var(--d-text);
+}
+:root[data-theme="dark"] .iris-action > span small {
+  color: var(--d-accent);
+}
+:root[data-theme="dark"] .iris-schedule,
+:root[data-theme="dark"] .start-menu,
+:root[data-theme="dark"] .meeting-modal {
+  border-color: var(--d-border);
+  color: var(--d-text);
+  background: var(--d-surface);
+}
+:root[data-theme="dark"] .iris-meeting {
+  border-color: var(--d-border);
+  border-left-color: #8f7fe0;
+}
+:root[data-theme="dark"] .iris-meeting.live {
+  background: #0f2a22;
+}
+:root[data-theme="dark"] .iris-meeting small,
+:root[data-theme="dark"] .iris-meeting .meeting-code,
+:root[data-theme="dark"] .schedule-empty,
+:root[data-theme="dark"] .start-menu small,
+:root[data-theme="dark"] .modal-copy,
+:root[data-theme="dark"] .meeting-modal header button,
+:root[data-theme="dark"] .google-prompt-remember {
+  color: var(--d-muted);
+}
+:root[data-theme="dark"] .meeting-code code {
+  color: var(--d-text);
+  background: var(--d-surface-3);
+}
+:root[data-theme="dark"] .iris-meeting button.secondary {
+  color: #c9c0ff;
+  background: #2a2554;
+}
+:root[data-theme="dark"] .iris-meeting strong em {
+  color: #7ee0aa;
+  background: #123a2a;
+}
+:root[data-theme="dark"] .start-menu button {
+  color: var(--d-text);
+}
+:root[data-theme="dark"] .start-menu button:hover,
+:root[data-theme="dark"] .start-menu button:focus-visible {
+  background: var(--d-surface-2);
+}
+:root[data-theme="dark"] .iris-meeting .meeting-delete:hover {
+  background: #3a1d1d;
+}
+
+/* ---- Dialogs and toast ---- */
+:root[data-theme="dark"] .modal-backdrop {
+  background: #000a1899;
+}
+:root[data-theme="dark"] .link-choice label {
+  border-color: var(--d-border-strong);
+}
+:root[data-theme="dark"] .link-choice label.selected {
+  border-color: var(--d-accent);
+  background: var(--d-surface-2);
+}
+:root[data-theme="dark"] .google-connect {
+  color: #f6d98a;
+  background: #2e2611;
+}
+:root[data-theme="dark"] .google-prompt-list {
+  color: var(--d-text);
+  background: var(--d-surface-2);
+}
+:root[data-theme="dark"] .modal-secondary {
+  border-color: var(--d-border-strong);
+  color: var(--d-text);
+  background: var(--d-surface-2);
+}
+:root[data-theme="dark"] .modal-connect {
+  color: #00224e;
+  background: #e6edf7;
+}
+:root[data-theme="dark"] .iris-toast {
+  border: 1px solid var(--d-border-strong);
+  background: var(--d-surface-3);
+}
+:root[data-theme="dark"] .iris-toast button:not(.toast-close) {
+  border-color: var(--d-border-strong);
+  color: var(--d-text);
+  background: var(--d-surface-2);
+}
+
+/* ---- Calendar page (uses the page's own colour variables) ---- */
+:root[data-theme="dark"] .calendar-page {
+  --cal-line: #1c2c45;
+  --cal-line-strong: var(--d-border-strong);
+  --cal-text: var(--d-text);
+  --cal-muted: var(--d-muted);
+  --cal-hover: var(--d-surface-2);
+  background: var(--d-bg);
+}
+:root[data-theme="dark"] .cal-button,
+:root[data-theme="dark"] .cal-nav button,
+:root[data-theme="dark"] .cal-connect,
+:root[data-theme="dark"] .cal-popover,
+:root[data-theme="dark"] .cal-popover-actions button {
+  background: var(--d-surface);
+}
+:root[data-theme="dark"] .cal-sync {
+  background: transparent;
+}
+:root[data-theme="dark"] .cal-views {
+  background: var(--d-surface-2);
+}
+:root[data-theme="dark"] .cal-views button.active {
+  background: var(--d-surface-3);
+}
+:root[data-theme="dark"] .cal-date:hover,
+:root[data-theme="dark"] .cal-add:hover {
+  background: var(--d-surface-3);
+}
+:root[data-theme="dark"] .cal-day.outside .cal-date {
+  color: #4b5f7e;
+}
+:root[data-theme="dark"] .cal-day:hover,
+:root[data-theme="dark"] .cal-day.weekend,
+:root[data-theme="dark"] .cal-column:hover {
+  background-color: #ffffff05;
+}
+:root[data-theme="dark"] .cal-chip.all-day,
+:root[data-theme="dark"] .cal-block {
+  color: color-mix(in srgb, var(--ev, var(--cal-google)) 35%, #ffffff);
+  background: color-mix(in srgb, var(--ev, var(--cal-google)) 30%, #0f1b2e);
+}
+:root[data-theme="dark"] .cal-chip.all-day:hover {
+  background: color-mix(in srgb, var(--ev, var(--cal-google)) 42%, #0f1b2e);
+}
+:root[data-theme="dark"] .cal-grid-scroll::-webkit-scrollbar-thumb {
+  background: var(--d-border-strong);
+}
+:root[data-theme="dark"] .cal-popover code {
+  color: var(--d-text);
+  background: var(--d-surface-3);
+}
+:root[data-theme="dark"] .cal-colors button {
+  border-color: var(--d-surface);
+}
+:root[data-theme="dark"] .cal-colors button.selected {
+  box-shadow: 0 0 0 2px #e6edf7;
+}
+/* The flower pattern is very faint on dark backgrounds; lift it slightly. */
+:root[data-theme="dark"] .cal-month::before,
+:root[data-theme="dark"] .cal-grid::before {
+  opacity: 0.6;
+  filter: brightness(2.2);
+}
+
+/* ---- Sign-in screens ---- */
+:root[data-theme="dark"] .login-shell {
+  background:
+    radial-gradient(circle at 85% 10%, #0d2a3a 0, transparent 40%),
+    radial-gradient(circle at 70% 100%, #2a2512 0, transparent 38%), var(--d-bg);
+}
+:root[data-theme="dark"] .sign-in-content h2,
+:root[data-theme="dark"] .field-label {
+  color: var(--d-text);
+}
+:root[data-theme="dark"] .sign-in-content .subtitle,
+:root[data-theme="dark"] .sign-in-card .create-account,
+:root[data-theme="dark"] .field-hint,
+:root[data-theme="dark"] .auth-divider {
+  color: var(--d-muted);
+}
+:root[data-theme="dark"] .sign-in-card {
+  border-color: var(--d-border);
+  background: var(--d-surface);
+}
+:root[data-theme="dark"] .sign-in-card input {
+  border-color: var(--d-border-strong);
+  color: var(--d-text);
+  background: var(--d-surface-2);
+}
+:root[data-theme="dark"] .sign-in-card input:focus {
+  border-color: var(--d-accent);
+  background: var(--d-surface-2);
+}
+:root[data-theme="dark"] .password-field button {
+  color: var(--d-accent);
+}
+:root[data-theme="dark"] .password-field button:hover {
+  background: var(--d-surface-3);
+}
+:root[data-theme="dark"] .sign-in-card .primary-button {
+  color: #00224e;
+  background: #e6edf7;
+}
+:root[data-theme="dark"] .sign-in-card .primary-button:hover {
+  background: #ffffff;
+}
+:root[data-theme="dark"] .auth-divider::before,
+:root[data-theme="dark"] .auth-divider::after {
+  background: var(--d-border);
+}
+:root[data-theme="dark"] .provider-buttons button {
+  border-color: var(--d-border-strong);
+  color: var(--d-text);
+  background: var(--d-surface-2);
+}
+:root[data-theme="dark"] .provider-buttons button:hover {
+  background: var(--d-surface-3);
+}
+:root[data-theme="dark"] .field-heading .text-button {
+  color: var(--d-accent);
+}
+:root[data-theme="dark"] .form-message {
+  color: var(--d-text);
+  background: var(--d-surface-3);
+}
+:root[data-theme="dark"] .form-message.error {
+  color: #ffb4a8;
+  background: #3a1d1d;
+}
+:root[data-theme="dark"] .form-message.success {
+  color: #8ee6b4;
+  background: #123a2a;
+}
