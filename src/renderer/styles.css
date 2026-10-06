@@ -7,6 +7,10 @@
 /* Calendar workspace */
 .sidebar nav button { display:flex; gap:16px; align-items:center; width:100%; padding:16px 18px; border:0; border-radius:14px; color:#fff; background:transparent; font-size:16px; text-align:left; }
 .sidebar nav button.active { border-left:3px solid #f8d560; background:#ffffff22; }
+.sidebar-icon { width: 18px; height: 18px; object-fit: contain; }
+.sidebar-fallback { display: inline-grid; width: 18px; place-items: center; color: inherit; }
+.blank-page { min-height:100vh; margin-left:240px; display:grid; place-items:center; padding:48px; background:radial-gradient(circle at 25% 18%,#dcf5f7 0,transparent 29%),radial-gradient(circle at 93% 82%,#fff0be 0,transparent 31%),linear-gradient(135deg,#f6fcfd,#fbfbf8); }
+.blank-page > div { width:min(100%,680px); padding:42px; border:1px solid #e2ecef; border-radius:26px; background:#ffffffb8; box-shadow:0 16px 40px #21476114; }.blank-page h1 { margin:.2rem 0 .6rem; font-size:clamp(2.4rem,5vw,4.5rem); letter-spacing:-.06em; }.blank-page p { margin:0; color:#6281a8; font-size:1.05rem; }.blank-page .page-kicker { color:#2c74aa; font-size:.73rem; font-weight:800; letter-spacing:.13em; }
 .join-button { padding:14px 20px; border:0; border-radius:14px; color:#09275b; background:#e7effc; font-weight:800; }
 .week-card > header > span { color:#6685aa; font-size:.85rem; font-weight:700; }
 .home-note { margin-top:28px; padding:28px; border-radius:22px; color:#fff; background:linear-gradient(120deg,#092a61,#4777ac); }
@@ -163,6 +167,17 @@ select {
 .sidebar-footer {
   margin-top: auto;
 }
+.sidebar-sign-out {
+  margin-top: 14px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  color: #dbeaf5;
+  background: transparent;
+  font-size: 0.8rem;
+  text-align: left;
+}
+.sidebar-sign-out:hover { background: #ffffff18; color: #fff; }
 .user-chip {
   display: flex;
   gap: 10px;
