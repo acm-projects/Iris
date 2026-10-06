@@ -1,0 +1,122 @@
+/* Settings page: simple stacked cards in the Iris palette. */
+.settings-page {
+  min-height: 100vh;
+  margin-left: 240px;
+  padding: 40px 48px;
+  background: #fff;
+}
+.sidebar.collapsed ~ .settings-page {
+  margin-left: 80px;
+}
+.settings-page > header {
+  max-width: 640px;
+  margin-bottom: 24px;
+}
+.settings-page > header p {
+  margin: 0 0 4px;
+  color: #8592a6;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.settings-page > header h1 {
+  margin: 0;
+  color: #00224e;
+  font-size: 1.9rem;
+  letter-spacing: -0.03em;
+}
+.settings-card {
+  display: grid;
+  gap: 16px;
+  max-width: 640px;
+  margin-bottom: 20px;
+  padding: 26px 28px;
+  border: 1px solid #e3ecf3;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 10px 28px #00224e0d;
+}
+.settings-card h2 {
+  margin: 0;
+  color: #00224e;
+  font-size: 1.15rem;
+}
+.settings-copy {
+  margin: -8px 0 0;
+  color: #5278a4;
+}
+.settings-card dl {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+}
+.settings-card dl div {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  align-items: center;
+}
+.settings-card dt {
+  color: #8592a6;
+  font-size: 0.9rem;
+}
+.settings-card dd {
+  margin: 0;
+  color: #00224e;
+  font-weight: 600;
+}
+.settings-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.settings-tags span {
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: #2a5c95;
+  background: #eef4fb;
+  font-size: 0.82rem;
+}
+.settings-fields {
+  display: grid;
+  gap: 14px;
+}
+/* Reuse the sign-in input styling inside settings cards. */
+.settings-card input {
+  height: 48px;
+  padding: 0 1rem;
+  border: 1.5px solid #d5e0ec;
+  border-radius: 12px;
+  color: #00224e;
+  background: #fbfdff;
+  font-size: 1rem;
+}
+.settings-card input:focus {
+  border-color: #4376ab;
+  outline: none;
+  background: #fff;
+  box-shadow: 0 0 0 4px #4376ab26;
+}
+.settings-card .primary-button {
+  justify-self: start;
+  width: auto;
+  height: 46px;
+  margin: 0;
+  padding: 0 22px;
+  border-radius: 12px;
+  background: #00224e;
+}
+.settings-card .primary-button:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+@media (max-width: 700px) {
+  .settings-page {
+    margin-left: 0;
+    padding: 24px 20px;
+  }
+  .settings-card dl div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}

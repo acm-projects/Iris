@@ -1,0 +1,58 @@
+<svg width="600" height="600" viewBox="0 0 600 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+<!-- Seamless calendar background tile built from the Iris Flower Mark;
+     flowers near an edge are repeated on the opposite edge so tiles join cleanly. -->
+<defs>
+<linearGradient id="paint0_linear_15_21" x1="65.8396" y1="48.5432" x2="128.952" y2="205.732" gradientUnits="userSpaceOnUse">
+<stop stop-color="#00224E"/>
+<stop offset="1" stop-color="#4376AB"/>
+</linearGradient>
+<linearGradient id="paint1_linear_15_21" x1="36.3991" y1="123.298" x2="139.156" y2="222.944" gradientUnits="userSpaceOnUse">
+<stop stop-color="#0D9DA4"/>
+<stop offset="1" stop-color="#4376AB"/>
+</linearGradient>
+<linearGradient id="paint2_linear_15_21" x1="191.798" y1="50.4669" x2="151.969" y2="221.589" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FCE688"/>
+<stop offset="0.55" stop-color="#F6BF41"/>
+<stop offset="1" stop-color="#0D9DA4"/>
+</linearGradient>
+<linearGradient id="paint3_linear_15_21" x1="223.329" y1="118.013" x2="149.745" y2="214.965" gradientUnits="userSpaceOnUse">
+<stop stop-color="#4376AB"/>
+<stop offset="1" stop-color="#00224E"/>
+</linearGradient>
+<g id="iris-flower">
+<path d="M121.626 190.501C88.4049 157.431 61.7831 111.087 67.6294 58.2619C116.056 72.957 144.2 108.47 141.883 158.635C141.038 175.873 133.544 184.287 121.626 190.501Z" fill="url(#paint0_linear_15_21)"/>
+<path d="M123.416 200.22C76.3694 209.387 37.4195 183.4 35.5293 129.488C80.5932 123.198 119.978 146.09 140.846 188.469C136.664 195.77 131.369 199.76 123.416 200.22Z" fill="url(#paint1_linear_15_21)"/>
+<path d="M145.053 192.216C143.38 136.756 167.116 80.1331 214.33 47.3222C244.506 102.055 221.882 161.989 157.239 206.551C151.267 204.134 147.277 198.84 145.053 192.216Z" fill="url(#paint2_linear_15_21)"/>
+<path d="M149.72 203.917C183.442 166.054 218.52 141.005 252.318 136.287C244.924 188.895 206.994 223.011 154.629 225.119C150.857 218.277 148.632 211.653 149.72 203.917Z" fill="url(#paint3_linear_15_21)"/>
+<path d="M142.343 166.589C138.454 205.489 131.88 229.811 124.193 250.821" stroke="#00224E" stroke-width="6" stroke-linecap="round"/>
+<path d="M141.908 169.684C121.626 190.501 103.326 208.441 83.6961 224.617" stroke="#0D9DA4" stroke-width="5" stroke-linecap="round"/>
+<path d="M153.166 67.1275C161.711 68.3285 169.612 62.3746 170.813 53.8291C172.014 45.2837 166.06 37.3826 157.515 36.1816C148.969 34.9806 141.068 40.9345 139.867 49.48C138.666 58.0255 144.62 65.9265 153.166 67.1275Z" fill="#F6BF41"/>
+</g>
+</defs>
+<g opacity="0.065">
+  <use href="#iris-flower" transform="translate(16.3 11.3) scale(0.55) rotate(-14 140 145)"/>
+  <use href="#iris-flower" transform="translate(16.3 611.4) scale(0.55) rotate(-14 140 145)"/>
+  <use href="#iris-flower" transform="translate(616.4 11.3) scale(0.55) rotate(-14 140 145)"/>
+  <use href="#iris-flower" transform="translate(616.4 611.4) scale(0.55) rotate(-14 140 145)"/>
+  <use href="#iris-flower" transform="translate(231.4 1.4) scale(0.48) rotate(22 140 145)"/>
+  <use href="#iris-flower" transform="translate(231.4 601.4) scale(0.48) rotate(22 140 145)"/>
+  <use href="#iris-flower" transform="translate(-180.8 24.2) scale(0.6) rotate(4 140 145)"/>
+  <use href="#iris-flower" transform="translate(-180.8 624.2) scale(0.6) rotate(4 140 145)"/>
+  <use href="#iris-flower" transform="translate(419.2 24.2) scale(0.6) rotate(4 140 145)"/>
+  <use href="#iris-flower" transform="translate(419.2 624.2) scale(0.6) rotate(4 140 145)"/>
+  <use href="#iris-flower" transform="translate(106.3 211.3) scale(0.62) rotate(10 140 145)"/>
+  <use href="#iris-flower" transform="translate(328.5 213.5) scale(0.5) rotate(-24 140 145)"/>
+  <use href="#iris-flower" transform="translate(-74.4 235.6) scale(0.52) rotate(30 140 145)"/>
+  <use href="#iris-flower" transform="translate(525.6 235.6) scale(0.52) rotate(30 140 145)"/>
+  <use href="#iris-flower" transform="translate(13.5 -166.5) scale(0.5) rotate(26 140 145)"/>
+  <use href="#iris-flower" transform="translate(13.5 433.5) scale(0.5) rotate(26 140 145)"/>
+  <use href="#iris-flower" transform="translate(613.5 -166.5) scale(0.5) rotate(26 140 145)"/>
+  <use href="#iris-flower" transform="translate(613.5 433.5) scale(0.5) rotate(26 140 145)"/>
+  <use href="#iris-flower" transform="translate(217.1 -162.9) scale(0.58) rotate(-6 140 145)"/>
+  <use href="#iris-flower" transform="translate(217.1 437.1) scale(0.58) rotate(-6 140 145)"/>
+  <use href="#iris-flower" transform="translate(-167.2 -177.2) scale(0.47) rotate(-30 140 145)"/>
+  <use href="#iris-flower" transform="translate(-167.2 422.8) scale(0.47) rotate(-30 140 145)"/>
+  <use href="#iris-flower" transform="translate(432.8 -177.2) scale(0.47) rotate(-30 140 145)"/>
+  <use href="#iris-flower" transform="translate(432.8 422.8) scale(0.47) rotate(-30 140 145)"/>
+</g>
+</svg>

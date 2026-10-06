@@ -3,6 +3,132 @@
   margin-left: 240px;
   padding: 34px 48px;
 }
+:root {
+  --iris-section-gap: 48px;
+  --iris-card-radius: 20px;
+  --iris-calendar-radius: 24px;
+}
+.iris-control-center {
+  display: grid;
+  grid-template-columns: minmax(320px, 40fr) minmax(440px, 60fr);
+  gap: var(--iris-section-gap);
+  min-height: 650px;
+  background: linear-gradient(135deg, #faf8ff, #f6fbfc);
+  overflow: visible;
+}
+.iris-control-center:before {
+  display: none;
+}
+.iris-schedule {
+  grid-column: 2;
+  background: #fff;
+  border: 1px solid #dce4f0;
+  border-radius: var(--iris-calendar-radius);
+  overflow: hidden;
+}
+.iris-hero {
+  position: relative;
+  min-height: 175px;
+  overflow: hidden;
+  padding: 34px;
+  color: #fff;
+  border-radius: var(--iris-calendar-radius) var(--iris-calendar-radius) 0 0;
+  background: linear-gradient(120deg, #6250a1, #526fba, #88b4cc);
+}
+.iris-hero div {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  width: 100%;
+}
+.iris-hero strong,
+.iris-hero span {
+  display: block;
+}
+.iris-hero strong {
+  font-size: 46px;
+}
+.iris-hero button {
+  position: absolute;
+  right: 20px;
+  top: 16px;
+  border: 0;
+  color: #fff;
+  background: none;
+}
+.petal {
+  position: absolute;
+  bottom: -60px;
+  left: -15px;
+  width: 115px;
+  height: 180px;
+  border-radius: 100% 0;
+  background: #9baadd;
+  opacity: 0.55;
+  transform: rotate(28deg);
+}
+.p2 {
+  left: 45px;
+  transform: rotate(-4deg);
+  background: #8ac4d3;
+}
+.p3 {
+  left: 90px;
+  transform: rotate(40deg);
+  background: #5b9f95;
+}
+.iris-meeting {
+  margin: 22px;
+  padding: 20px;
+  border: 1px solid #dedcf0;
+  border-left: 4px solid #765cd2;
+  border-radius: 16px;
+}
+.iris-meeting strong,
+.iris-meeting span,
+.iris-meeting small {
+  display: block;
+  margin: 5px 0;
+}
+.iris-meeting small {
+  color: #6683a5;
+}
+.iris-meeting button {
+  margin-top: 12px;
+  border: 0;
+  border-radius: 9px;
+  padding: 9px 13px;
+  color: #fff;
+  background: #5c4bab;
+}
+.schedule-empty {
+  display: grid;
+  min-height: 220px;
+  margin: 0;
+  place-items: center;
+  color: #6683a5;
+  font-weight: 700;
+  text-align: center;
+}
+@media (max-width: 900px) {
+  .iris-control-center {
+    grid-template-columns: 1fr;
+  }
+  .iris-control-center:before {
+    display: none;
+  }
+  .iris-actions,
+  .iris-schedule {
+    grid-column: 1;
+  }
+  .iris-actions {
+    grid-row: 1;
+    min-height: 430px;
+  }
+  .iris-schedule {
+    grid-row: 2;
+  }
+}
 .calendar-header {
   display: flex;
   justify-content: space-between;
@@ -21,17 +147,54 @@
 .header-actions {
   display: flex;
   gap: 12px;
+  align-items: center;
 }
 .header-actions button {
-  padding: 14px 20px;
+  display: grid;
+  place-items: center;
+  min-width: 110px;
+  min-height: 92px;
+  padding: 14px 18px;
   border: 0;
-  border-radius: 14px;
-  color: #09275b;
-  background: #e7effc;
+  border-radius: 18px;
+  color: #fff;
+  background: #2768ce;
   font-weight: 800;
 }
 .header-actions .create-button {
-  background: #ffe383;
+  background: #f5a642;
+}
+
+/* Zoom-inspired home: keep its actions prominent and remove the calendar view. */
+.calendar-dashboard .week-card {
+  display: none;
+}
+.calendar-dashboard > .calendar-header {
+  display: none;
+}
+.calendar-dashboard {
+  min-height: 100vh;
+  display: grid;
+  align-content: center;
+}
+.calendar-dashboard .calendar-header {
+  max-width: 980px;
+  width: 100%;
+  margin: auto;
+}
+.calendar-dashboard .calendar-header > div:first-child {
+  display: none;
+}
+.calendar-dashboard .header-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 160px);
+  gap: 48px 70px;
+}
+.calendar-dashboard .header-actions button {
+  min-width: 160px;
+  min-height: 160px;
+  border-radius: 32px;
+  font-size: 1rem;
 }
 .week-card,
 .next-card,
@@ -199,6 +362,7 @@
 .modal-backdrop {
   position: fixed;
   inset: 0;
+  z-index: 1000;
   display: grid;
   place-items: center;
   padding: 20px;
@@ -259,4 +423,394 @@
   .modal-fields {
     grid-template-columns: 1fr;
   }
+}
+
+/* Start-meeting menu, meeting cards, dialogs and toast for create/join flows. */
+.start-action-wrap {
+  position: relative;
+  z-index: 2;
+}
+.start-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  z-index: 5;
+  display: grid;
+  gap: 4px;
+  width: max(100%, 260px);
+  padding: 8px;
+  border: 1px solid #dce4f0;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 18px 36px #00224e26;
+  animation: iris-pop 140ms ease-out;
+}
+.start-menu button {
+  display: grid;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 11px;
+  color: #00224e;
+  background: transparent;
+  text-align: left;
+}
+.start-menu button:hover,
+.start-menu button:focus-visible {
+  background: #eef4fb;
+  outline: none;
+}
+.start-menu small {
+  color: #6683a5;
+}
+.iris-meeting strong {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.iris-meeting strong em {
+  padding: 3px 9px;
+  border-radius: 999px;
+  color: #1d7a4c;
+  background: #e2f6ea;
+  font-size: 0.72rem;
+  font-style: normal;
+}
+.iris-meeting.live {
+  border-left-color: #2fa36b;
+  background: #f6fdf9;
+}
+.meeting-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.iris-meeting button.secondary {
+  color: #5c4bab;
+  background: #efecfb;
+}
+.iris-meeting .no-link {
+  color: #9aa9bd;
+  font-style: italic;
+}
+.schedule-empty {
+  align-content: center;
+  gap: 14px;
+}
+.schedule-empty p {
+  margin: 0;
+}
+.schedule-empty button {
+  justify-self: center;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 10px;
+  color: #fff;
+  background: #5c4bab;
+  font-weight: 700;
+}
+.meeting-modal {
+  display: grid;
+  gap: 14px;
+  box-shadow: 0 24px 60px #00224e33;
+  animation: iris-pop 160ms ease-out;
+}
+.meeting-modal header button {
+  color: #6683a5;
+  line-height: 1;
+}
+.meeting-modal label small {
+  color: #8aa0bb;
+  font-weight: 400;
+}
+.meeting-modal .modal-fields {
+  margin-top: 0;
+}
+.modal-copy {
+  margin: 0;
+  color: #5278a4;
+  line-height: 1.5;
+}
+.modal-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.link-choice {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.link-choice legend {
+  margin-bottom: 0.45rem;
+  padding: 0;
+}
+.link-choice label {
+  display: flex;
+  gap: 10px;
+  align-items: start;
+  padding: 12px;
+  border: 1px solid #cedded;
+  border-radius: 12px;
+  cursor: pointer;
+}
+.link-choice label.selected {
+  border-color: #4376ab;
+  background: #f2f7ff;
+}
+.link-choice input {
+  width: auto;
+  margin: 3px 0 0;
+}
+.link-choice span {
+  display: grid;
+  gap: 3px;
+}
+.link-choice strong {
+  font-size: 0.92rem;
+}
+.google-connect {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-radius: 12px;
+  color: #6b4a00;
+  background: #fff6dc;
+  font-size: 0.9rem;
+}
+.google-connect button,
+.iris-toast button:not(.toast-close) {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border: 1px solid #dce4f0;
+  border-radius: 9px;
+  color: #00224e;
+  background: #fff;
+  font-weight: 700;
+}
+.iris-toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 1100;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  max-width: min(460px, calc(100vw - 48px));
+  padding: 14px 14px 14px 18px;
+  border-radius: 14px;
+  color: #fff;
+  background: #00224e;
+  box-shadow: 0 16px 36px #00224e40;
+  animation: iris-pop 160ms ease-out;
+}
+.iris-toast span {
+  flex: 1;
+  line-height: 1.4;
+}
+.toast-close {
+  border: 0;
+  color: #c9d7ea;
+  background: none;
+  font-size: 1.4rem;
+  line-height: 1;
+}
+@keyframes iris-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .start-menu,
+  .meeting-modal,
+  .iris-toast {
+    animation: none;
+  }
+}
+@media (max-width: 700px) {
+  .link-choice {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Deleting meetings. */
+.iris-meeting {
+  position: relative;
+}
+.iris-meeting .meeting-delete {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border-radius: 9px;
+  color: #8a9bb3;
+  background: transparent;
+  opacity: 0;
+  transition:
+    opacity 0.15s,
+    color 0.15s,
+    background 0.15s;
+}
+.iris-meeting .meeting-delete svg {
+  width: 17px;
+  height: 17px;
+}
+.iris-meeting:hover .meeting-delete,
+.iris-meeting:focus-within .meeting-delete {
+  opacity: 1;
+}
+.iris-meeting .meeting-delete:hover,
+.iris-meeting .meeting-delete:focus-visible {
+  color: #c2412d;
+  background: #fdecea;
+  outline: none;
+}
+.iris-meeting strong {
+  padding-right: 36px;
+}
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+.modal-secondary,
+.modal-danger {
+  padding: 0.8rem 1.1rem;
+  border-radius: 10px;
+  font-weight: 800;
+}
+.modal-secondary {
+  border: 1px solid #cedded;
+  color: #00224e;
+  background: #fff;
+}
+.modal-danger {
+  border: 0;
+  color: #fff;
+  background: #c2412d;
+}
+.modal-secondary:disabled,
+.modal-danger:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+@media (hover: none) {
+  .iris-meeting .meeting-delete {
+    opacity: 1;
+  }
+}
+
+/* Zoom-style launcher: a bold coloured icon tile with a centred label beneath,
+   no card behind it. Start meeting uses the app purple; the rest use Iris Blue. */
+.iris-actions {
+  grid-column: 1;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, 132px);
+  gap: 44px 56px;
+  place-content: center;
+}
+.iris-action {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  width: 132px;
+  padding: 0;
+  border: 0;
+  color: #00224e;
+  background: none;
+  font-size: 0.98rem;
+  font-weight: 600;
+}
+.iris-action b {
+  display: grid;
+  place-items: center;
+  width: 104px;
+  height: 104px;
+  border-radius: 28px;
+  color: #fff;
+  background: #4376ab;
+  box-shadow: 0 8px 18px #4376ab38;
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    filter 0.16s ease;
+}
+.iris-action.start b {
+  background: #5c4bab;
+  box-shadow: 0 8px 18px #5c4bab47;
+}
+.action-icon {
+  width: 46px;
+  height: 46px;
+  background: currentColor;
+  -webkit-mask: var(--icon) center / contain no-repeat;
+  mask: var(--icon) center / contain no-repeat;
+}
+.iris-action > span {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  white-space: nowrap;
+}
+.iris-action > span small {
+  color: #4376ab;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+.iris-action:hover b {
+  transform: translateY(-2px);
+  filter: brightness(1.05);
+  box-shadow: 0 12px 24px #00224e2e;
+}
+.iris-action:active b {
+  transform: translateY(0) scale(0.97);
+}
+.iris-action:focus-visible {
+  outline: none;
+}
+.iris-action:focus-visible b {
+  outline: 3px solid #00224e;
+  outline-offset: 3px;
+}
+.iris-action:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+.start-menu {
+  left: calc(50% - 130px);
+  width: 260px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .iris-action b {
+    transition: none;
+  }
+}
+
+/* Meet code shown on each meeting card. */
+.iris-meeting .meeting-code {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: #6683a5;
+}
+.meeting-code code {
+  padding: 2px 8px;
+  border-radius: 6px;
+  color: #00224e;
+  background: #eef2f8;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
 }

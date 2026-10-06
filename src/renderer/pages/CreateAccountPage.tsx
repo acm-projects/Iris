@@ -1,9 +1,10 @@
-import type { FormEvent } from "react";
-import { AuthShell } from "./LoginPage";
+import { useState, type FormEvent } from "react";
+import { PASSWORD_HINT, type AuthNotice } from "../lib/auth";
+import { AuthMessage, AuthShell, Field, PasswordInput } from "./LoginPage";
 type Props = {
   email: string;
   password: string;
-  message: string;
+  notice: AuthNotice | null;
   busy: boolean;
   onEmail: (v: string) => void;
   onPassword: (v: string) => void;
@@ -11,34 +12,51 @@ type Props = {
   onSwitch: () => void;
 };
 export default function CreateAccountPage(p: Props) {
+  const [confirm, setConfirm] = useState("");
   return (
     <AuthShell
       title="Create your account"
       subtitle="Start making meetings more inclusive."
     >
       <form className="sign-in-card" onSubmit={p.onSubmit}>
-        <label className="field-group">
-          Email
+        <Field htmlFor="signup-email" label="Email">
           <input
             autoComplete="email"
+            id="signup-email"
             onChange={(e) => p.onEmail(e.target.value)}
+            placeholder="you@example.com"
+            required
             type="email"
             value={p.email}
           />
-        </label>
-        <label className="field-group">
-          Password
-          <input
+        </Field>
+        <Field
+          hint={PASSWORD_HINT}
+          htmlFor="signup-password"
+          label="Password"
+        >
+          <PasswordInput
             autoComplete="new-password"
-            onChange={(e) => p.onPassword(e.target.value)}
-            type="password"
+            id="signup-password"
+            onChange={p.onPassword}
+            placeholder="Create a password"
             value={p.password}
           />
-        </label>
+        </Field>
+        <Field htmlFor="signup-confirm" label="Confirm password">
+          <PasswordInput
+            autoComplete="new-password"
+            id="signup-confirm"
+            name="confirm"
+            onChange={setConfirm}
+            placeholder="Type it again"
+            value={confirm}
+          />
+        </Field>
         <button className="primary-button" disabled={p.busy} type="submit">
-          Create account
+          {p.busy ? "Creating account…" : "Create account"}
         </button>
-        <p className="form-message">{p.message}</p>
+        <AuthMessage notice={p.notice} />
         <p className="create-account">
           Already have an account?{" "}
           <button className="text-button" onClick={p.onSwitch} type="button">

@@ -23,4 +23,34 @@ contextBridge.exposeInMainWorld("iris", {
     openExternal: (url: string) =>
       ipcRenderer.invoke("iris:meetings:open-external", url),
   },
+  google: {
+    createMeetEvent: (
+      accessToken: string,
+      request: {
+        title: string;
+        startsAt: string;
+        endsAt: string;
+        description?: string;
+      },
+    ) =>
+      ipcRenderer.invoke("iris:google:create-meet-event", accessToken, request),
+    listEvents: (accessToken: string, timeMin: string, timeMax: string) =>
+      ipcRenderer.invoke(
+        "iris:google:list-events",
+        accessToken,
+        timeMin,
+        timeMax,
+      ),
+    setEventColor: (accessToken: string, eventId: string, colorId: string) =>
+      ipcRenderer.invoke(
+        "iris:google:set-event-color",
+        accessToken,
+        eventId,
+        colorId,
+      ),
+    openEvent: (url: string) =>
+      ipcRenderer.invoke("iris:google:open-event", url),
+    deleteEvent: (accessToken: string, eventId: string) =>
+      ipcRenderer.invoke("iris:google:delete-event", accessToken, eventId),
+  },
 });

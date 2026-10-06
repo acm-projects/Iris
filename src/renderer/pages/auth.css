@@ -1,0 +1,343 @@
+/* Sign-in and create-account screens. */
+.login-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(380px, 42%) 1fr;
+  background:
+    radial-gradient(circle at 85% 10%, #e4f6f7 0, transparent 40%),
+    radial-gradient(circle at 70% 100%, #fff6d6 0, transparent 38%), #f4fafb;
+}
+
+/* Brand panel */
+.brand-panel {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 3.5rem 4rem;
+  color: #fff;
+  background: linear-gradient(150deg, #00224e 0%, #2a5c95 45%, #4376ab 62%, #0d9da4 100%);
+}
+.brand-orb {
+  position: absolute;
+  z-index: -1;
+  border-radius: 50%;
+  filter: blur(60px);
+  pointer-events: none;
+}
+.orb-glow {
+  top: -140px;
+  right: -120px;
+  width: 380px;
+  height: 380px;
+  background: #8fc0ea;
+  opacity: 0.4;
+}
+.orb-teal {
+  bottom: -160px;
+  left: -120px;
+  width: 420px;
+  height: 420px;
+  background: #0d9da4;
+  opacity: 0.45;
+}
+.brand-flower {
+  position: absolute;
+  right: -90px;
+  bottom: -70px;
+  z-index: -1;
+  width: min(520px, 70%);
+  opacity: 0.22;
+  transform: rotate(-8deg);
+  pointer-events: none;
+  /* Lift the dark navy petals so they read against the gradient. */
+  filter: brightness(1.6) saturate(1.1);
+}
+.brand-copy {
+  max-width: 31rem;
+  margin: auto 0;
+}
+.brand-copy h1 {
+  margin: 0 0 1.2rem;
+  font-size: clamp(2.3rem, 3.6vw, 3.3rem);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+}
+.brand-copy p {
+  margin: 0;
+  max-width: 26rem;
+  color: #dcecf7;
+  font-size: 1.08rem;
+  line-height: 1.55;
+}
+.brand-features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 2rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.brand-features li {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 14px;
+  border: 1px solid #ffffff33;
+  border-radius: 999px;
+  background: #ffffff1a;
+  backdrop-filter: blur(6px);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.brand-features li span {
+  color: #fce688;
+}
+.brand-footnote {
+  margin: 0;
+  color: #cfe3f1;
+  font-size: 0.85rem;
+}
+
+/* Form panel */
+.sign-in-panel {
+  display: grid;
+  place-items: center;
+  padding: 3rem 2rem;
+}
+.sign-in-content {
+  width: min(30rem, 100%);
+}
+.sign-in-content .kicker {
+  margin: 0 0 0.6rem;
+  color: #4376ab;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+.sign-in-content h2 {
+  margin: 0;
+  color: #00224e;
+  font-size: 2.2rem;
+  letter-spacing: -0.03em;
+}
+.sign-in-content .subtitle {
+  margin: 0.6rem 0 1.8rem;
+  color: #5278a4;
+  font-size: 1.02rem;
+}
+.sign-in-card {
+  display: grid;
+  gap: 1.15rem;
+  padding: 2.2rem;
+  border: 1px solid #e3ecf3;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 24px 50px #00224e14;
+}
+.sign-in-card .field-group {
+  gap: 0.5rem;
+}
+.field-label {
+  color: #00224e;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+.sign-in-card input {
+  height: 52px;
+  padding: 0 1rem;
+  border: 1.5px solid #d5e0ec;
+  border-radius: 12px;
+  color: #00224e;
+  background: #fbfdff;
+  font-size: 1rem;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    background 0.15s;
+}
+.sign-in-card input::placeholder {
+  color: #9db0c6;
+}
+.sign-in-card input:hover {
+  border-color: #b9cbe0;
+}
+.sign-in-card input:focus {
+  border-color: #4376ab;
+  outline: none;
+  background: #fff;
+  box-shadow: 0 0 0 4px #4376ab26;
+}
+.password-field {
+  position: relative;
+  display: block;
+}
+.password-field input {
+  padding-right: 4.5rem;
+}
+.password-field button {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 8px;
+  color: #4376ab;
+  background: transparent;
+  font-size: 0.85rem;
+  font-weight: 700;
+  transform: translateY(-50%);
+}
+.password-field button:hover {
+  background: #eef4fb;
+}
+.sign-in-card .primary-button {
+  height: 52px;
+  margin-top: 0.3rem;
+  padding: 0;
+  border-radius: 12px;
+  background: #00224e;
+  font-size: 1rem;
+  transition:
+    background 0.15s,
+    transform 0.1s;
+}
+.sign-in-card .primary-button:hover {
+  background: #0b336b;
+}
+.sign-in-card .primary-button:active {
+  transform: scale(0.99);
+}
+.sign-in-card .primary-button:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+.auth-divider {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  color: #8ea3bb;
+  font-size: 0.85rem;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #e3ebf3;
+}
+.provider-buttons {
+  display: grid;
+  gap: 10px;
+}
+.provider-buttons button {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  height: 50px;
+  border: 1.5px solid #d5e0ec;
+  border-radius: 12px;
+  color: #00224e;
+  background: #fff;
+  font-size: 0.98rem;
+  font-weight: 600;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.provider-buttons button:hover {
+  border-color: #b9cbe0;
+  background: #f7fafd;
+}
+.sign-in-card button:focus-visible {
+  outline: 3px solid #4376ab66;
+  outline-offset: 2px;
+}
+.sign-in-card .create-account {
+  margin: 0.2rem 0 0;
+  color: #5278a4;
+  text-align: center;
+}
+.sign-in-card .text-button {
+  padding: 0;
+  font-weight: 700;
+}
+.sign-in-card .text-button:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 860px) {
+  .login-shell {
+    grid-template-columns: 1fr;
+  }
+  .brand-panel {
+    min-height: 320px;
+    padding: 2.5rem;
+  }
+  .brand-copy {
+    margin: 2.5rem 0;
+  }
+  .brand-footnote {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sign-in-card input,
+  .sign-in-card .primary-button,
+  .provider-buttons button {
+    transition: none;
+  }
+}
+
+/* Field headings with an inline action, hints, and toned status messages. */
+.field-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.field-heading .text-button {
+  padding: 0;
+  border: 0;
+  color: #4376ab;
+  background: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.field-heading .text-button:hover {
+  text-decoration: underline;
+}
+.field-hint {
+  color: #8ea3bb;
+  font-size: 0.8rem;
+}
+.form-message {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: center;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: #00224e;
+  background: #eef4fb;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+.form-message.error {
+  color: #8a1f17;
+  background: #fdeeec;
+}
+.form-message.success {
+  color: #145c3a;
+  background: #e5f6ec;
+}
+.form-message .text-button {
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: none;
+  font-weight: 700;
+  text-decoration: underline;
+}
