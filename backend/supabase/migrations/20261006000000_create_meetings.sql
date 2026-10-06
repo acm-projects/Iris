@@ -1,3 +1,4 @@
+-- DO NOT TOUCH, ONLY TO KEEP TRACK OF QUERIES RAN IN SUPABASE
 -- Meetings shown on the Iris dashboard. Each row belongs to the user who created it.
 create table if not exists public.meetings (
   id uuid primary key default gen_random_uuid(),
