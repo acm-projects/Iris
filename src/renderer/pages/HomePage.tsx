@@ -5,6 +5,7 @@ import TranslationPage from "./TranslationPage";
 import AnalyticsPage from "./AnalyticsPage";
 import SettingsPage from "./SettingsPage";
 import Sidebar from "../components/Sidebar";
+import "./calendar.css";
 
 type Meeting = {
   id: string;

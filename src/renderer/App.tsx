@@ -21,6 +21,18 @@ export type Meeting = {
   description: string | null;
 };
 type Profile = { display_name: string | null; avatar_path: string | null };
+const displayNameFor = (user: Session["user"]) => {
+  const metadata = user.user_metadata as Record<string, unknown>;
+  const fullName =
+    metadata.full_name ||
+    metadata.name ||
+    [metadata.given_name, metadata.family_name].filter(Boolean).join(" ");
+  if (typeof fullName === "string" && fullName.trim()) return fullName.trim();
+  const localPart = user.email?.split("@")[0] || "there";
+  return localPart
+    .replace(/[._-]+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+};
 const weekStartFor = (date: Date) => {
   const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
@@ -51,11 +63,39 @@ export default function App() {
   const [joinUrl, setJoinUrl] = useState("");
   const [now, setNow] = useState(() => new Date());
   const fileInput = useRef<HTMLInputElement>(null);
+  const handledCallbackUrls = useRef(new Set<string>());
   const configured = isSupabaseConfigured();
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(timer);
   }, []);
+  useEffect(() => {
+    if (!configured || !window.iris?.auth) return;
+    const completeCallback = async (url: string) => {
+      if (handledCallbackUrls.current.has(url)) return;
+      handledCallbackUrls.current.add(url);
+      const callback = new URL(url);
+      const code = callback.searchParams.get("code");
+      const flowId = callback.searchParams.get("sb_flow_id");
+      if (!code)
+        return setMessage(
+          "The sign-in callback did not include an authorization code.",
+        );
+      setBusy(true);
+      const { data, error } = await getSupabase().auth.exchangeCodeForSession(
+        code,
+        flowId ? { flowId } : undefined,
+      );
+      setBusy(false);
+      if (data.session) setSession(data.session);
+      if (error) setMessage(error.message);
+    };
+    const unsubscribe = window.iris.auth.onCallback(completeCallback);
+    void window.iris.auth.consumeCallback().then((url) => {
+      if (url) void completeCallback(url);
+    });
+    return unsubscribe;
+  }, [configured]);
   useEffect(() => {
     if (!configured) return;
     const supabase = getSupabase();
@@ -69,11 +109,7 @@ export default function App() {
   }, [configured]);
   useEffect(() => {
     if (!session || !configured) return;
-    const fallback =
-      session.user.user_metadata.full_name ||
-      session.user.user_metadata.name ||
-      session.user.email?.split("@")[0] ||
-      "there";
+    const fallback = displayNameFor(session.user);
     void (async () => {
       const supabase = getSupabase();
       const { data } = await supabase
@@ -81,8 +117,20 @@ export default function App() {
         .select("display_name,avatar_path")
         .eq("id", session.user.id)
         .maybeSingle();
-      const next = data || { display_name: fallback, avatar_path: null };
-      if (!data)
+      const existingName = data?.display_name?.trim();
+      const emailUsername = session.user.email?.split("@")[0];
+      const shouldUpgradeName = Boolean(
+        existingName &&
+        emailUsername &&
+        existingName.toLowerCase() === emailUsername.toLowerCase() &&
+        existingName !== fallback,
+      );
+      const next = {
+        display_name:
+          shouldUpgradeName || !existingName ? fallback : existingName,
+        avatar_path: data?.avatar_path || null,
+      };
+      if (!data || shouldUpgradeName)
         await supabase
           .from("profiles")
           .upsert({ id: session.user.id, display_name: fallback });
@@ -239,8 +287,7 @@ export default function App() {
         busy={busy}
       />
     );
-  const name =
-    profile?.display_name || session.user.email?.split("@")[0] || "there";
+  const name = profile?.display_name || displayNameFor(session.user);
   return (
     <HomePage
       avatarUrl={avatarUrl}
