@@ -29,6 +29,14 @@ type Devices = {
   virtualCamera: boolean;
 };
 
+/** Tabs in the right-hand card. */
+const TABS = [
+  { id: "setup", label: "Setup" },
+  { id: "settings", label: "Settings" },
+  { id: "meet", label: "Meet guide" },
+] as const;
+type TabId = (typeof TABS)[number]["id"];
+
 // Short phrases a signer can send with one click.
 const QUICK_PHRASES = [
   "Hello everyone!",
@@ -76,6 +84,9 @@ export default function TranslationPage() {
   const [liveDevice, setLiveDevice] = useState("");
   const [liveError, setLiveError] = useState("");
   const [caption, setCaption] = useState("");
+  // Which tab of the right-hand card is open, and which check row is expanded.
+  const [tab, setTab] = useState<TabId>("setup");
+  const [openRow, setOpenRow] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const pumpRef = useRef<FramePump | null>(null);
   // Refs give callbacks (frame pump, engine events) the latest values.
@@ -525,8 +536,7 @@ export default function TranslationPage() {
       id: "model",
       title: "Sign recognition",
       state: "info",
-      detail:
-        "The ASL model isn't connected yet. Captions and Type to speak work today.",
+      detail: "Not connected yet. Captions and Type to speak work today.",
     });
     return rows;
   }, [
@@ -577,8 +587,8 @@ export default function TranslationPage() {
           <p>Translation</p>
           <h1>Live translation</h1>
           <span>
-            Sign and type in Iris. Google Meet sees your captioned video and
-            hears Iris's voice.
+            Sign and type in Iris. Meet sees your captioned video and hears
+            Iris's voice.
           </span>
         </div>
         <div className="tr-header-actions">
@@ -617,32 +627,6 @@ export default function TranslationPage() {
         </div>
       </header>
       {liveError && <p className="tr-error">{liveError}</p>}
-
-      {/* How it works: real devices → Iris → virtual devices → Google Meet */}
-      <ol className="tr-flow" aria-label="How translation works">
-        <li>
-          <b>1</b>
-          <strong>Your camera & mic</strong>
-          <small>Iris sees your signing and hears the room</small>
-        </li>
-        <li>
-          <b>2</b>
-          <strong>Iris translates</strong>
-          <small>Signs → speech, typing → voice, captions on video</small>
-        </li>
-        <li>
-          <b>3</b>
-          <strong>Virtual camera & mic</strong>
-          <small>
-            OBS Virtual Camera + {isMac ? "BlackHole 2ch" : "VB-CABLE"}
-          </small>
-        </li>
-        <li>
-          <b>4</b>
-          <strong>Google Meet</strong>
-          <small>Choose them as your camera and microphone</small>
-        </li>
-      </ol>
 
       <div className="tr-grid">
         <div className="tr-column">
@@ -694,190 +678,250 @@ export default function TranslationPage() {
         </div>
 
         <div className="tr-column">
-          {/* System check */}
-          <section className="tr-card">
-            <header className="tr-card-head">
-              <div>
-                <h2>System check</h2>
-                <p>
-                  {blocking
-                    ? `${blocking} item${blocking > 1 ? "s" : ""} need${blocking > 1 ? "" : "s"} attention before you can go live.`
-                    : "Everything Meet needs is ready."}
-                </p>
-              </div>
-              <button
-                className="tr-ghost"
-                disabled={checking}
-                onClick={() => void runEngineCheck()}
-                type="button"
-              >
-                {checking ? "Checking…" : "Run again"}
-              </button>
-            </header>
-            <ul className="tr-checks">
-              {checks.map((row) => (
-                <li className={row.state} key={row.id}>
-                  <i aria-hidden="true">
-                    {row.state === "ok"
-                      ? "✓"
-                      : row.state === "fail"
-                        ? "!"
-                        : row.state === "info"
-                          ? "i"
-                          : "…"}
-                  </i>
-                  <div>
-                    <strong>{row.title}</strong>
-                    <span>{row.detail}</span>
-                    {row.command && <CopyCommand command={row.command} />}
-                  </div>
-                  {row.action && (
-                    <button onClick={row.action.run} type="button">
-                      {row.action.label}
-                    </button>
-                  )}
-                </li>
+          {/* One card, three tabs: Setup, Settings, Meet guide */}
+          <section className="tr-card tr-tabs-card">
+            <div className="tr-tabs" role="tablist" aria-label="Translation">
+              {TABS.map((item) => (
+                <button
+                  aria-selected={tab === item.id}
+                  className={tab === item.id ? "active" : ""}
+                  key={item.id}
+                  onClick={() => setTab(item.id)}
+                  role="tab"
+                  type="button"
+                >
+                  {item.label}
+                  {item.id === "setup" && blocking > 0 && <b>{blocking}</b>}
+                </button>
               ))}
-            </ul>
-            {testNote && <p className="tr-note">{testNote}</p>}
-          </section>
-
-          {/* Devices and translation settings */}
-          <section className="tr-card">
-            <header className="tr-card-head">
-              <div>
-                <h2>Settings</h2>
-                <p>Saved on this computer.</p>
-              </div>
-            </header>
-            <div className="tr-settings">
-              <label>
-                Camera
-                <select
-                  onChange={(e) => update({ cameraId: e.target.value })}
-                  value={settings.cameraId}
-                >
-                  {devices.cameras.map((d) => (
-                    <option key={d.deviceId} value={d.deviceId}>
-                      {d.label || "Camera"}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Microphone
-                <select
-                  onChange={(e) => update({ microphoneId: e.target.value })}
-                  value={settings.microphoneId}
-                >
-                  {devices.mics.map((d) => (
-                    <option key={d.deviceId} value={d.deviceId}>
-                      {d.label || "Microphone"}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Iris voice goes to
-                <select
-                  onChange={(e) => update({ virtualMicId: e.target.value })}
-                  value={settings.virtualMicId}
-                >
-                  <option value="">Automatic (virtual microphone)</option>
-                  {devices.outputs
-                    .filter((d) => isVirtualMic(d.label))
-                    .map((d) => (
-                      <option key={d.deviceId} value={d.deviceId}>
-                        {d.label}
-                      </option>
-                    ))}
-                </select>
-              </label>
-              <label>
-                Sign language
-                <select
-                  onChange={() => update({ signLanguage: "ASL" })}
-                  value={settings.signLanguage}
-                >
-                  <option value="ASL">American Sign Language (ASL)</option>
-                  <option disabled>British Sign Language (coming soon)</option>
-                  <option disabled>French Sign Language (coming soon)</option>
-                </select>
-              </label>
-              <label>
-                Video quality
-                <select
-                  onChange={(e) =>
-                    update({
-                      resolution: e.target
-                        .value as TranslationSettings["resolution"],
-                    })
-                  }
-                  value={settings.resolution}
-                >
-                  <option value="720p">HD (1280×720)</option>
-                  <option value="540p">Balanced (960×540)</option>
-                </select>
-              </label>
-              <div className="tr-field">
-                Caption size
-                <div
-                  className="tr-segment"
-                  role="radiogroup"
-                  aria-label="Caption size"
-                >
-                  {(["small", "medium", "large"] as const).map((size) => (
-                    <button
-                      aria-checked={settings.captionSize === size}
-                      className={settings.captionSize === size ? "active" : ""}
-                      key={size}
-                      onClick={() => update({ captionSize: size })}
-                      role="radio"
-                      type="button"
-                    >
-                      {size[0].toUpperCase() + size.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <Toggle
-                checked={settings.showCaptions}
-                description="Meet participants see captions under your video."
-                label="Show captions on my video"
-                onChange={(value) => update({ showCaptions: value })}
-              />
-              <Toggle
-                checked={settings.speakSigns}
-                description="Iris speaks each recognised sign into the meeting."
-                label="Speak recognised signs aloud"
-                onChange={(value) => update({ speakSigns: value })}
-              />
-              <Toggle
-                checked={settings.mirrorPreview}
-                description="Only affects your preview. Meet always gets the unmirrored video."
-                label="Mirror my preview"
-                onChange={(value) => update({ mirrorPreview: value })}
-              />
             </div>
-          </section>
 
-          {/* How to pick the devices in Google Meet */}
-          <section className="tr-card tr-meet">
-            <h2>In Google Meet</h2>
-            <ol>
-              <li>
-                Click <strong>Start translation</strong> here first.
-              </li>
-              <li>
-                In Meet, open <strong>Settings ⚙ → Video</strong> and choose{" "}
-                <strong>OBS Virtual Camera</strong>.
-              </li>
-              <li>
-                Open <strong>Audio</strong> and choose{" "}
-                <strong>{isMac ? "BlackHole 2ch" : "CABLE Output"}</strong> as
-                the microphone.
-              </li>
-            </ol>
+            {/* Setup: the system check */}
+            {tab === "setup" && (
+              <>
+                <header className="tr-card-head">
+                  <div>
+                    <h2>System check</h2>
+                    <p>
+                      {blocking
+                        ? `${blocking} to fix before you can go live.`
+                        : "Everything Meet needs is ready."}
+                    </p>
+                  </div>
+                  <button
+                    className="tr-ghost"
+                    disabled={checking}
+                    onClick={() => void runEngineCheck()}
+                    type="button"
+                  >
+                    {checking ? "Checking…" : "Run again"}
+                  </button>
+                </header>
+                <ul className="tr-checks">
+                  {checks.map((row) => {
+                    // Problems hide their instructions until "Show how" is clicked.
+                    const hasMore = row.state === "fail" || row.state === "warn";
+                    const expanded = openRow === row.id;
+                    const showDetail =
+                      row.state !== "ok" && (!hasMore || expanded);
+                    return (
+                      <li
+                        className={row.state}
+                        key={row.id}
+                        title={row.state === "ok" ? row.detail : undefined}
+                      >
+                        <i aria-hidden="true">
+                          {row.state === "ok"
+                            ? "✓"
+                            : row.state === "fail"
+                              ? "!"
+                              : row.state === "info"
+                                ? "i"
+                                : "…"}
+                        </i>
+                        <div>
+                          <strong>{row.title}</strong>
+                          {showDetail && <span>{row.detail}</span>}
+                          {expanded && row.command && (
+                            <CopyCommand command={row.command} />
+                          )}
+                          {hasMore && (
+                            <button
+                              className="tr-link"
+                              onClick={() =>
+                                setOpenRow(expanded ? null : row.id)
+                              }
+                              type="button"
+                            >
+                              {expanded ? "Hide" : "Show how"}
+                            </button>
+                          )}
+                        </div>
+                        {row.action && (
+                          <button onClick={row.action.run} type="button">
+                            {row.action.label}
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+                {testNote && <p className="tr-note">{testNote}</p>}
+              </>
+            )}
+
+            {/* Settings: devices and translation options */}
+            {tab === "settings" && (
+              <>
+                <header className="tr-card-head">
+                  <div>
+                    <h2>Settings</h2>
+                    <p>Saved on this computer.</p>
+                  </div>
+                </header>
+                <div className="tr-settings">
+                  <label>
+                    Camera
+                    <select
+                      onChange={(e) => update({ cameraId: e.target.value })}
+                      value={settings.cameraId}
+                    >
+                      {devices.cameras.map((d) => (
+                        <option key={d.deviceId} value={d.deviceId}>
+                          {d.label || "Camera"}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Microphone
+                    <select
+                      onChange={(e) => update({ microphoneId: e.target.value })}
+                      value={settings.microphoneId}
+                    >
+                      {devices.mics.map((d) => (
+                        <option key={d.deviceId} value={d.deviceId}>
+                          {d.label || "Microphone"}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Iris voice goes to
+                    <select
+                      onChange={(e) => update({ virtualMicId: e.target.value })}
+                      value={settings.virtualMicId}
+                    >
+                      <option value="">Automatic (virtual microphone)</option>
+                      {devices.outputs
+                        .filter((d) => isVirtualMic(d.label))
+                        .map((d) => (
+                          <option key={d.deviceId} value={d.deviceId}>
+                            {d.label}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <label>
+                    Sign language
+                    <select
+                      onChange={() => update({ signLanguage: "ASL" })}
+                      value={settings.signLanguage}
+                    >
+                      <option value="ASL">American Sign Language (ASL)</option>
+                      <option disabled>
+                        British Sign Language (coming soon)
+                      </option>
+                      <option disabled>
+                        French Sign Language (coming soon)
+                      </option>
+                    </select>
+                  </label>
+                  <label>
+                    Video quality
+                    <select
+                      onChange={(e) =>
+                        update({
+                          resolution: e.target
+                            .value as TranslationSettings["resolution"],
+                        })
+                      }
+                      value={settings.resolution}
+                    >
+                      <option value="720p">HD (1280×720)</option>
+                      <option value="540p">Balanced (960×540)</option>
+                    </select>
+                  </label>
+                  <div className="tr-field">
+                    Caption size
+                    <div
+                      className="tr-segment"
+                      role="radiogroup"
+                      aria-label="Caption size"
+                    >
+                      {(["small", "medium", "large"] as const).map((size) => (
+                        <button
+                          aria-checked={settings.captionSize === size}
+                          className={
+                            settings.captionSize === size ? "active" : ""
+                          }
+                          key={size}
+                          onClick={() => update({ captionSize: size })}
+                          role="radio"
+                          type="button"
+                        >
+                          {size[0].toUpperCase() + size.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <Toggle
+                    checked={settings.showCaptions}
+                    description="Captions appear under your video in Meet."
+                    label="Show captions on my video"
+                    onChange={(value) => update({ showCaptions: value })}
+                  />
+                  <Toggle
+                    checked={settings.speakSigns}
+                    description="Iris speaks each recognised sign."
+                    label="Speak recognised signs aloud"
+                    onChange={(value) => update({ speakSigns: value })}
+                  />
+                  <Toggle
+                    checked={settings.mirrorPreview}
+                    description="Preview only. Meet gets the unmirrored video."
+                    label="Mirror my preview"
+                    onChange={(value) => update({ mirrorPreview: value })}
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Meet guide: how to pick the devices in Google Meet */}
+            {tab === "meet" && (
+              <>
+                <header className="tr-card-head">
+                  <div>
+                    <h2>In Google Meet</h2>
+                    <p>Three steps to use Iris in a call.</p>
+                  </div>
+                </header>
+                <ol className="tr-meet-list">
+                  <li>
+                    Click <strong>Start translation</strong> here first.
+                  </li>
+                  <li>
+                    In Meet, open <strong>Settings ⚙ → Video</strong> and
+                    choose <strong>OBS Virtual Camera</strong>.
+                  </li>
+                  <li>
+                    Open <strong>Audio</strong> and choose{" "}
+                    <strong>{isMac ? "BlackHole 2ch" : "CABLE Output"}</strong>{" "}
+                    as the microphone.
+                  </li>
+                </ol>
+              </>
+            )}
           </section>
         </div>
       </div>
@@ -917,7 +961,7 @@ function TypeToSpeak({
       <header className="tr-card-head">
         <div>
           <h2>Type to speak</h2>
-          <p>Iris says it in the meeting and shows it as a caption.</p>
+          <p>Iris says it in the meeting and shows a caption.</p>
         </div>
         <button className="tr-ghost" onClick={onClearCaption} type="button">
           Clear caption

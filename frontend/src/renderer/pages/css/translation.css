@@ -35,7 +35,7 @@
   align-items: end;
   justify-content: space-between;
   max-width: 1240px;
-  margin: 0 auto 20px;
+  margin: 0 auto 22px;
 }
 .tr-header p {
   margin: 0 0 6px;
@@ -124,69 +124,12 @@
   font-size: 0.9rem;
 }
 
-/* ---- How it works ---- */
-.tr-flow {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-  max-width: 1240px;
-  margin: 0 auto 22px;
-  padding: 0;
-  list-style: none;
-}
-.tr-flow li {
-  position: relative;
-  display: grid;
-  gap: 2px;
-  padding: 14px 16px 14px 56px;
-  border: 1px solid var(--t-border);
-  border-radius: 16px;
-  background: var(--t-card);
-}
-/* Arrow between steps */
-.tr-flow li:not(:last-child)::after {
-  content: "→";
-  position: absolute;
-  top: 50%;
-  right: -13px;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  color: #fff;
-  background: var(--t-accent);
-  font-size: 0.75rem;
-  transform: translateY(-50%);
-}
-.tr-flow b {
-  position: absolute;
-  top: 50%;
-  left: 14px;
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 10px;
-  color: #fff;
-  background: linear-gradient(140deg, #00224e, #4376ab 60%, #0d9da4);
-  transform: translateY(-50%);
-}
-.tr-flow strong {
-  font-size: 0.92rem;
-}
-.tr-flow small {
-  color: var(--t-muted);
-  font-size: 0.78rem;
-  line-height: 1.35;
-}
-
 /* ---- Layout ---- */
 .tr-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(340px, 1fr);
   gap: 20px;
+  align-items: start;
   max-width: 1240px;
   margin: 0 auto;
 }
@@ -230,6 +173,52 @@
 }
 .tr-ghost:hover {
   background: var(--t-raised);
+}
+
+/* ---- Tabs (Setup / Settings / Meet guide) ---- */
+.tr-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 18px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--t-raised);
+}
+.tr-tabs button {
+  display: flex;
+  flex: 1;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 9px;
+  color: var(--t-muted);
+  background: transparent;
+  font-size: 0.88rem;
+  font-weight: 700;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.tr-tabs button:hover {
+  color: var(--t-text);
+}
+.tr-tabs button.active {
+  color: var(--t-text);
+  background: var(--t-card);
+  box-shadow: 0 1px 4px #00224e1f;
+}
+.tr-tabs b {
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--t-fail);
+  font-size: 0.72rem;
 }
 
 /* ---- Preview ---- */
@@ -457,6 +446,19 @@
 .tr-checks li > button:hover {
   background: var(--t-raised);
 }
+/* "Show how" / "Hide" link under a failing row */
+.tr-link {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  color: var(--t-accent);
+  background: none;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.tr-link:hover {
+  text-decoration: underline;
+}
 .tr-command {
   display: flex;
   min-width: 0;
@@ -589,23 +591,18 @@
   transform: translateX(16px);
 }
 
-/* ---- Google Meet instructions ---- */
-.tr-meet {
-  color: #fff;
-  background: linear-gradient(140deg, #00224e, #2a5c95 60%, #0d9da4);
-  border-color: transparent;
-}
-.tr-meet ol {
+/* ---- Meet guide ---- */
+.tr-meet-list {
   display: grid;
-  gap: 8px;
-  margin: 12px 0 0;
-  padding-left: 20px;
-  color: #dbe8f6;
-  font-size: 0.88rem;
-  line-height: 1.45;
+  gap: 12px;
+  margin: 0;
+  padding-left: 22px;
+  color: var(--t-muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
 }
-.tr-meet strong {
-  color: #fff;
+.tr-meet-list strong {
+  color: var(--t-text);
 }
 
 /* ---- Dark mode ---- */
@@ -625,9 +622,6 @@
 :root[data-theme="dark"] .tr-card {
   box-shadow: none;
 }
-:root[data-theme="dark"] .tr-meet {
-  background: linear-gradient(140deg, #041633, #163f70 60%, #0a6f75);
-}
 :root[data-theme="dark"] .tr-pill.ready {
   color: #7ee0aa;
   background: #123a2a;
@@ -646,24 +640,12 @@
   .tr-grid {
     grid-template-columns: 1fr;
   }
-  .tr-flow {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .tr-flow li:nth-child(2)::after {
-    display: none;
-  }
 }
 @media (max-width: 700px) {
   .translation-page {
     height: auto;
     margin-left: 0;
     padding: 22px 18px;
-  }
-  .tr-flow {
-    grid-template-columns: 1fr;
-  }
-  .tr-flow li::after {
-    display: none;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -672,7 +654,8 @@
   }
   .tr-toggle i,
   .tr-toggle i::after,
-  .tr-meter em {
+  .tr-meter em,
+  .tr-tabs button {
     transition: none;
   }
 }
