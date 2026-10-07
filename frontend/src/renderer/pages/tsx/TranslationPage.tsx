@@ -600,11 +600,7 @@ export default function TranslationPage() {
   const noteRow = checks.find((row) => row.state === "info");
   const okCount = stepRows.filter((row) => row.state === "ok").length;
   const ringLength = 2 * Math.PI * 22;
-  const activeId =
-    openRow === null
-      ? stepRows.find((row) => row.state === "fail" || row.state === "warn")
-          ?.id
-      : openRow || undefined;
+  const activeId = openRow || undefined;
   const activeRow = stepRows.find((row) => row.id === activeId);
 
   /** Plays a chime into the virtual microphone so the user can hear it in Meet. */
@@ -810,11 +806,11 @@ export default function TranslationPage() {
                   {stepRows.map((row) => (
                     <li key={row.id}>
                       <button
+                        aria-label={`${row.title}: ${stepLabel(row.state)}`}
                         aria-pressed={activeId === row.id}
                         className={`tr-step ${row.state} ${activeId === row.id ? "selected" : ""}`}
-                        onClick={() =>
-                          setOpenRow(activeId === row.id ? "" : row.id)
-                        }
+                        onClick={() => setOpenRow(activeId === row.id ? "" : row.id)}
+                        title={`${row.title}: ${stepLabel(row.state)}`}
                         type="button"
                       >
                         {row.state === "ok" && (
@@ -826,7 +822,6 @@ export default function TranslationPage() {
                           <Icon name={CHECK_ICONS[row.id] ?? "info"} />
                         </span>
                         <strong>{row.title}</strong>
-                        <small>{stepLabel(row.state)}</small>
                       </button>
                     </li>
                   ))}
