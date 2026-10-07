@@ -130,10 +130,6 @@
   color: var(--s-muted);
   font-size: 0.9rem;
 }
-/* NEW: the banner has no title header, so it gets its own padding */
-.settings-banner {
-  padding: 20px 26px;
-}
 .settings-badge {
   display: grid;
   place-items: center;
@@ -548,6 +544,35 @@
   box-shadow: 0 0 0 4px #4376ab26;
 }
 
+/* Password form slides open and closed */
+.password-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-top: -14px; /* cancels the grid gap while closed */
+  opacity: 0;
+  visibility: hidden; /* keeps hidden fields out of Tab order */
+  transition:
+    grid-template-rows 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    margin-top 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.2s ease,
+    visibility 0s linear 0.4s;
+}
+.password-collapse.open {
+  grid-template-rows: 1fr;
+  margin-top: 0;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    grid-template-rows 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    margin-top 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.3s ease 0.08s,
+    visibility 0s;
+}
+.password-collapse-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
 /* ---- Dark mode: swap the colour variables and a few fixed colours ---- */
 :root[data-theme="dark"] .settings-page {
   --s-bg: #08111f;
@@ -619,7 +644,8 @@
 @media (prefers-reduced-motion: reduce) {
   .choice-card,
   .icon-choice,
-  .settings-nav button {
+  .settings-nav button,
+  .password-collapse {
     transition: none;
   }
 }
@@ -680,5 +706,137 @@
   .settings-page *::after {
     animation: none !important;
     transition: none !important;
+  }
+}
+
+/* ---- Profile banner (same look as the Home clock card) ---- */
+.settings-banner {
+  position: relative;
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  overflow: hidden;
+  padding: 26px 30px;
+  border-radius: 24px;
+  color: #fff;
+  background: linear-gradient(110deg, #5d4ea6 0%, #5b70b3 55%, #88a9c6 100%);
+  box-shadow: 0 16px 36px #5d4ea63a;
+}
+/* Soft leaf shapes behind the content */
+.banner-leaf {
+  position: absolute;
+  border-radius: 0 100% 0 100%;
+  pointer-events: none;
+}
+.banner-leaf.one {
+  bottom: -90px;
+  left: -40px;
+  width: 190px;
+  height: 190px;
+  background: #b9b2ea;
+  opacity: 0.28;
+}
+.banner-leaf.two {
+  top: -60px;
+  right: 240px;
+  width: 150px;
+  height: 150px;
+  background: #8fb8c9;
+  opacity: 0.3;
+  transform: rotate(30deg);
+}
+.banner-leaf.three {
+  right: 40px;
+  bottom: -60px;
+  width: 120px;
+  height: 120px;
+  background: #6fa59f;
+  opacity: 0.35;
+}
+.banner-avatar {
+  position: relative;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  overflow: hidden;
+  padding: 0;
+  border: 3px solid #ffffff73;
+  border-radius: 50%;
+  color: #14275a;
+  background: #f6bf41;
+  font-size: 1.9rem;
+  font-weight: 800;
+  transition: transform 0.15s;
+}
+.banner-avatar:hover {
+  transform: scale(1.04);
+}
+.banner-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.banner-copy {
+  position: relative;
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+}
+.banner-copy strong {
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+}
+.banner-copy > span {
+  color: #e6ebff;
+  font-size: 0.92rem;
+  overflow-wrap: anywhere;
+}
+.banner-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.banner-tags span {
+  padding: 4px 11px;
+  border: 1px solid #ffffff59;
+  border-radius: 999px;
+  color: #fff;
+  background: #ffffff26;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.banner-button {
+  position: relative;
+  flex-shrink: 0;
+  height: 42px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 12px;
+  color: #5d4ea6;
+  background: #fff;
+  font-weight: 800;
+  box-shadow: 0 8px 18px #14275a2e;
+  transition: transform 0.15s;
+}
+.banner-button:hover {
+  transform: translateY(-1px);
+}
+
+:root[data-theme="dark"] .settings-banner {
+  background: linear-gradient(110deg, #3b3180 0%, #34457f 55%, #3f6a7c 100%);
+  box-shadow: none;
+}
+:root[data-theme="dark"] .banner-button {
+  color: #14275a;
+}
+
+@media (max-width: 700px) {
+  .settings-banner {
+    flex-wrap: wrap;
+    padding: 22px 20px;
   }
 }

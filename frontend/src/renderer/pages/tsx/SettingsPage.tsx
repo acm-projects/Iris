@@ -77,14 +77,9 @@ export default function SettingsPage(p: Props) {
 
       <div className="settings-layout">
         <div className="settings-sections">
-          <Section
-            description="Your profile and the ways you can sign in."
-            icon="user"
-            id="account"
-            title="Account"
-          >
+          <section className="settings-banner" id="account">
             <ProfileRow {...p} />
-          </Section>
+          </section>
 
           <Section
             description="Choose how Iris looks on this computer."
@@ -282,9 +277,12 @@ function AppIconPicker() {
 /** Photo, name, email and sign-in methods. */
 function ProfileRow(p: Props) {
   return (
-    <div className="profile-row">
+    <>
+      <span aria-hidden="true" className="banner-leaf one" />
+      <span aria-hidden="true" className="banner-leaf two" />
+      <span aria-hidden="true" className="banner-leaf three" />
       <button
-        className="profile-avatar"
+        className="banner-avatar"
         onClick={p.onChangePhoto}
         title="Change photo"
         type="button"
@@ -294,25 +292,24 @@ function ProfileRow(p: Props) {
         ) : (
           <span>{p.name.slice(0, 1).toUpperCase()}</span>
         )}
-        <em>Edit</em>
       </button>
-      <div className="profile-copy">
+      <div className="banner-copy">
         <strong>{p.name}</strong>
         <span>{p.email}</span>
-        <div className="settings-tags">
+        <div className="banner-tags">
           {p.providers.map((provider) => (
             <span key={provider}>{providerName(provider)}</span>
           ))}
         </div>
       </div>
       <button
-        className="settings-button"
+        className="banner-button"
         onClick={p.onChangePhoto}
         type="button"
       >
         Change photo
       </button>
-    </div>
+    </>
   );
 }
 
@@ -500,8 +497,12 @@ function PasswordRow(p: Props) {
           </button>
         )}
       </div>
-      {open && (
-        <form className="password-form" onSubmit={submit}>
+          <div
+            aria-hidden={!open}
+            className={`password-collapse ${open ? "open" : ""}`}
+          >
+            <div className="password-collapse-inner">
+            <form className="password-form" onSubmit={submit}>
           {p.hasPassword && (
             <Field
               aside={
@@ -572,8 +573,9 @@ function PasswordRow(p: Props) {
                   : "Set password"}
             </button>
           </div>
-        </form>
-      )}
+            </form>
+        </div>
+      </div>
       <AuthMessage notice={notice} />
     </div>
   );
