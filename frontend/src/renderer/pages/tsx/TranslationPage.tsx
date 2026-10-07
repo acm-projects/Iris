@@ -571,7 +571,7 @@ export default function TranslationPage() {
       id: "model",
       title: "Sign recognition",
       state: "info",
-      detail: "Not connected yet. Captions and Type to speak work today.",
+      detail: "ASL-to-text is coming soon. Captions and Type-to-Speak are available now",
     });
     return rows;
   }, [
