@@ -15,11 +15,12 @@
   --t-gold: #f6bf41;
   --t-ok: #2f8f5f;
   --t-ok-soft: #e3f3ea;
-  --t-warn: #d99a1e;
+  --t-warn: #fbbc3f;
   --t-warn-soft: #fff3d6;
   --t-fail: #c2412d;
   --t-fail-soft: #fff7f5;
   --t-fail-border: #f5d7d0;
+  --t-fail-tile: #fde9e5;
   height: 100vh;
   margin-left: 240px;
   overflow-y: auto;
@@ -475,19 +476,6 @@
   font-size: 0.82rem;
   font-weight: 600;
 }
-/* A different soft colour for each phrase */
-.tr-phrases button:nth-child(2) {
-  color: #0d7f85;
-  background: #e1f3f4;
-}
-.tr-phrases button:nth-child(3) {
-  color: #8a5a06;
-  background: #fdf1d4;
-}
-.tr-phrases button:nth-child(4) {
-  color: #2d5a97;
-  background: #e5eefa;
-}
 .tr-phrases button:hover:not(:disabled) {
   filter: brightness(0.96);
 }
@@ -588,14 +576,32 @@
   color: var(--t-ok);
   background: var(--t-ok-soft);
 }
-.tr-step.fail,
-.tr-step.warn {
-  border-color: var(--t-fail-border);
-  background: var(--t-fail-soft);
+/* Red tiles keep a normal white card. The icon is red and a red X sits in the corner. */
+.tr-step.fail::after,
+.tr-step.warn::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--t-fail)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.2' stroke-linecap='round'%3E%3Cpath d='M6 6l12 12M18 6L6 18'/%3E%3C/svg%3E")
+    center / 10px no-repeat;
 }
-.tr-step.fail.selected,
-.tr-step.warn.selected {
-  border-color: var(--t-purple);
+/* Yellow dash badge while a check is still in progress */
+.tr-step.pending::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--t-warn)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.2' stroke-linecap='round'%3E%3Cpath d='M7 12h10'/%3E%3C/svg%3E")
+    center / 10px no-repeat;
 }
 .tr-step.fail .tr-tile,
 .tr-step.warn .tr-tile {
@@ -836,8 +842,7 @@
   --t-fail: #ff9d8f;
   --t-fail-soft: #2a1616;
   --t-fail-border: #5a2a24;
-    --t-fail-tile: #3a1d1d;
-  --t-fail-tile: #fde9e5;
+  --t-fail-tile: #3a1d1d;
   background:
     radial-gradient(circle at 95% 0, #0d2a3a 0, transparent 30%),
     radial-gradient(circle at 0 100%, #2a2512 0, transparent 28%), var(--t-bg);
@@ -865,24 +870,17 @@
   color: #c9c1f5;
   background: #2a2552;
 }
-:root[data-theme="dark"] .tr-phrases button:nth-child(2) {
-  color: #8fe0e4;
-  background: #123a3d;
-}
-:root[data-theme="dark"] .tr-phrases button:nth-child(3) {
-  color: #f6d98a;
-  background: #2e2611;
-}
-:root[data-theme="dark"] .tr-phrases button:nth-child(4) {
-  color: #a9c8f2;
-  background: #18304f;
-}
 :root[data-theme="dark"] .tr-meet-list li::before {
   color: #14275a;
 }
 :root[data-theme="dark"] .tr-error {
   color: #ffb4a8;
   background: #3a1d1d;
+}
+/* Dark X on the light salmon badge so it stays readable */
+:root[data-theme="dark"] .tr-step.fail::after,
+:root[data-theme="dark"] .tr-step.warn::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2314275a' stroke-width='3.2' stroke-linecap='round'%3E%3Cpath d='M6 6l12 12M18 6L6 18'/%3E%3C/svg%3E");
 }
 
 /* ---- Narrow windows ---- */
