@@ -1,6 +1,7 @@
 // Sign-in helpers shared by the auth screens and Settings: password rules
 // and plain-language versions of Supabase's error messages.
 import type { AuthError } from "@supabase/supabase-js";
+import { friendlyError } from "./errors";
 
 /** A message shown on the auth screens, optionally with a follow-up action. */
 export type AuthNotice = {
@@ -57,6 +58,6 @@ export function friendlyAuthError(error: AuthError) {
     case "otp_expired":
       return "That link has expired. Request a new one.";
     default:
-      return error.message || "Something went wrong. Please try again.";
+      return friendlyError(error, "Something went wrong. Please try again.");
   }
 }

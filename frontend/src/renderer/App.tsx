@@ -27,6 +27,7 @@ import {
   googleIdFor,
   type EventColorKey,
 } from "./utils/colors";
+import { friendlyError } from "./utils/errors";
 import HomePage from "./pages/tsx/HomePage";
 import LoginPage from "./pages/tsx/LoginPage";
 import CreateAccountPage from "./pages/tsx/CreateAccountPage";
@@ -118,6 +119,24 @@ export default function App() {
   // Guards against handling the same sign-in callback twice.
   const handledCallbackUrls = useRef(new Set<string>());
   const configured = isSupabaseConfigured();
+  // Safety net: any failed async action that nothing else handled shows a
+  // friendly message (on the dashboard, or on the sign-in screen) instead of
+  // failing silently or with a technical error.
+  const signedIn = useRef(false);
+  signedIn.current = Boolean(session);
+  useEffect(() => {
+    const onUnhandled = (event: PromiseRejectionEvent) => {
+      event.preventDefault();
+      const text = friendlyError(
+        event.reason,
+        "Something went wrong. Please try again.",
+      );
+      if (signedIn.current) setNotice(text);
+      else setAuthNotice({ text, tone: "error" });
+    };
+    window.addEventListener("unhandledrejection", onUnhandled);
+    return () => window.removeEventListener("unhandledrejection", onUnhandled);
+  }, []);
   // Keeps `now` current for the clock and "Live now" badges.
   useEffect(() => {
     // Tick exactly on each minute boundary (rather than 60s after launch) so the
@@ -275,7 +294,13 @@ export default function App() {
         .from("meetings")
         .select(meetingColumns)
         .order("starts_at");
-      if (error) setNotice(error.message);
+      if (error)
+        setNotice(
+          friendlyError(
+            error,
+            "Your meetings couldn't be loaded. Try again in a moment.",
+          ),
+        );
       else setMeetings(records || []);
     })();
   }, [configured, session]);
@@ -450,7 +475,10 @@ export default function App() {
       },
     });
     if (error || !data.url) {
-      const text = error?.message || "Could not start sign-in.";
+      const text = friendlyError(
+        error,
+        "Sign-in couldn't be started. Please try again.",
+      );
       setAuthNotice({ text, tone: "error" });
       setNotice(text);
       return;
@@ -498,7 +526,10 @@ export default function App() {
           error?.code === "manual_linking_disabled" ||
             /manual linking/i.test(error?.message ?? "")
             ? "Google Calendar linking is turned off for this Iris project. In Supabase, enable Authentication → Sign In / Providers → Allow manual linking, then try again."
-            : error?.message || "Could not start connecting Google Calendar.",
+            : friendlyError(
+                error,
+                "Google Calendar couldn't be connected. Please try again.",
+              ),
         );
       }
       await window.iris.auth.openExternal(data.url);
@@ -535,11 +566,23 @@ export default function App() {
     const { error } = await supabase.storage
       .from("avatars")
       .upload(path, file, { upsert: true, contentType: file.type });
-    if (error) return setNotice(error.message);
+    if (error)
+      return setNotice(
+        friendlyError(
+          error,
+          "Your photo couldn't be uploaded. Try a different image.",
+        ),
+      );
     const { error: profileError } = await supabase
       .from("profiles")
       .upsert({ id: session.user.id, avatar_path: path });
-    if (profileError) return setNotice(profileError.message);
+    if (profileError)
+      return setNotice(
+        friendlyError(
+          profileError,
+          "Your photo couldn't be saved. Please try again.",
+        ),
+      );
     const { data } = await supabase.storage
       .from("avatars")
       .createSignedUrl(path, 3600);
@@ -618,7 +661,12 @@ export default function App() {
       .select(meetingColumns)
       .single();
     if (error || !data) {
-      setNotice(error?.message || "Could not save the meeting.");
+      setNotice(
+        friendlyError(
+          error,
+          "The meeting couldn't be saved. Please try again.",
+        ),
+      );
       return null;
     }
     setMeetings((current) =>
@@ -706,7 +754,11 @@ export default function App() {
         .from("meetings")
         .update({ color })
         .eq("id", target.meetingId);
-      if (error) return error.message;
+      if (error)
+        return friendlyError(
+          error,
+          "Your change couldn't be saved. Please try again.",
+        );
       setMeetings((current) =>
         current.map((m) => (m.id === target.meetingId ? { ...m, color } : m)),
       );
@@ -727,6 +779,63 @@ export default function App() {
         token,
         target.googleEventId,
         googleIdFor(color),
+      );
+      return null;
+    } catch (error) {
+      if (isGoogleAuthError(error)) {
+        await forgetGoogleToken();
+        setGoogleConnected(false);
+      }
+      return ipcErrorMessage(error, "Could not update Google Calendar.");
+    }
+  }
+  /**
+   * Moves or resizes a calendar event (dragging its edge in Week/Day view):
+   * updates the Iris meeting row (if any) and the Google Calendar event (if
+   * any). Returns an error message, or null on success.
+   */
+  async function setEventTime(
+    target: { meetingId?: string; googleEventId?: string },
+    startsAt: Date,
+    endsAt: Date,
+  ) {
+    if (target.meetingId) {
+      const times = {
+        starts_at: startsAt.toISOString(),
+        ends_at: endsAt.toISOString(),
+      };
+      const { error } = await getSupabase()
+        .from("meetings")
+        .update(times)
+        .eq("id", target.meetingId);
+      if (error)
+        return friendlyError(
+          error,
+          "Your change couldn't be saved. Please try again.",
+        );
+      setMeetings((current) =>
+        current
+          .map((m) => (m.id === target.meetingId ? { ...m, ...times } : m))
+          .sort((a, b) => a.starts_at.localeCompare(b.starts_at)),
+      );
+    }
+    if (!target.googleEventId) return null;
+    // An Iris window started before this feature existed has an older preload.
+    if (typeof window.iris.google.setEventTimes !== "function")
+      return "Restart Iris to finish updating, then change the time again.";
+    const token = await googleToken();
+    if (!token) {
+      setGoogleConnected(false);
+      return target.meetingId
+        ? "Saved in Iris. Reconnect Google to update Google Calendar too."
+        : "Reconnect Google to change this event's time.";
+    }
+    try {
+      await window.iris.google.setEventTimes(
+        token,
+        target.googleEventId,
+        startsAt.toISOString(),
+        endsAt.toISOString(),
       );
       return null;
     } catch (error) {
@@ -779,7 +888,12 @@ export default function App() {
       .delete()
       .eq("id", meeting.id);
     if (error) {
-      setNotice(error.message);
+      setNotice(
+        friendlyError(
+          error,
+          "The meeting couldn't be deleted. Please try again.",
+        ),
+      );
       return false;
     }
     setMeetings((current) => current.filter((m) => m.id !== meeting.id));
@@ -924,6 +1038,7 @@ export default function App() {
       onLoadGoogleEvents={listGoogleEvents}
       onOpenInGoogle={(url) => void openInGoogleCalendar(url)}
       onSetEventColor={setEventColor}
+      onSetEventTime={setEventTime}
       onJoinUrlChange={setJoinUrl}
       onSignOut={() => void signOut()}
       setShowCreate={setShowCreate}

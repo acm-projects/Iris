@@ -1,9 +1,10 @@
 // Sign-in screen plus the building blocks shared by every auth screen
 // (layout, fields, messages, password input).
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import type { AuthNotice } from "../../utils/auth";
 import "../css/auth.css";
 import { asset } from "../../utils/assets";
+import { useAutoDismiss } from "../../utils/useAutoDismiss";
 /** Values and actions App passes to the sign-in screen. */
 type Props = {
   email: string;
@@ -170,17 +171,22 @@ export function Field({
 }
 /** Status line under an auth form, with an optional follow-up button. */
 export function AuthMessage({ notice }: { notice: AuthNotice | null }) {
-  if (!notice) return null;
+  // Each new notice is shown, then fades away after a few seconds
+  // (hovering keeps it open so its button can be clicked).
+  const [shown, setShown] = useState(notice);
+  useEffect(() => setShown(notice), [notice]);
+  const timer = useAutoDismiss(shown, () => setShown(null));
+  if (!shown) return null;
   return (
-    <div className={`form-message ${notice.tone}`} role="status">
-      <span>{notice.text}</span>
-      {notice.action && (
+    <div className={`form-message ${shown.tone}`} role="status" {...timer}>
+      <span>{shown.text}</span>
+      {shown.action && (
         <button
           className="text-button"
-          onClick={notice.action.run}
+          onClick={shown.action.run}
           type="button"
         >
-          {notice.action.label}
+          {shown.action.label}
         </button>
       )}
     </div>

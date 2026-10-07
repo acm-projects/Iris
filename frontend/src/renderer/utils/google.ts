@@ -1,6 +1,7 @@
 // Google helpers: storing/renewing the Google Calendar access token per Iris
 // account, disconnecting, and parsing Google Meet links.
 import { getSupabase } from "./supabase";
+import { friendlyError } from "./errors";
 
 /** Google Calendar scope that lets Iris create events with Meet links. */
 export const googleCalendarScope =
@@ -104,14 +105,9 @@ export function normalizeMeetUrl(value: string) {
   }
 }
 
-/** Strips Electron's "Error invoking remote method" wrapper from IPC errors. */
+/** A user-friendly message for an error from Electron/Google (see utils/errors.ts). */
 export function ipcErrorMessage(error: unknown, fallback: string) {
-  const message = error instanceof Error ? error.message : "";
-  return (
-    message
-      .replace(/^Error invoking remote method '[^']+': (Error: )?/, "")
-      .replace(/^GOOGLE_AUTH: /, "") || fallback
-  );
+  return friendlyError(error, fallback);
 }
 
 export const isGoogleAuthError = (error: unknown) =>

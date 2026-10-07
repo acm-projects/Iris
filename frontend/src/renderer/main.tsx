@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 // Import global styles once, before the application is rendered.
 import "./styles.css";
@@ -15,6 +16,9 @@ initTheme();
 createRoot(document.getElementById("root")!).render(
   // StrictMode enables additional development-time warnings.
   <StrictMode>
-    <App />
+    {/* Shows a friendly recovery screen if a screen ever crashes */}
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 );

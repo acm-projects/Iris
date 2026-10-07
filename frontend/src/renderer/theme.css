@@ -74,10 +74,10 @@
 }
 :root[data-theme="dark"] .iris-meeting {
   border-color: var(--d-border);
-  border-left-color: #8f7fe0;
+  border-left-color: #7fa8d8;
 }
 :root[data-theme="dark"] .iris-meeting.live {
-  background: #0f2a22;
+  background: #12243d;
 }
 :root[data-theme="dark"] .iris-meeting small,
 :root[data-theme="dark"] .iris-meeting .meeting-code,
@@ -97,8 +97,8 @@
   background: #2a2554;
 }
 :root[data-theme="dark"] .iris-meeting strong em {
-  color: #7ee0aa;
-  background: #123a2a;
+  color: #b9d3f2;
+  background: #18304f;
 }
 :root[data-theme="dark"] .start-menu button {
   color: var(--d-text);
@@ -152,6 +152,8 @@
 /* ---- Calendar page (uses the page's own colour variables) ---- */
 :root[data-theme="dark"] .calendar-page {
   --cal-line: #1c2c45;
+  /* No half-hour lines in dark mode: on a dark grid they read as bright stripes */
+  --cal-half-line: transparent;
   --cal-line-strong: var(--d-border-strong);
   --cal-text: var(--d-text);
   --cal-muted: var(--d-muted);

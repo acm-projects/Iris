@@ -42,7 +42,8 @@ contextBridge.exposeInMainWorld("iris", {
     request: (method: string, params?: unknown) =>
       ipcRenderer.invoke("iris:engine:request", method, params),
     // Fire-and-forget video frame (JPEG bytes) for the virtual camera.
-    sendFrame: (jpeg: Uint8Array) => ipcRenderer.send("iris:engine:frame", jpeg),
+    sendFrame: (jpeg: Uint8Array) =>
+      ipcRenderer.send("iris:engine:frame", jpeg),
     // Subscribes to engine events; returns a function that unsubscribes.
     onEvent: (listener: (message: unknown) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, message: unknown) =>
@@ -81,6 +82,19 @@ contextBridge.exposeInMainWorld("iris", {
         accessToken,
         eventId,
         colorId,
+      ),
+    setEventTimes: (
+      accessToken: string,
+      eventId: string,
+      startsAt: string,
+      endsAt: string,
+    ) =>
+      ipcRenderer.invoke(
+        "iris:google:set-event-times",
+        accessToken,
+        eventId,
+        startsAt,
+        endsAt,
       ),
     openEvent: (url: string) =>
       ipcRenderer.invoke("iris:google:open-event", url),

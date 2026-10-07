@@ -539,6 +539,52 @@ ipcMain.handle(
     );
   },
 );
+/** Moves/resizes an event on the primary Google Calendar (new start and end). */
+ipcMain.handle(
+  "iris:google:set-event-times",
+  async (
+    _event,
+    accessToken: string,
+    eventId: string,
+    startsAt: string,
+    endsAt: string,
+  ) => {
+    if (typeof accessToken !== "string" || !accessToken)
+      throw new Error("GOOGLE_AUTH: Connect Google to change event times.");
+    if (typeof eventId !== "string" || !/^[a-v0-9_]{5,1024}$/i.test(eventId))
+      throw new Error("That Google Calendar event ID is not valid.");
+    const start = new Date(startsAt);
+    const end = new Date(endsAt);
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start)
+      throw new Error("The new meeting time is not valid.");
+    const response = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          start: { dateTime: start.toISOString() },
+          end: { dateTime: end.toISOString() },
+        }),
+      },
+    );
+    if (response.ok) return;
+    if (response.status === 401)
+      throw new Error("GOOGLE_AUTH: Reconnect Google to change event times.");
+    const body = (await response.json().catch(() => ({}))) as {
+      error?: { message?: string };
+    };
+    // 403 here usually means the event belongs to someone else's calendar.
+    throw new Error(
+      response.status === 403
+        ? "You can only change events you own in Google Calendar."
+        : body.error?.message || `Google Calendar returned ${response.status}.`,
+    );
+  },
+);
 /** Opens an event in Google Calendar (only Google Calendar URLs are allowed). */
 ipcMain.handle("iris:google:open-event", async (_event, url: string) => {
   const parsed = new URL(url);

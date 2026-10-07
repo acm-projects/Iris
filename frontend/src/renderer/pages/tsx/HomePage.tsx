@@ -14,6 +14,7 @@ import SettingsPage from "./SettingsPage";
 import Sidebar from "../../components/Sidebar";
 import "../css/calendar.css";
 import { asset } from "../../utils/assets";
+import { useAutoDismiss } from "../../utils/useAutoDismiss";
 
 /** Everything App passes down: user data, meetings, Google state, and actions. */
 type Props = {
@@ -53,6 +54,11 @@ type Props = {
   onSetEventColor: (
     target: { meetingId?: string; googleEventId?: string },
     color: EventColorKey,
+  ) => Promise<string | null>;
+  onSetEventTime: (
+    target: { meetingId?: string; googleEventId?: string },
+    startsAt: Date,
+    endsAt: Date,
   ) => Promise<string | null>;
   onSignOut: () => void;
   setShowCreate: (open: boolean) => void;
@@ -96,6 +102,8 @@ export default function HomePage(p: Props) {
     p.googleChecked && !p.googleConnected && !promptClosed;
   // Meeting waiting for delete confirmation.
   const [pendingDelete, setPendingDelete] = useState<Meeting | null>(null);
+  // The toast fades away after a few seconds (hover keeps it open).
+  const toastTimer = useAutoDismiss(p.notice, p.onDismissNotice);
   // Meetings that have not ended yet, and the ones happening today.
   const upcoming = p.meetings.filter(
     (meeting) => new Date(meeting.ends_at) >= p.now,
@@ -131,6 +139,7 @@ export default function HomePage(p: Props) {
           onLoadGoogleEvents={p.onLoadGoogleEvents}
           onOpenInGoogle={p.onOpenInGoogle}
           onSetEventColor={p.onSetEventColor}
+          onSetEventTime={p.onSetEventTime}
         />
       ) : page === "Settings" ? (
         <SettingsPage
@@ -328,7 +337,7 @@ export default function HomePage(p: Props) {
       )}
       {/* Toast message (bottom-right), with Connect Google when relevant */}
       {p.notice && (
-        <div className="iris-toast" role="status">
+        <div className="iris-toast" role="status" {...toastTimer}>
           <span>{p.notice}</span>
           {!p.googleConnected && /Google/.test(p.notice) && (
             <button onClick={p.onConnectGoogle} type="button">
@@ -388,17 +397,12 @@ function MeetingCard({
   return (
     <article
       className={`iris-meeting ${live ? "live" : ""}`}
-      style={
-        live
-          ? undefined
-          : {
-              borderLeftColor: colorHex(
-                isEventColor(meeting.color)
-                  ? meeting.color
-                  : DEFAULT_IRIS_COLOR,
-              ),
-            }
-      }
+      // The left edge always uses the colour chosen for this meeting on the calendar.
+      style={{
+        borderLeftColor: colorHex(
+          isEventColor(meeting.color) ? meeting.color : DEFAULT_IRIS_COLOR,
+        ),
+      }}
     >
       <button
         aria-label={`Delete ${meeting.title}`}

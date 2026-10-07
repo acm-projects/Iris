@@ -15,6 +15,7 @@ import {
   type TranslationSettings,
 } from "../../utils/translation";
 import "../css/translation.css";
+import { useAutoDismiss } from "../../utils/useAutoDismiss";
 
 /** Whether video is currently being sent to the virtual camera. */
 type LiveState = "off" | "starting" | "live";
@@ -75,6 +76,8 @@ export default function TranslationPage() {
   const [live, setLive] = useState<LiveState>("off");
   const [liveDevice, setLiveDevice] = useState("");
   const [liveError, setLiveError] = useState("");
+  // Error banner fades away after a few seconds (hover keeps it open).
+  const liveErrorTimer = useAutoDismiss(liveError, () => setLiveError(""));
   const [caption, setCaption] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);
   const pumpRef = useRef<FramePump | null>(null);
@@ -551,6 +554,7 @@ export default function TranslationPage() {
 
   /** Plays a chime into the virtual microphone so the user can hear it in Meet. */
   const [testNote, setTestNote] = useState("");
+  useAutoDismiss(testNote, () => setTestNote(""));
   async function playTestSound() {
     setTestNote("Playing a test sound into the virtual microphone…");
     try {
@@ -616,7 +620,11 @@ export default function TranslationPage() {
           )}
         </div>
       </header>
-      {liveError && <p className="tr-error">{liveError}</p>}
+      {liveError && (
+        <p className="tr-error" {...liveErrorTimer}>
+          {liveError}
+        </p>
+      )}
 
       {/* How it works: real devices → Iris → virtual devices → Google Meet */}
       <ol className="tr-flow" aria-label="How translation works">
@@ -898,6 +906,7 @@ function TypeToSpeak({
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  useAutoDismiss(error, () => setError(""));
   // Speaks the text, then clears the box; errors are shown under it.
   const say = async (value: string) => {
     if (!value.trim()) return;

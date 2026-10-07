@@ -1,5 +1,6 @@
 // Translation helpers: saved settings, device detection, the engine's system
 // check result, and the frame pump that streams video to the virtual camera.
+import { friendlyError } from "./errors";
 
 /** Choices on the Translation page, saved per computer. */
 export type TranslationSettings = {
@@ -88,13 +89,9 @@ export type EngineEvent =
     }
   | { event: "sign"; text: string };
 
-/** Strips Electron's "Error invoking remote method" prefix from engine errors. */
+/** A user-friendly message for an error from the translation engine (see utils/errors.ts). */
 export function engineError(error: unknown, fallback: string) {
-  const message = error instanceof Error ? error.message : "";
-  return (
-    message.replace(/^Error invoking remote method '[^']+': (Error: )?/, "") ||
-    fallback
-  );
+  return friendlyError(error, fallback);
 }
 
 // Chromium's MediaStreamTrackProcessor (not yet in TypeScript's DOM types):

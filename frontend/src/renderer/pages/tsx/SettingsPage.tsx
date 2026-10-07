@@ -24,6 +24,7 @@ import { AuthMessage, Field, PasswordInput } from "./LoginPage";
 import "../css/auth.css";
 import "../css/settings.css";
 import { asset } from "../../utils/assets";
+import { useAutoDismiss } from "../../utils/useAutoDismiss";
 
 /** Account details and actions supplied by App (via HomePage). */
 type Props = {
@@ -270,6 +271,7 @@ const APP_ICONS: { id: AppIconChoice; label: string; image: string | null }[] =
 function AppIconPicker() {
   const [icon, setIcon] = useState<AppIconChoice>("auto");
   const [note, setNote] = useState("");
+  useAutoDismiss(note, () => setNote(""));
   // Show the icon Electron has saved.
   useEffect(() => {
     void loadAppIcon().then(setIcon);

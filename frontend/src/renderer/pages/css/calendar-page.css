@@ -2,6 +2,8 @@
 /* Calendar page: a calm, Notion-like layout in the Iris palette. */
 .calendar-page {
   --cal-line: #e9edf3;
+  /* Faint half-hour lines in Week/Day view (hidden in dark mode) */
+  --cal-half-line: #f3f5f8;
   --cal-line-strong: #dfe5ee;
   --cal-text: #1d2b44;
   --cal-muted: #8592a6;
@@ -451,7 +453,11 @@
       transparent 0 51px,
       var(--cal-line) 51px 52px
     ),
-    repeating-linear-gradient(to bottom, transparent 0 25px, #f3f5f8 25px 26px);
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0 25px,
+      var(--cal-half-line) 25px 26px
+    );
   cursor: cell;
 }
 .cal-column:hover {
@@ -665,4 +671,132 @@
 .cal-popover .cal-popover-error {
   color: #c2412d;
   font-size: 0.82rem;
+}
+
+/* ---- Resizing events (Week/Day): drag the top or bottom edge ---- */
+.cal-resize {
+  position: absolute;
+  right: 0;
+  left: 0;
+  z-index: 1;
+  height: 10px;
+  cursor: ns-resize;
+  touch-action: none;
+}
+.cal-resize.top {
+  top: 0;
+}
+.cal-resize.bottom {
+  bottom: 0;
+}
+/* A small grip appears on hover so the edge is easy to find */
+.cal-resize::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 22px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--ev, var(--cal-google));
+  opacity: 0;
+  transform: translateX(-50%);
+  transition: opacity 0.12s;
+}
+.cal-resize.top::after {
+  top: 2px;
+}
+.cal-resize.bottom::after {
+  bottom: 2px;
+}
+.cal-block:hover .cal-resize::after,
+.cal-block.resizing .cal-resize::after {
+  opacity: 0.8;
+}
+/* The event being resized floats above its neighbours */
+.cal-block.resizing {
+  z-index: 3;
+  box-shadow: 0 8px 20px #1d2b4440;
+  cursor: ns-resize;
+}
+
+/* Message shown when a new event time could not be saved */
+.cal-error {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 950;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  max-width: min(440px, calc(100vw - 48px));
+  margin: 0;
+  padding: 12px 12px 12px 16px;
+  border-radius: 12px;
+  color: #fff;
+  background: #c2412d;
+  box-shadow: 0 12px 28px #1d2b4440;
+  font-size: 0.9rem;
+}
+.cal-error button {
+  border: 0;
+  color: #fff;
+  background: none;
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+/* ---- Reschedule form inside the event details card ---- */
+.cal-reschedule {
+  display: grid;
+  gap: 10px;
+  margin: 4px 0 0 22px;
+  padding-top: 12px;
+  border-top: 1px solid var(--cal-line);
+}
+.cal-reschedule > div:first-of-type {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.cal-reschedule label {
+  display: grid;
+  gap: 4px;
+  color: var(--cal-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.cal-reschedule input {
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--cal-line-strong);
+  border-radius: 8px;
+  color: var(--cal-text);
+  background: var(--cal-hover);
+  font-size: 0.86rem;
+}
+.cal-reschedule input:focus {
+  border-color: var(--cal-iris);
+  outline: none;
+}
+.cal-reschedule .cal-popover-error {
+  margin: 0;
+}
+.cal-reschedule-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.cal-reschedule-actions button {
+  padding: 7px 11px;
+  border: 1px solid var(--cal-line-strong);
+  border-radius: 7px;
+  color: var(--cal-text);
+  background: transparent;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.cal-reschedule-actions .primary {
+  border-color: var(--cal-iris);
+  color: #fff;
+  background: var(--cal-iris);
 }

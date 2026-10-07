@@ -12,7 +12,9 @@ import {
   isEventColor,
   type EventColorKey,
 } from "../../utils/colors";
+import { friendlyError } from "../../utils/errors";
 import "../css/calendar-page.css";
+import { useAutoDismiss } from "../../utils/useAutoDismiss";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -53,6 +55,11 @@ type Props = {
   onSetEventColor: (
     target: { meetingId?: string; googleEventId?: string },
     color: EventColorKey,
+  ) => Promise<string | null>;
+  onSetEventTime: (
+    target: { meetingId?: string; googleEventId?: string },
+    startsAt: Date,
+    endsAt: Date,
   ) => Promise<string | null>;
 };
 
@@ -220,6 +227,16 @@ export default function CalendarPage(p: Props) {
     Record<string, EventColorKey>
   >({});
   const [colorError, setColorError] = useState("");
+  // New times from dragging an event's edge, shown immediately while they save.
+  const [timeOverrides, setTimeOverrides] = useState<
+    Record<string, { start: Date; end: Date }>
+  >({});
+  const [timeError, setTimeError] = useState("");
+  // Error messages fade away after a few seconds (hover keeps them open).
+  const timeErrorTimer = useAutoDismiss(timeError, () => setTimeError(""));
+  useAutoDismiss(colorError, () => setColorError(""));
+  // Events whose new time is still being saved (kept through a Google sync).
+  const savingTimes = useRef(new Set<string>());
   const range = useMemo(() => visibleRange(view, cursor), [view, cursor]);
   // Refs so the sync effect always calls the latest loader and ignores stale responses.
   const loader = useRef(p.onLoadGoogleEvents);
@@ -250,12 +267,20 @@ export default function CalendarPage(p: Props) {
         );
         if (id !== requestId.current) return;
         if (events) setGoogleEvents(events);
+        // Google now has the saved times, so drop overrides that finished saving.
+        setTimeOverrides((current) =>
+          Object.fromEntries(
+            Object.entries(current).filter(([id]) =>
+              savingTimes.current.has(id),
+            ),
+          ),
+        );
         setSyncedAt(new Date());
         setSyncError("");
       } catch (error) {
         if (id === requestId.current)
           setSyncError(
-            error instanceof Error ? error.message : "Could not sync.",
+            friendlyError(error, "Google Calendar couldn't be synced."),
           );
       } finally {
         if (id === requestId.current) setSyncing(false);
@@ -291,8 +316,10 @@ export default function CalendarPage(p: Props) {
       return {
         id,
         title: event.title,
-        start: parseGoogleDate(event.start, event.allDay),
-        end: parseGoogleDate(event.end, event.allDay),
+        start:
+          timeOverrides[id]?.start ??
+          parseGoogleDate(event.start, event.allDay),
+        end: timeOverrides[id]?.end ?? parseGoogleDate(event.end, event.allDay),
         allDay: event.allDay,
         source: meeting ? "iris" : "google",
         meetUrl: event.meetUrl ?? meeting?.meeting_url ?? null,
@@ -313,8 +340,8 @@ export default function CalendarPage(p: Props) {
       .map((m): CalendarItem => ({
         id: `iris-${m.id}`,
         title: m.title,
-        start: new Date(m.starts_at),
-        end: new Date(m.ends_at),
+        start: timeOverrides[`iris-${m.id}`]?.start ?? new Date(m.starts_at),
+        end: timeOverrides[`iris-${m.id}`]?.end ?? new Date(m.ends_at),
         allDay: false,
         source: "iris",
         meetUrl: m.meeting_url,
@@ -328,7 +355,35 @@ export default function CalendarPage(p: Props) {
         googleEventId: m.google_event_id ?? undefined,
       }));
     return [...google, ...iris];
-  }, [googleEvents, p.meetings, colorOverrides]);
+  }, [googleEvents, p.meetings, colorOverrides, timeOverrides]);
+
+  /**
+   * Saves a new start/end after an event's edge was dragged. The new time is
+   * shown right away; it snaps back (with a message) if a Google-only save fails.
+   */
+  const changeTime = async (item: CalendarItem, start: Date, end: Date) => {
+    setTimeError("");
+    savingTimes.current.add(item.id);
+    setTimeOverrides((current) => ({ ...current, [item.id]: { start, end } }));
+    const error = await p.onSetEventTime(
+      { meetingId: item.meetingId, googleEventId: item.googleEventId },
+      start,
+      end,
+    );
+    savingTimes.current.delete(item.id);
+    const dropOverride = () =>
+      setTimeOverrides((current) => {
+        const next = { ...current };
+        delete next[item.id];
+        return next;
+      });
+    if (error) setTimeError(error);
+    if (error && !item.meetingId) dropOverride();
+    // Google events: refresh so the saved time comes back from Google (the
+    // override is cleared then). Iris-only meetings are already updated.
+    else if (item.googleEventId) syncNow.current();
+    else dropOverride();
+  };
 
   /** Recolours an event immediately, then saves; reverts if a Google-only save fails. */
   const changeColor = async (item: CalendarItem, color: EventColorKey) => {
@@ -513,8 +568,17 @@ export default function CalendarPage(p: Props) {
           now={p.now}
           onCreateAt={p.onCreateAt}
           onOpenDay={openDay}
+          onResize={(item, start, end) => void changeTime(item, start, end)}
           onSelect={select}
         />
+      )}
+      {timeError && (
+        <p className="cal-error" role="alert" {...timeErrorTimer}>
+          {timeError}
+          <button onClick={() => setTimeError("")} type="button">
+            ×
+          </button>
+        </p>
       )}
 
       {/* Details card for the clicked event */}
@@ -529,6 +593,10 @@ export default function CalendarPage(p: Props) {
           onColor={(color) => void changeColor(selected.item, color)}
           onJoin={p.onJoin}
           onOpenInGoogle={p.onOpenInGoogle}
+          onReschedule={(start, end) => {
+            setSelected(null);
+            void changeTime(selected.item, start, end);
+          }}
           x={selected.x}
           y={selected.y}
         />
@@ -739,10 +807,11 @@ function MonthView({
 /** Week/Day view: day headers, all-day row, and a scrolling 24-hour grid. */
 function TimeGrid({
   days,
-  items,
+  items: savedItems,
   now,
   onCreateAt,
   onOpenDay,
+  onResize,
   onSelect,
 }: {
   days: Date[];
@@ -750,10 +819,86 @@ function TimeGrid({
   now: Date;
   onCreateAt: (start: Date) => void;
   onOpenDay: (day: Date) => void;
+  onResize: (item: CalendarItem, start: Date, end: Date) => void;
   onSelect: (item: CalendarItem, event: MouseEvent) => void;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const firstDay = days[0].getTime();
+
+  // --- Drag an event's top or bottom edge to change its start or end ---
+  type Drag = {
+    item: CalendarItem;
+    edge: "top" | "bottom";
+    pointerY: number;
+    start: Date;
+    end: Date;
+  };
+  const [drag, setDrag] = useState<Drag | null>(null);
+  // While dragging, draw the event at its new (not yet saved) time.
+  const items = drag
+    ? savedItems.map((item) =>
+        item.id === drag.item.id
+          ? { ...item, start: drag.start, end: drag.end }
+          : item,
+      )
+    : savedItems;
+  const SNAP_MINUTES = 15;
+  const startResize = (
+    event: React.PointerEvent<HTMLElement>,
+    item: CalendarItem,
+    edge: Drag["edge"],
+  ) => {
+    // Don't open the event or start a "create meeting" click.
+    event.stopPropagation();
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDrag({
+      item,
+      edge,
+      pointerY: event.clientY,
+      start: item.start,
+      end: item.end,
+    });
+  };
+  const moveResize = (event: React.PointerEvent<HTMLElement>) => {
+    if (!drag) return;
+    // Pixels dragged → minutes, snapped to 15-minute steps.
+    const minutes =
+      Math.round(
+        ((event.clientY - drag.pointerY) / HOUR_HEIGHT) * (60 / SNAP_MINUTES),
+      ) * SNAP_MINUTES;
+    const dayStart = startOfDay(drag.item.start).getTime();
+    const dayEnd = addDays(startOfDay(drag.item.start), 1).getTime();
+    const minLength = SNAP_MINUTES * 60_000;
+    const start = drag.item.start.getTime();
+    const end = drag.item.end.getTime();
+    if (drag.edge === "bottom") {
+      const next = Math.min(
+        Math.max(end + minutes * 60_000, start + minLength),
+        dayEnd,
+      );
+      if (next !== drag.end.getTime())
+        setDrag({ ...drag, end: new Date(next) });
+    } else {
+      const next = Math.max(
+        Math.min(start + minutes * 60_000, end - minLength),
+        dayStart,
+      );
+      if (next !== drag.start.getTime())
+        setDrag({ ...drag, start: new Date(next) });
+    }
+  };
+  const endResize = () => {
+    if (!drag) return;
+    const changed =
+      drag.start.getTime() !== drag.item.start.getTime() ||
+      drag.end.getTime() !== drag.item.end.getTime();
+    if (changed) onResize(drag.item, drag.start, drag.end);
+    setDrag(null);
+  };
+  /** Timed events that start and end on the same day can be resized. */
+  const resizable = (item: CalendarItem) =>
+    !item.allDay && sameDay(item.start, new Date(item.end.getTime() - 1));
   // Open scrolled to the working day (or just above the current time).
   useEffect(() => {
     const hour = days.some((day) => sameDay(day, new Date()))
@@ -833,7 +978,7 @@ function TimeGrid({
             >
               {layoutDay(itemsOnDay(items, day), day).map((block) => (
                 <button
-                  className={`cal-block ${block.item.source} ${block.height < 40 ? "compact" : ""}`}
+                  className={`cal-block ${block.item.source} ${block.height < 40 ? "compact" : ""} ${drag?.item.id === block.item.id ? "resizing" : ""}`}
                   key={block.item.id}
                   onClick={(event) => onSelect(block.item, event)}
                   style={{
@@ -849,6 +994,27 @@ function TimeGrid({
                   <small>
                     {clock(block.item.start)} – {clock(block.item.end)}
                   </small>
+                  {/* Drag handles on the top and bottom edges */}
+                  {resizable(block.item) &&
+                    (["top", "bottom"] as const).map((edge) => (
+                      <span
+                        aria-hidden="true"
+                        className={`cal-resize ${edge}`}
+                        key={edge}
+                        onClick={(event) => event.stopPropagation()}
+                        onPointerCancel={() => setDrag(null)}
+                        onPointerDown={(event) =>
+                          startResize(event, block.item, edge)
+                        }
+                        onPointerMove={moveResize}
+                        onPointerUp={endResize}
+                        title={
+                          edge === "top"
+                            ? "Drag to change the start time"
+                            : "Drag to change the end time"
+                        }
+                      />
+                    ))}
                 </button>
               ))}
               {sameDay(day, now) && (
@@ -870,6 +1036,12 @@ function TimeGrid({
 }
 
 /** Event details card: time, source, Meet code, colour picker, actions. */
+/** "YYYY-MM-DD" and "HH:MM" in local time, for date/time inputs. */
+const dateInput = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+const timeInput = (date: Date) =>
+  `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+
 function EventPopover({
   colorError,
   item,
@@ -877,6 +1049,7 @@ function EventPopover({
   onColor,
   onJoin,
   onOpenInGoogle,
+  onReschedule,
   x,
   y,
 }: {
@@ -886,14 +1059,18 @@ function EventPopover({
   onColor: (color: EventColorKey) => void;
   onJoin: (url: string) => Promise<boolean>;
   onOpenInGoogle: (url: string) => void;
+  onReschedule: (start: Date, end: Date) => void;
   x: number;
   y: number;
 }) {
   const [copied, setCopied] = useState(false);
+  const [rescheduling, setRescheduling] = useState(false);
   const width = 320;
-  // Keep the card on screen next to where the event was clicked.
+  // Keep the card on screen next to where the event was clicked (it is
+  // taller while the reschedule form is open).
+  const height = rescheduling ? 470 : 300;
   const left = Math.min(Math.max(x + 12, 12), window.innerWidth - width - 12);
-  const top = Math.min(Math.max(y - 20, 12), window.innerHeight - 300);
+  const top = Math.min(Math.max(y - 20, 12), window.innerHeight - height);
   const code = meetCode(item.meetUrl);
   const multiDay = !sameDay(item.start, new Date(item.end.getTime() - 1));
   const when = item.allDay
@@ -977,7 +1154,93 @@ function EventPopover({
             Open in Google
           </button>
         )}
+        {/* All-day events keep their dates; only timed events are rescheduled here */}
+        {!item.allDay && !rescheduling && (
+          <button onClick={() => setRescheduling(true)} type="button">
+            Reschedule
+          </button>
+        )}
       </div>
+      {rescheduling && (
+        <RescheduleForm
+          item={item}
+          onCancel={() => setRescheduling(false)}
+          onSave={onReschedule}
+        />
+      )}
     </div>
+  );
+}
+
+/**
+ * Pick a new date and start/end time for an event. Saving goes through the
+ * same path as dragging an edge (Iris and/or Google Calendar).
+ */
+function RescheduleForm({
+  item,
+  onCancel,
+  onSave,
+}: {
+  item: CalendarItem;
+  onCancel: () => void;
+  onSave: (start: Date, end: Date) => void;
+}) {
+  const [date, setDate] = useState(dateInput(item.start));
+  const [start, setStart] = useState(timeInput(item.start));
+  const [end, setEnd] = useState(timeInput(item.end));
+  const [error, setError] = useState("");
+  return (
+    <form
+      className="cal-reschedule"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const startsAt = new Date(`${date}T${start}`);
+        const endsAt = new Date(`${date}T${end}`);
+        if (isNaN(startsAt.getTime()) || isNaN(endsAt.getTime()))
+          return setError("Pick a date and both times.");
+        if (endsAt <= startsAt)
+          return setError("The end time must be after the start time.");
+        onSave(startsAt, endsAt);
+      }}
+    >
+      <label>
+        Date
+        <input
+          onChange={(e) => setDate(e.target.value)}
+          required
+          type="date"
+          value={date}
+        />
+      </label>
+      <div>
+        <label>
+          Starts
+          <input
+            onChange={(e) => setStart(e.target.value)}
+            required
+            type="time"
+            value={start}
+          />
+        </label>
+        <label>
+          Ends
+          <input
+            onChange={(e) => setEnd(e.target.value)}
+            required
+            type="time"
+            value={end}
+          />
+        </label>
+      </div>
+      {error && <p className="cal-popover-error">{error}</p>}
+      <div className="cal-reschedule-actions">
+        <button onClick={onCancel} type="button">
+          Cancel
+        </button>
+        <button className="primary" type="submit">
+          Save new time
+        </button>
+      </div>
+    </form>
   );
 }

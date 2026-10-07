@@ -235,17 +235,19 @@
   gap: 10px;
   align-items: center;
 }
+/* "Live now" badge, in Iris Blue */
 .iris-meeting strong em {
   padding: 3px 9px;
   border-radius: 999px;
-  color: #1d7a4c;
-  background: #e2f6ea;
+  color: #2a5c95;
+  background: #e3edf8;
   font-size: 0.72rem;
   font-style: normal;
 }
+/* A meeting happening now gets a soft blue highlight (its left edge keeps
+   the meeting's calendar colour, set inline in HomePage.tsx) */
 .iris-meeting.live {
-  border-left-color: #2fa36b;
-  background: #f6fdf9;
+  background: #f1f6fc;
 }
 .meeting-card-actions {
   display: flex;

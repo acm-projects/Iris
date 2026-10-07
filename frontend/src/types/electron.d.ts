@@ -72,6 +72,13 @@ interface Window {
         eventId: string,
         colorId: string,
       ): Promise<void>;
+      /** Moves or resizes an event (new start and end as ISO timestamps). */
+      setEventTimes(
+        accessToken: string,
+        eventId: string,
+        startsAt: string,
+        endsAt: string,
+      ): Promise<void>;
       /** Opens an event's Google Calendar page in the browser. */
       openEvent(url: string): Promise<void>;
       /** Deletes an event from the primary calendar. */

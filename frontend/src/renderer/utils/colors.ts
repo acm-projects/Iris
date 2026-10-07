@@ -14,8 +14,8 @@ export const EVENT_COLORS = [
 
 export type EventColorKey = (typeof EVENT_COLORS)[number]["key"];
 
-/** Default colours: Iris meetings are purple, other Google events blue. */
-export const DEFAULT_IRIS_COLOR: EventColorKey = "purple";
+/** Default colour for Iris meetings and Google events (both Iris Blue). */
+export const DEFAULT_IRIS_COLOR: EventColorKey = "blue";
 export const DEFAULT_GOOGLE_COLOR: EventColorKey = "blue";
 
 export const isEventColor = (value: unknown): value is EventColorKey =>

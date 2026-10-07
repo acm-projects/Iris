@@ -1,0 +1,10 @@
+{
+  // Lets editors (VS Code) find the real TypeScript settings. The app has two
+  // separate configs: the React UI and the Electron main process.
+  // Builds and `npm run typecheck` use those files directly.
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.electron.json" }
+  ]
+}
