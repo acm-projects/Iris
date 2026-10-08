@@ -255,7 +255,7 @@ class SignConfidence:
         key = _gloss_key(gloss)
         raw = _finite_score(score)
         if learn:
-            self.observe(key, raw)
+            self.observe(gloss, raw)
         found = self._ranges.get(key)
         seen = len(self._observations.get(key, []))
         if found is None:
@@ -357,7 +357,7 @@ class SignConfidence:
                 calibrator._observations[key].append(_finite_score(score))
             if "low" in span and "high" in span:
                 parsed = GlossRange.from_dict(span)
-                calibrator.set_range(key, high=parsed.high, low=parsed.low, samples=parsed.samples)
+                calibrator.set_range(gloss, high=parsed.high, low=parsed.low, samples=parsed.samples)
         return calibrator
 
     @classmethod
