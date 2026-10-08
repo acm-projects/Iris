@@ -87,51 +87,8 @@ textarea {
   color: #fff;
   background: linear-gradient(160deg, #061d4b, #254d86 60%, #4caab4);
 }
-/* Smoothly animate the sidebar and page when the sidebar collapses */
-.sidebar,
-.calendar-dashboard {
-  transition:
-    width 220ms ease,
-    margin-left 220ms ease;
-}
-.sidebar-toggle {
-  position: absolute;
-  top: 22px;
-  right: -13px;
-  width: 26px;
-  height: 26px;
-  border: 1px solid #d7e3ef;
-  border-radius: 50%;
-  color: #00224e;
-  background: #fff;
-  z-index: 2;
-}
-/* Collapsed sidebar: icons only, page content shifts left */
-.sidebar.collapsed {
-  width: 80px;
-  padding: 30px 14px;
-}
-.sidebar.collapsed .wordmark span,
-.sidebar.collapsed nav em,
-.sidebar.collapsed .user-copy,
-.sidebar.collapsed .sidebar-sign-out em {
-  display: none;
-}
-.sidebar.collapsed nav button {
-  justify-content: center;
-  padding: 16px 8px;
-}
-.sidebar.collapsed ~ .calendar-dashboard {
-  margin-left: 80px;
-}
 .sidebar nav em {
   font-style: normal;
-}
-@media (prefers-reduced-motion: reduce) {
-  .sidebar,
-  .calendar-dashboard {
-    transition: none;
-  }
 }
 /* Navigation links */
 .sidebar nav {

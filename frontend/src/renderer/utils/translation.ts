@@ -1,6 +1,7 @@
 // Translation helpers: saved settings, device detection, the engine's system
 // check result, and the frame pump that streams video to the virtual camera.
 import { friendlyError } from "./errors";
+import { saveLocal } from "./storage";
 
 /** Choices on the Translation page, saved per computer. */
 export type TranslationSettings = {
@@ -41,11 +42,7 @@ export function loadSettings(): TranslationSettings {
 
 /** Remembers settings on this computer. */
 export function saveSettings(settings: TranslationSettings) {
-  try {
-    localStorage.setItem(settingsKey, JSON.stringify(settings));
-  } catch {
-    /* storage unavailable: settings last until Iris restarts */
-  }
+  saveLocal(settingsKey, JSON.stringify(settings));
 }
 
 /** Pixel size and frame rate for each resolution option. */

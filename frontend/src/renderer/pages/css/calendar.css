@@ -2,10 +2,13 @@
    and the toast. Imported by HomePage.tsx. */
 /* ---- Home page layout ---- */
 .calendar-dashboard {
-  /* Fill the window and centre the launcher + schedule vertically */
-  min-height: 100vh;
+  /* Clock banner on top, then the launcher and meetings side by side */
+  /* Exactly the window's height: banner, then the two columns share the rest
+     (the meeting list scrolls inside its card instead of growing the page) */
+  height: 100vh;
   display: grid;
-  align-content: center;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 28px;
   max-width: 1550px;
   margin-left: 240px;
   padding: 34px 48px;
@@ -16,13 +19,15 @@
   --iris-card-radius: 20px;
   --iris-calendar-radius: 24px;
 }
-/* Two columns: launcher on the left, today's schedule on the right */
+/* Two columns under the banner: launcher on the left, meetings on the right
+   (no panel behind the icons; they sit directly on the page background) */
 .iris-control-center {
   display: grid;
   grid-template-columns: minmax(320px, 40fr) minmax(440px, 60fr);
   gap: var(--iris-section-gap);
-  min-height: 650px;
-  background: linear-gradient(135deg, #faf8ff, #f6fbfc);
+  align-items: stretch;
+  min-height: 0;
+  background: transparent;
   overflow: visible;
 }
 .iris-control-center:before {
@@ -30,20 +35,48 @@
 }
 .iris-schedule {
   grid-column: 2;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   background: #fff;
   border: 1px solid #dce4f0;
   border-radius: var(--iris-calendar-radius);
   overflow: hidden;
 }
-/* Clock banner at the top of today's schedule */
+.iris-schedule-title {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin: 22px 22px 0;
+  color: #00224e;
+  font-size: 1.05rem;
+}
+/* Number of upcoming meetings next to the title */
+.iris-schedule-title small {
+  padding: 2px 9px;
+  border-radius: 999px;
+  color: #4376ab;
+  background: #eaf1f9;
+  font-size: 0.78rem;
+}
+/* The meeting list scrolls inside the card when it's long */
+.iris-schedule-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+/* Clock banner stretched across the top of the Home page */
 .iris-hero {
   position: relative;
-  min-height: 175px;
+  display: grid;
+  place-items: center;
+  min-height: 190px;
   overflow: hidden;
   padding: 34px;
   color: #fff;
-  border-radius: var(--iris-calendar-radius) var(--iris-calendar-radius) 0 0;
+  border-radius: var(--iris-calendar-radius);
   background: linear-gradient(120deg, #6250a1, #526fba, #88b4cc);
+  box-shadow: 0 14px 32px #5c4bab2e;
 }
 .iris-hero div {
   position: relative;
@@ -95,6 +128,7 @@
   border: 1px solid #dedcf0;
   border-left: 4px solid #765cd2;
   border-radius: 16px;
+  background: #fff;
 }
 .iris-meeting strong,
 .iris-meeting span,
@@ -122,6 +156,16 @@
   font-weight: 700;
   text-align: center;
 }
+/* Short windows: let the page scroll rather than squeezing everything */
+@media (max-height: 760px) {
+  .calendar-dashboard {
+    height: auto;
+    min-height: 100vh;
+  }
+  .iris-schedule {
+    min-height: 320px;
+  }
+}
 @media (max-width: 900px) {
   .iris-control-center {
     grid-template-columns: 1fr;
@@ -129,13 +173,13 @@
   .iris-control-center:before {
     display: none;
   }
+  /* Narrow windows: launcher on top, meetings below */
   .iris-actions,
   .iris-schedule {
     grid-column: 1;
   }
   .iris-actions {
     grid-row: 1;
-    min-height: 430px;
   }
   .iris-schedule {
     grid-row: 2;
@@ -262,7 +306,9 @@
   color: #9aa9bd;
   font-style: italic;
 }
+/* Fills the whole card so the message sits in its centre */
 .schedule-empty {
+  flex: 1;
   align-content: center;
   gap: 14px;
 }
@@ -485,29 +531,30 @@
 .iris-actions {
   grid-column: 1;
   position: relative;
+  padding-top: 24px;
   display: grid;
-  grid-template-columns: repeat(2, 132px);
-  gap: 44px 56px;
+  grid-template-columns: repeat(2, 170px);
+  gap: 48px 64px;
   place-content: center;
 }
 .iris-action {
   display: grid;
   justify-items: center;
-  gap: 14px;
-  width: 132px;
+  gap: 16px;
+  width: 170px;
   padding: 0;
   border: 0;
   color: #00224e;
   background: none;
-  font-size: 0.98rem;
+  font-size: 1.08rem;
   font-weight: 600;
 }
 .iris-action b {
   display: grid;
   place-items: center;
-  width: 104px;
-  height: 104px;
-  border-radius: 28px;
+  width: 136px;
+  height: 136px;
+  border-radius: 36px;
   color: #fff;
   background: #4376ab;
   box-shadow: 0 8px 18px #4376ab38;
@@ -521,8 +568,8 @@
   box-shadow: 0 8px 18px #5c4bab47;
 }
 .action-icon {
-  width: 46px;
-  height: 46px;
+  width: 60px;
+  height: 60px;
   background: currentColor;
   -webkit-mask: var(--icon) center / contain no-repeat;
   mask: var(--icon) center / contain no-repeat;

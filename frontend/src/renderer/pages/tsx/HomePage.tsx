@@ -15,6 +15,7 @@ import Sidebar from "../../components/Sidebar";
 import "../css/calendar.css";
 import { asset } from "../../utils/assets";
 import { useAutoDismiss } from "../../utils/useAutoDismiss";
+import { readLocal, saveLocal } from "../../utils/storage";
 
 /** Everything App passes down: user data, meetings, Google state, and actions. */
 type Props = {
@@ -91,13 +92,9 @@ export default function HomePage(p: Props) {
   // Ask users without a Google connection to connect once per launch,
   // unless they chose "Don't ask me again" (remembered per account).
   const promptKey = `iris-google-prompt-dismissed:${p.account.id}`;
-  const [promptClosed, setPromptClosed] = useState(() => {
-    try {
-      return localStorage.getItem(promptKey) === "true";
-    } catch {
-      return false;
-    }
-  });
+  const [promptClosed, setPromptClosed] = useState(
+    () => readLocal(promptKey) === "true",
+  );
   const showGooglePrompt =
     p.googleChecked && !p.googleConnected && !promptClosed;
   // Meeting waiting for delete confirmation.
@@ -105,9 +102,10 @@ export default function HomePage(p: Props) {
   // The toast fades away after a few seconds (hover keeps it open).
   const toastTimer = useAutoDismiss(p.notice, p.onDismissNotice);
   // Meetings that have not ended yet, and the ones happening today.
-  const upcoming = p.meetings.filter(
-    (meeting) => new Date(meeting.ends_at) >= p.now,
-  );
+  // Meetings that haven't ended, soonest first.
+  const upcoming = p.meetings
+    .filter((meeting) => new Date(meeting.ends_at) >= p.now)
+    .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
   const selectedMeetings = upcoming.filter(
     (meeting) => dateKey(new Date(meeting.starts_at)) === dateKey(p.now),
   );
@@ -156,11 +154,7 @@ export default function HomePage(p: Props) {
             const result = await p.onDisconnectGoogle();
             // They chose to disconnect, so don't nag with the connect popup.
             setPromptClosed(true);
-            try {
-              localStorage.setItem(promptKey, "true");
-            } catch {
-              /* storage unavailable: harmless */
-            }
+            saveLocal(promptKey, "true");
             return result;
           }}
           onChangePassword={p.onChangePassword}
@@ -170,6 +164,27 @@ export default function HomePage(p: Props) {
         <TranslationPage />
       ) : (
         <section className="calendar-dashboard">
+          {/* Clock banner across the top of the Home page */}
+          <header className="iris-hero">
+            <span className="petal p1" />
+            <span className="petal p2" />
+            <span className="petal p3" />
+            <div>
+              <strong>
+                {new Intl.DateTimeFormat(undefined, {
+                  hour: "numeric",
+                  minute: "2-digit",
+                }).format(p.now)}
+              </strong>
+              <span>
+                {new Intl.DateTimeFormat(undefined, {
+                  weekday: "long",
+                  month: "long",
+                  day: "numeric",
+                }).format(p.now)}
+              </span>
+            </div>
+          </header>
           <div className="iris-control-center">
             {/* Launcher: Start / Join / Schedule / Translation tiles */}
             <section className="iris-actions" aria-label="Meeting actions">
@@ -248,41 +263,34 @@ export default function HomePage(p: Props) {
                 <span>Translation</span>
               </button>
             </section>
-            {/* Today's schedule: clock banner and upcoming meeting cards */}
+            {/* Upcoming meetings (today's first); the list scrolls if long */}
             <section className="iris-schedule">
-              <header className="iris-hero">
-                <span className="petal p1" />
-                <span className="petal p2" />
-                <span className="petal p3" />
-                <div>
-                  <strong>
-                    {new Intl.DateTimeFormat(undefined, {
-                      hour: "numeric",
-                      minute: "2-digit",
-                    }).format(p.now)}
-                  </strong>
-                  <span>
-                    {new Intl.DateTimeFormat(undefined, {
-                      weekday: "long",
-                      month: "long",
-                      day: "numeric",
-                    }).format(p.now)}
-                  </span>
-                </div>
-              </header>
-              {(selectedMeetings.length
-                ? selectedMeetings
-                : upcoming.slice(0, 3)
-              ).map((m) => (
-                <MeetingCard
-                  key={m.id}
-                  meeting={m}
-                  now={p.now}
-                  onDelete={() => setPendingDelete(m)}
-                  onJoin={p.onJoin}
-                  showDate={!selectedMeetings.length}
-                />
-              ))}
+              {/* Title and list only when there is something to show;
+                  otherwise the empty state fills the card, centred */}
+              {upcoming.length > 0 && (
+                <>
+                  <h2 className="iris-schedule-title">
+                    {selectedMeetings.length
+                      ? "Today & upcoming"
+                      : "Upcoming meetings"}
+                    <small>{upcoming.length}</small>
+                  </h2>
+                  <div className="iris-schedule-list">
+                    {upcoming.slice(0, 6).map((m) => (
+                      <MeetingCard
+                        key={m.id}
+                        meeting={m}
+                        now={p.now}
+                        onDelete={() => setPendingDelete(m)}
+                        onJoin={p.onJoin}
+                        showDate={
+                          dateKey(new Date(m.starts_at)) !== dateKey(p.now)
+                        }
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
               {!upcoming.length && (
                 <div className="schedule-empty">
                   <p>No upcoming meetings</p>
@@ -322,12 +330,7 @@ export default function HomePage(p: Props) {
           hasGoogle={p.account.providers.includes("google")}
           onClose={(remember) => {
             setPromptClosed(true);
-            if (remember)
-              try {
-                localStorage.setItem(promptKey, "true");
-              } catch {
-                /* storage unavailable: the prompt simply returns next launch */
-              }
+            if (remember) saveLocal(promptKey, "true");
           }}
           onConnect={() => {
             setPromptClosed(true);

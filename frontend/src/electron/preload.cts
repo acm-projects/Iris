@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld("iris", {
     getIcon: () => ipcRenderer.invoke("iris:app:get-icon"),
     setIcon: (choice: "auto" | "light" | "dark" | "mono") =>
       ipcRenderer.invoke("iris:app:set-icon", choice),
+    // Saves localStorage to disk immediately (see utils/storage.ts).
+    flushStorage: () => ipcRenderer.invoke("iris:app:flush-storage"),
   },
   // Sign-in helpers: open the browser, receive iris:// callbacks, and read or
   // write encrypted values (the Supabase session and Google tokens).
@@ -100,5 +102,6 @@ contextBridge.exposeInMainWorld("iris", {
       ipcRenderer.invoke("iris:google:open-event", url),
     deleteEvent: (accessToken: string, eventId: string) =>
       ipcRenderer.invoke("iris:google:delete-event", accessToken, eventId),
+    revoke: (token: string) => ipcRenderer.invoke("iris:google:revoke", token),
   },
 });

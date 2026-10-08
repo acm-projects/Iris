@@ -20,9 +20,6 @@
     radial-gradient(circle at 92% 0, #e6f6f7 0, transparent 32%),
     radial-gradient(circle at 0 100%, #fff4d1 0, transparent 30%), var(--s-bg);
 }
-.sidebar.collapsed ~ .settings-page {
-  margin-left: 80px;
-}
 
 /* ---- Page header ---- */
 .settings-hero {

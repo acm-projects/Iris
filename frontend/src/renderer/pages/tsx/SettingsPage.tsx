@@ -1,12 +1,6 @@
 // Settings page: Appearance (theme + app icon), Account, Integrations
 // (Google Calendar) and Security (password), with an in-page section menu.
-import {
-  useEffect,
-  useRef,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   PASSWORD_HINT,
   passwordProblem,
@@ -45,15 +39,8 @@ type Props = {
   onSendReset: () => Promise<string | null>;
 };
 
-/** Sections in the order they appear, with their menu icons. */
-const SECTIONS = [
-  { id: "account", label: "Account", icon: "user" },
-  { id: "appearance", label: "Appearance", icon: "palette" },
-  { id: "integrations", label: "Integrations", icon: "link" },
-  { id: "security", label: "Security", icon: "lock" },
-] as const;
-/** Id of a settings section (also its element id for scrolling). */
-type SectionId = (typeof SECTIONS)[number]["id"];
+/** Id of a settings section (also its element id). */
+type SectionId = "account" | "appearance" | "integrations" | "security";
 
 /** Human-readable name for a Supabase sign-in provider. */
 const providerName = (provider: string) =>

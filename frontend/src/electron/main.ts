@@ -8,6 +8,7 @@ import {
   nativeTheme,
   powerSaveBlocker,
   safeStorage,
+  session,
   shell,
   systemPreferences,
 } from "electron";
@@ -624,6 +625,21 @@ ipcMain.handle(
     );
   },
 );
+ipcMain.handle(
+  // Revokes Iris's Google access (Settings → Disconnect). Revoking an access
+  // token also revokes its refresh token, so Google drops the whole grant.
+  "iris:google:revoke",
+  async (_event, token: string) => {
+    if (typeof token !== "string" || !token) return false;
+    const response = await fetch("https://oauth2.googleapis.com/revoke", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ token }),
+    }).catch(() => null);
+    // 400 "invalid_token" means it was already revoked or expired.
+    return Boolean(response && (response.ok || response.status === 400));
+  },
+);
 // Keep the callback until React explicitly consumes it. On macOS, open-url can
 // arrive before the renderer has registered its IPC listener.
 ipcMain.handle("iris:auth:consume-callback", () => {
@@ -877,7 +893,20 @@ app.on("window-all-closed", () => {
 });
 
 // Release the callback server's port when Iris quits.
+/**
+ * Writes the renderer's localStorage to disk now. Chromium saves it lazily, so
+ * without this a setting changed just before Iris is stopped can be lost.
+ */
+ipcMain.handle("iris:app:flush-storage", () =>
+  session.defaultSession.flushStorageData(),
+);
+// Stopping `npm run dev` (Ctrl+C) sends these signals: quit normally so
+// storage is flushed and the engine shuts down cleanly.
+for (const signal of ["SIGINT", "SIGTERM"] as const)
+  process.on(signal, () => app.quit());
+
 app.on("before-quit", () => {
+  session.defaultSession.flushStorageData();
   authCallbackServer?.close();
   // Closing stdin lets the engine stop the virtual camera and exit cleanly.
   engine?.stdin.end();

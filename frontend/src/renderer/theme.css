@@ -49,15 +49,17 @@
 :root[data-theme="dark"] .sidebar {
   background: linear-gradient(160deg, #040c1a, #0f2a52 60%, #146b73);
 }
-:root[data-theme="dark"] .sidebar-toggle {
-  border-color: var(--d-border-strong);
-  color: var(--d-text);
-  background: var(--d-surface-2);
-}
 
 /* ---- Home page ---- */
 :root[data-theme="dark"] .iris-control-center {
   background: transparent;
+}
+:root[data-theme="dark"] .iris-schedule-title {
+  color: var(--d-text);
+}
+:root[data-theme="dark"] .iris-schedule-title small {
+  color: var(--d-accent);
+  background: var(--d-surface-3);
 }
 :root[data-theme="dark"] .iris-action {
   color: var(--d-text);
@@ -74,6 +76,7 @@
 }
 :root[data-theme="dark"] .iris-meeting {
   border-color: var(--d-border);
+  background: var(--d-surface);
   border-left-color: #7fa8d8;
 }
 :root[data-theme="dark"] .iris-meeting.live {
@@ -208,12 +211,6 @@
 }
 :root[data-theme="dark"] .cal-colors button.selected {
   box-shadow: 0 0 0 2px #e6edf7;
-}
-/* The flower pattern is very faint on dark backgrounds; lift it slightly. */
-:root[data-theme="dark"] .cal-month::before,
-:root[data-theme="dark"] .cal-grid::before {
-  opacity: 0.6;
-  filter: brightness(2.2);
 }
 
 /* ---- Sign-in screens ---- */

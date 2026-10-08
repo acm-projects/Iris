@@ -1,6 +1,7 @@
 // Appearance helpers: Light / Dark / System theme and the dock icon choice.
 // The theme is stored in localStorage (a per-computer preference) and applied
 // as <html data-theme="light|dark">, which theme.css uses for dark colours.
+import { saveLocal } from "./storage";
 
 /** Theme options in Settings → Appearance. */
 export type ThemeChoice = "light" | "dark" | "system";
@@ -40,11 +41,7 @@ function applyTheme(choice: ThemeChoice) {
 
 /** Saves and applies a new theme choice. */
 export function saveTheme(choice: ThemeChoice) {
-  try {
-    localStorage.setItem(themeKey, choice);
-  } catch {
-    /* storage unavailable: the choice applies until Iris restarts */
-  }
+  saveLocal(themeKey, choice);
   applyTheme(choice);
 }
 

@@ -1,5 +1,5 @@
 // Sidebar shown on every signed-in page.
-import { useEffect, useState, type ChangeEvent } from "react";
+import type { ChangeEvent } from "react";
 import { asset } from "../utils/assets";
 // Pages in the order they appear. Each name maps to an icon in
 // assets/sidebar-icons/<name>.svg (and <name>-active.svg when selected).
@@ -22,25 +22,8 @@ export default function Sidebar({
   onNavigate: (page: string) => void;
   onSignOut: () => void;
 }) {
-  // Collapsed (icons only) or expanded; remembered between launches.
-  const [collapsed, setCollapsed] = useState(
-    () => localStorage.getItem("iris-sidebar-collapsed") === "true",
-  );
-  useEffect(
-    () => localStorage.setItem("iris-sidebar-collapsed", String(collapsed)),
-    [collapsed],
-  );
   return (
-    <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
-      {/* Collapse / expand toggle on the sidebar's edge */}
-      <button
-        className="sidebar-toggle"
-        onClick={() => setCollapsed((value) => !value)}
-        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        type="button"
-      >
-        {collapsed ? "›" : "‹"}
-      </button>
+    <aside className="sidebar">
       <a className="wordmark" href="#home">
         <img src={asset("iris-mark.png")} alt="" />
         <span>Iris</span>
@@ -52,7 +35,6 @@ export default function Sidebar({
             className={active === item ? "active" : ""}
             key={item}
             onClick={() => onNavigate(item)}
-            title={collapsed ? item : undefined}
             type="button"
           >
             <Icon active={active === item} item={item} />

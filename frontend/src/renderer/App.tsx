@@ -13,6 +13,8 @@ import {
   ipcErrorMessage,
   isGoogleAuthError,
   getGoogleAccessToken,
+  isCalendarDisconnected,
+  markCalendarConnected,
   normalizeMeetUrl,
   saveGoogleRefreshToken,
   saveGoogleToken,
@@ -115,6 +117,8 @@ export default function App() {
   const [meetingBusy, setMeetingBusy] = useState(false);
   // Which provider started the current browser sign-in (to know when to save a Google token).
   const oauthProvider = useRef<"google" | "azure" | null>(null);
+  // True while an explicit "Connect Google Calendar" sign-in is in progress.
+  const connectingCalendar = useRef(false);
   const fileInput = useRef<HTMLInputElement>(null);
   // Guards against handling the same sign-in callback twice.
   const handledCallbackUrls = useRef(new Set<string>());
@@ -187,6 +191,7 @@ export default function App() {
               : "That link didn't include a sign-in code. Please try again.";
         setGoogleConnecting(false);
         oauthProvider.current = null;
+        connectingCalendar.current = false;
         // Show it on the sign-in screen and, when signed in, on the dashboard.
         setAuthNotice({ text, tone: "error" });
         setNotice(text);
@@ -202,7 +207,17 @@ export default function App() {
         // Supabase hands back Google's access token only on this exchange.
         const provider =
           oauthProvider.current ?? data.session.user.app_metadata.provider;
-        if (provider === "google" && data.session.provider_token) {
+        // Save calendar access when the user asked to connect Google Calendar,
+        // or on a Google sign-in unless they previously disconnected it.
+        const userId = data.session.user.id;
+        const wantsCalendar =
+          connectingCalendar.current || !isCalendarDisconnected(userId);
+        if (
+          provider === "google" &&
+          data.session.provider_token &&
+          wantsCalendar
+        ) {
+          markCalendarConnected(userId);
           await saveGoogleToken(
             data.session.user.id,
             data.session.provider_token,
@@ -216,6 +231,7 @@ export default function App() {
           );
         }
         oauthProvider.current = null;
+        connectingCalendar.current = false;
         setSession(data.session);
       }
       if (error) {
@@ -499,6 +515,7 @@ export default function App() {
     const hasGoogle = session.user.identities?.some(
       (identity) => identity.provider === "google",
     );
+    connectingCalendar.current = true;
     setGoogleConnecting(true);
     if (hasGoogle) {
       await oauth("google");
@@ -521,6 +538,7 @@ export default function App() {
       });
       if (error || !data.url) {
         oauthProvider.current = null;
+        connectingCalendar.current = false;
         setGoogleConnecting(false);
         return setNotice(
           error?.code === "manual_linking_disabled" ||

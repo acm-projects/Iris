@@ -21,9 +21,6 @@
   color: var(--cal-text);
   background: #fff;
 }
-.sidebar.collapsed ~ .calendar-page {
-  margin-left: 80px;
-}
 .calendar-page button {
   font: inherit;
 }
@@ -207,7 +204,6 @@
   border-bottom: 1px solid var(--cal-line);
   transition: background 0.12s;
 }
-/* Translucent tints so the flower watermark shows through the cells. */
 .cal-day:hover {
   background: #1d2b4406;
 }
@@ -518,24 +514,6 @@
   height: 10px;
   border-radius: 50%;
   background: var(--cal-now);
-}
-
-/* Scattered Iris flower pattern behind the whole grid. It sits on the non-scrolling
-   container so it stays put while the week/day grid scrolls. */
-.cal-month,
-.cal-grid {
-  position: relative;
-  isolation: isolate;
-}
-.cal-month::before,
-.cal-grid::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: url(/brand/iris-flower-pattern.svg) center top / 600px 600px
-    repeat;
-  pointer-events: none;
 }
 
 /* Event details */

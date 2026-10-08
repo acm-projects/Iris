@@ -8,6 +8,7 @@ interface Window {
       setTheme(theme: "light" | "dark" | "system"): Promise<void>;
       getIcon(): Promise<"auto" | "light" | "dark" | "mono">;
       setIcon(choice: "auto" | "light" | "dark" | "mono"): Promise<void>;
+      flushStorage(): Promise<void>;
     };
     /** Browser sign-in, iris:// callbacks, and encrypted storage. */
     auth: {
@@ -83,6 +84,8 @@ interface Window {
       openEvent(url: string): Promise<void>;
       /** Deletes an event from the primary calendar. */
       deleteEvent(accessToken: string, eventId: string): Promise<void>;
+      /** Revokes Iris's access at Google; true if Google accepted it. */
+      revoke(token: string): Promise<boolean>;
     };
   };
 }

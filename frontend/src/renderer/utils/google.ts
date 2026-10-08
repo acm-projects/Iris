@@ -2,6 +2,7 @@
 // account, disconnecting, and parsing Google Meet links.
 import { getSupabase } from "./supabase";
 import { friendlyError } from "./errors";
+import { readLocal, saveLocal } from "./storage";
 
 /** Google Calendar scope that lets Iris create events with Meet links. */
 export const googleCalendarScope =
@@ -14,7 +15,10 @@ const tokenKey = (userId: string) => `iris-google-calendar-token:${userId}`;
 const tokenLifetimeMs = 55 * 60_000;
 // Edge Function that stores the Google refresh token server-side and trades it
 // for fresh access tokens (it holds the OAuth client secret, the app never does).
-const tokenFunction = "google-calendar-token";
+// Its code is backend/supabase/functions/google-calendar-token; set
+// VITE_GOOGLE_TOKEN_FUNCTION if it was deployed under a different name.
+const tokenFunction =
+  import.meta.env.VITE_GOOGLE_TOKEN_FUNCTION || "google-calendar-token";
 
 type StoredToken = { token: string; expiresAt: number };
 
@@ -67,6 +71,8 @@ export async function saveGoogleRefreshToken(
  * user needs to connect (or reconnect) Google Calendar.
  */
 export async function getGoogleAccessToken(userId: string) {
+  // After "Disconnect", never renew access until the user connects again.
+  if (isCalendarDisconnected(userId)) return null;
   const stored = await loadStoredToken(userId);
   if (stored) return stored;
   try {
@@ -81,6 +87,20 @@ export async function getGoogleAccessToken(userId: string) {
     return null;
   }
 }
+
+// Set when the user disconnects Google Calendar in Settings; cleared only when
+// they click "Connect Google Calendar" again. A Google *sign-in* alone does not
+// reconnect the calendar.
+const disconnectedKey = (userId: string) =>
+  `iris-google-disconnected:${userId}`;
+
+/** True if this account chose to disconnect Google Calendar on this computer. */
+export const isCalendarDisconnected = (userId: string) =>
+  readLocal(disconnectedKey(userId)) === "true";
+
+/** Clears the "disconnected" choice after the user connects again. */
+export const markCalendarConnected = (userId: string) =>
+  saveLocal(disconnectedKey(userId), null);
 
 /**
  * Accepts a full Meet URL, a URL without https://, or a bare meeting code
@@ -119,20 +139,32 @@ export type GoogleEvent = Awaited<
 >[number];
 
 /**
- * Disconnects Google Calendar for this account: revokes access at Google and
- * deletes the stored refresh token (via the Edge Function), then forgets the
- * token kept on this computer. `revoked` is false if the server step failed,
- * in which case access can still be removed from the Google Account page.
+ * Disconnects Google Calendar for this account: revokes Iris's access at
+ * Google (directly with the token kept on this computer, and through the Edge
+ * Function for the server-side refresh token), then forgets the local token.
+ * `revoked` is false only if neither step worked, in which case access can
+ * still be removed from the Google Account page.
  */
 export async function disconnectGoogleCalendar(userId: string) {
+  // Remember the choice first, so nothing reconnects in the background even
+  // if revoking at Google fails below.
+  saveLocal(disconnectedKey(userId), "true");
+  // Revoke with the stored token (even an expired one is worth trying).
   let revoked = false;
+  try {
+    const raw = await window.iris.auth.secureGet(tokenKey(userId));
+    const stored = raw ? (JSON.parse(raw) as StoredToken) : null;
+    if (stored?.token) revoked = await window.iris.google.revoke(stored.token);
+  } catch {
+    /* fall through to the Edge Function */
+  }
   try {
     const { error } = await getSupabase().functions.invoke(tokenFunction, {
       body: { action: "disconnect" },
     });
-    revoked = !error;
+    if (!error) revoked = true;
   } catch {
-    revoked = false;
+    /* the Edge Function may not be deployed */
   }
   await clearGoogleToken(userId);
   return { revoked };
