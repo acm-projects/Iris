@@ -47,8 +47,8 @@ type Props = {
 
 /** Sections in the order they appear, with their menu icons. */
 const SECTIONS = [
-  { id: "appearance", label: "Appearance", icon: "palette" },
   { id: "account", label: "Account", icon: "user" },
+  { id: "appearance", label: "Appearance", icon: "palette" },
   { id: "integrations", label: "Integrations", icon: "link" },
   { id: "security", label: "Security", icon: "lock" },
 ] as const;
@@ -65,34 +65,11 @@ const providerName = (provider: string) =>
         ? "Microsoft"
         : provider;
 
-/** Settings page: section menu on the left, cards on the right. */
+/** Settings page: section menu on top, cards in a grid below. */
+/** Settings page: all sections stacked in one scrolling column. */
 export default function SettingsPage(p: Props) {
-  const [active, setActive] = useState<SectionId>("appearance");
-  const scroller = useRef<HTMLElement>(null);
-
-  // Highlight the menu item for whichever section is currently in view.
-  useEffect(() => {
-    const root = scroller.current;
-    if (!root) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort(
-            (a, b) => a.boundingClientRect.top - b.boundingClientRect.top,
-          )[0];
-        if (visible) setActive(visible.target.id as SectionId);
-      },
-      { root, rootMargin: "0px 0px -60% 0px" },
-    );
-    root
-      .querySelectorAll(".settings-section")
-      .forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
-  }, []);
-
   return (
-    <section className="settings-page" ref={scroller}>
+    <section className="settings-page">
       <header className="settings-hero">
         <p>Settings</p>
         <h1>Make Iris yours</h1>
@@ -100,38 +77,7 @@ export default function SettingsPage(p: Props) {
       </header>
 
       <div className="settings-layout">
-        {/* In-page menu: jumps to a section and tracks the one in view */}
-        <nav className="settings-nav" aria-label="Settings sections">
-          {SECTIONS.map((section) => (
-            <button
-              aria-current={active === section.id ? "true" : undefined}
-              className={active === section.id ? "active" : ""}
-              key={section.id}
-              onClick={() => {
-                setActive(section.id);
-                document
-                  .getElementById(section.id)
-                  ?.scrollIntoView({ behavior: "smooth", block: "start" });
-              }}
-              type="button"
-            >
-              <SettingsIcon name={section.icon} />
-              {section.label}
-            </button>
-          ))}
-        </nav>
-
         <div className="settings-sections">
-          <Section
-            description="Choose how Iris looks on this computer."
-            icon="palette"
-            id="appearance"
-            title="Appearance"
-          >
-            <ThemePicker />
-            <AppIconPicker />
-          </Section>
-
           <Section
             description="Your profile and the ways you can sign in."
             icon="user"
@@ -139,6 +85,18 @@ export default function SettingsPage(p: Props) {
             title="Account"
           >
             <ProfileRow {...p} />
+          </Section>
+
+          <Section
+            description="Choose how Iris looks on this computer."
+            icon="palette"
+            id="appearance"
+            title="Appearance"
+          >
+            <div className="appearance-split">
+              <ThemePicker />
+              <AppIconPicker />
+            </div>
           </Section>
 
           <Section
@@ -264,7 +222,7 @@ const APP_ICONS: { id: AppIconChoice; label: string; image: string | null }[] =
     { id: "auto", label: "Auto", image: null },
     { id: "light", label: "Light", image: asset("iris-dock-light.png") },
     { id: "dark", label: "Dark", image: asset("iris-dock-dark.png") },
-    { id: "mono", label: "Monochrome", image: asset("iris-dock-mono.png") },
+    { id: "mono", label: "Muted", image: asset("iris-dock-mono.png") },
   ];
 
 /** Dock icon choices; Auto switches between Light and Dark with the theme. */
