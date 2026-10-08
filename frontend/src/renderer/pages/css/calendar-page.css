@@ -1,0 +1,780 @@
+/* Imported by CalendarPage.tsx. */
+/* Calendar page: a calm, Notion-like layout in the Iris palette. */
+.calendar-page {
+  --cal-line: #e9edf3;
+  /* Faint half-hour lines in Week/Day view (hidden in dark mode) */
+  --cal-half-line: #f3f5f8;
+  --cal-line-strong: #dfe5ee;
+  --cal-text: #1d2b44;
+  --cal-muted: #8592a6;
+  --cal-hover: #f5f7fa;
+  --cal-iris: #5c4bab;
+  --cal-iris-soft: #efecfb;
+  --cal-google: #4376ab;
+  --cal-google-soft: #e8f0f8;
+  --cal-now: #e5484d;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  margin-left: 240px;
+  padding: 26px 32px 24px;
+  color: var(--cal-text);
+  background: #fff;
+}
+.calendar-page button {
+  font: inherit;
+}
+
+/* Toolbar */
+.cal-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: end;
+  justify-content: space-between;
+  padding-bottom: 18px;
+}
+.cal-heading p {
+  margin: 0 0 4px;
+  color: var(--cal-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.cal-heading h1 {
+  margin: 0;
+  font-size: 1.9rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+.cal-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.cal-button,
+.cal-nav button,
+.cal-views,
+.cal-connect,
+.cal-sync {
+  height: 34px;
+  border: 1px solid var(--cal-line-strong);
+  border-radius: 8px;
+  color: var(--cal-text);
+  background: #fff;
+  font-size: 0.88rem;
+}
+.cal-button {
+  padding: 0 14px;
+  font-weight: 600;
+}
+.cal-button:hover,
+.cal-nav button:hover,
+.cal-connect:hover {
+  background: var(--cal-hover);
+}
+.cal-nav {
+  display: flex;
+  gap: 4px;
+}
+.cal-nav button {
+  width: 34px;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+.cal-views {
+  display: flex;
+  padding: 3px;
+  background: #f3f5f8;
+}
+.cal-views button {
+  padding: 0 14px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--cal-muted);
+  background: transparent;
+  font-weight: 600;
+}
+.cal-views button.active {
+  color: var(--cal-text);
+  background: #fff;
+  box-shadow: 0 1px 3px #1d2b441f;
+}
+.cal-new {
+  height: 34px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  background: var(--cal-iris);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+.cal-new:hover {
+  filter: brightness(1.08);
+}
+.cal-connect {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  padding: 0 14px;
+  font-weight: 600;
+}
+.cal-google-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: conic-gradient(
+    #ea4335 0 25%,
+    #fbbc05 0 50%,
+    #34a853 0 75%,
+    #4285f4 0
+  );
+}
+.cal-sync {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  padding: 0 4px 0 12px;
+  color: var(--cal-muted);
+  border-color: transparent;
+  background: transparent;
+}
+.cal-sync-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2fa36b;
+}
+.cal-sync.error {
+  color: var(--cal-now);
+}
+.cal-sync.error .cal-sync-dot {
+  background: var(--cal-now);
+}
+.cal-sync button {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--cal-muted);
+  background: transparent;
+  font-size: 1rem;
+}
+.cal-sync button:hover {
+  color: var(--cal-text);
+  background: var(--cal-hover);
+}
+.cal-sync button.spinning {
+  animation: cal-spin 0.9s linear infinite;
+}
+@keyframes cal-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Month view */
+.cal-month {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  border-top: 1px solid var(--cal-line);
+  border-left: 1px solid var(--cal-line);
+}
+.cal-weekday {
+  padding: 8px 10px;
+  border-right: 1px solid var(--cal-line);
+  border-bottom: 1px solid var(--cal-line);
+  color: var(--cal-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: right;
+}
+.cal-day {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 6px;
+  border-right: 1px solid var(--cal-line);
+  border-bottom: 1px solid var(--cal-line);
+  transition: background 0.12s;
+}
+.cal-day:hover {
+  background: #1d2b4406;
+}
+.cal-day.weekend {
+  background: #1d2b4404;
+}
+.cal-day.outside .cal-date {
+  color: #b8c1ce;
+}
+.cal-day header {
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.cal-date {
+  min-width: 26px;
+  height: 26px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 13px;
+  color: var(--cal-text);
+  background: transparent;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.cal-date:hover {
+  background: #eef1f5;
+}
+.cal-day.today .cal-date {
+  color: #fff;
+  background: var(--cal-now);
+}
+.cal-add {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--cal-muted);
+  background: transparent;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.cal-day:hover .cal-add,
+.cal-add:focus-visible {
+  opacity: 1;
+}
+.cal-add:hover {
+  color: var(--cal-text);
+  background: #eef1f5;
+}
+.cal-chips {
+  display: grid;
+  gap: 2px;
+  min-height: 0;
+}
+.cal-chip {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 5px;
+  color: var(--cal-text);
+  background: transparent;
+  font-size: 0.78rem;
+  text-align: left;
+}
+.cal-chip:hover {
+  background: var(--cal-hover);
+}
+.cal-chip i {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ev, var(--cal-google));
+}
+/* The title wins the space; the time shrinks away first in narrow cells. */
+.cal-chip span {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cal-chip time {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--cal-muted);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* Narrow day cells drop the time entirely rather than clipping it. */
+.cal-day {
+  container-type: inline-size;
+}
+@container (max-width: 200px) {
+  .cal-chip time {
+    display: none;
+  }
+}
+/* All-day events: a tint of the event colour with readable dark text, so
+   light colours like Soft Yellow stay legible. */
+.cal-chip.all-day {
+  border-left: 3px solid var(--ev, var(--cal-google));
+  border-radius: 4px 5px 5px 4px;
+  color: color-mix(in srgb, var(--ev, var(--cal-google)) 45%, #0b1830);
+  background: color-mix(in srgb, var(--ev, var(--cal-google)) 22%, #fff);
+}
+.cal-chip.all-day:hover {
+  background: color-mix(in srgb, var(--ev, var(--cal-google)) 32%, #fff);
+}
+.cal-more {
+  justify-self: start;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 5px;
+  color: var(--cal-muted);
+  background: transparent;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+.cal-more:hover {
+  color: var(--cal-text);
+  background: var(--cal-hover);
+}
+
+/* Week and day views */
+.cal-grid {
+  --gutter: 58px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--cal-line);
+}
+.cal-grid-head,
+.cal-allday,
+.cal-grid-body {
+  display: grid;
+  grid-template-columns: var(--gutter) repeat(var(--days), minmax(0, 1fr));
+}
+.cal-grid-head {
+  /* Leave room for the scrollbar of the body below. */
+  padding-right: 8px;
+  border-bottom: 1px solid var(--cal-line);
+}
+.cal-grid-head button {
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+  padding: 10px 0;
+  border: 0;
+  border-left: 1px solid var(--cal-line);
+  color: var(--cal-text);
+  background: transparent;
+}
+.cal-grid-head button:hover {
+  background: var(--cal-hover);
+}
+.cal-grid-head small {
+  color: var(--cal-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.cal-grid-head strong {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-size: 1.15rem;
+}
+.cal-grid-head .today small {
+  color: var(--cal-now);
+}
+.cal-grid-head .today strong {
+  color: #fff;
+  background: var(--cal-now);
+}
+.cal-grid.single .cal-grid-head button {
+  justify-items: start;
+  padding-left: 14px;
+}
+.cal-allday {
+  padding-right: 8px;
+  border-bottom: 1px solid var(--cal-line);
+}
+.cal-allday > span {
+  padding: 6px 8px 0 0;
+  color: var(--cal-muted);
+  font-size: 0.7rem;
+  text-align: right;
+}
+.cal-allday > div {
+  display: grid;
+  gap: 2px;
+  align-content: start;
+  min-height: 30px;
+  padding: 4px;
+  border-left: 1px solid var(--cal-line);
+}
+.cal-grid-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: scroll;
+}
+.cal-grid-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.cal-grid-scroll::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: #d9dfe8;
+}
+.cal-grid-body {
+  position: relative;
+}
+.cal-hours {
+  position: relative;
+}
+.cal-hours span {
+  position: absolute;
+  right: 8px;
+  transform: translateY(-50%);
+  color: var(--cal-muted);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+.cal-column {
+  position: relative;
+  border-left: 1px solid var(--cal-line);
+  /* Solid hour lines with fainter half-hour lines. */
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0 51px,
+      var(--cal-line) 51px 52px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0 25px,
+      var(--cal-half-line) 25px 26px
+    );
+  cursor: cell;
+}
+.cal-column:hover {
+  background-color: #1d2b4404;
+}
+.cal-block {
+  position: absolute;
+  display: grid;
+  align-content: start;
+  gap: 1px;
+  overflow: hidden;
+  padding: 4px 7px;
+  border: 0;
+  border-left: 3px solid var(--ev, var(--cal-google));
+  border-radius: 6px;
+  color: color-mix(in srgb, var(--ev, var(--cal-google)) 45%, #0b1830);
+  background: color-mix(in srgb, var(--ev, var(--cal-google)) 16%, #fff);
+  font-size: 0.76rem;
+  text-align: left;
+  cursor: pointer;
+  transition: box-shadow 0.12s;
+}
+.cal-block:hover {
+  z-index: 2;
+  box-shadow: 0 4px 12px #1d2b4426;
+}
+.cal-block strong,
+.cal-block small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cal-block small {
+  opacity: 0.75;
+}
+.cal-block.compact {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.cal-now {
+  position: absolute;
+  right: 0;
+  left: -1px;
+  z-index: 3;
+  height: 2px;
+  background: var(--cal-now);
+  pointer-events: none;
+}
+.cal-now::before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: -5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--cal-now);
+}
+
+/* Event details */
+.cal-popover {
+  position: fixed;
+  z-index: 900;
+  display: grid;
+  gap: 8px;
+  padding: 16px 18px 18px;
+  border: 1px solid var(--cal-line-strong);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 18px 42px #1d2b4430;
+  animation: iris-pop 140ms ease-out;
+}
+.cal-popover header {
+  display: flex;
+  gap: 10px;
+  align-items: start;
+}
+.cal-popover header i {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  margin-top: 6px;
+  border-radius: 3px;
+  background: var(--ev, var(--cal-google));
+}
+.cal-popover h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 1.1rem;
+  line-height: 1.35;
+}
+.cal-popover header button {
+  border: 0;
+  color: var(--cal-muted);
+  background: none;
+  font-size: 1.4rem;
+  line-height: 1;
+}
+.cal-popover p {
+  margin: 0 0 0 22px;
+  font-size: 0.88rem;
+}
+.cal-popover-meta {
+  color: var(--cal-muted);
+}
+.cal-popover code {
+  padding: 1px 6px;
+  border-radius: 5px;
+  color: var(--cal-text);
+  background: #eef2f8;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+.cal-popover-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 0 22px;
+}
+.cal-popover-actions button {
+  padding: 7px 11px;
+  border: 1px solid var(--cal-line-strong);
+  border-radius: 7px;
+  color: var(--cal-text);
+  background: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.cal-popover-actions button:hover {
+  background: var(--cal-hover);
+}
+.cal-popover-actions .primary {
+  border-color: var(--cal-iris);
+  color: #fff;
+  background: var(--cal-iris);
+}
+.cal-popover-actions .primary:hover {
+  background: #4f3f9a;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cal-sync button.spinning,
+  .cal-popover {
+    animation: none;
+  }
+}
+@media (max-width: 1000px) {
+  .calendar-page {
+    padding: 20px;
+  }
+}
+@media (max-width: 700px) {
+  .calendar-page {
+    height: auto;
+    min-height: 100vh;
+    margin-left: 0;
+  }
+  .cal-month {
+    min-height: 560px;
+  }
+}
+
+/* Colour picker in the event details card. */
+.cal-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 0 22px;
+}
+.cal-colors button {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--swatch);
+  box-shadow: 0 0 0 1px #00224e26;
+  transition: transform 0.12s;
+}
+.cal-colors button:hover {
+  transform: scale(1.12);
+}
+/* A navy ring marks the choice, so it stays visible on Soft Yellow too. */
+.cal-colors button.selected {
+  box-shadow: 0 0 0 2px #00224e;
+}
+.cal-colors button:focus-visible {
+  outline: 2px solid #00224e;
+  outline-offset: 2px;
+}
+.cal-popover .cal-popover-error {
+  color: #c2412d;
+  font-size: 0.82rem;
+}
+
+/* ---- Resizing events (Week/Day): drag the top or bottom edge ---- */
+.cal-resize {
+  position: absolute;
+  right: 0;
+  left: 0;
+  z-index: 1;
+  height: 10px;
+  cursor: ns-resize;
+  touch-action: none;
+}
+.cal-resize.top {
+  top: 0;
+}
+.cal-resize.bottom {
+  bottom: 0;
+}
+/* A small grip appears on hover so the edge is easy to find */
+.cal-resize::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 22px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--ev, var(--cal-google));
+  opacity: 0;
+  transform: translateX(-50%);
+  transition: opacity 0.12s;
+}
+.cal-resize.top::after {
+  top: 2px;
+}
+.cal-resize.bottom::after {
+  bottom: 2px;
+}
+.cal-block:hover .cal-resize::after,
+.cal-block.resizing .cal-resize::after {
+  opacity: 0.8;
+}
+/* The event being resized floats above its neighbours */
+.cal-block.resizing {
+  z-index: 3;
+  box-shadow: 0 8px 20px #1d2b4440;
+  cursor: ns-resize;
+}
+
+/* Message shown when a new event time could not be saved */
+.cal-error {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 950;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  max-width: min(440px, calc(100vw - 48px));
+  margin: 0;
+  padding: 12px 12px 12px 16px;
+  border-radius: 12px;
+  color: #fff;
+  background: #c2412d;
+  box-shadow: 0 12px 28px #1d2b4440;
+  font-size: 0.9rem;
+}
+.cal-error button {
+  border: 0;
+  color: #fff;
+  background: none;
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+/* ---- Reschedule form inside the event details card ---- */
+.cal-reschedule {
+  display: grid;
+  gap: 10px;
+  margin: 4px 0 0 22px;
+  padding-top: 12px;
+  border-top: 1px solid var(--cal-line);
+}
+.cal-reschedule > div:first-of-type {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.cal-reschedule label {
+  display: grid;
+  gap: 4px;
+  color: var(--cal-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.cal-reschedule input {
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--cal-line-strong);
+  border-radius: 8px;
+  color: var(--cal-text);
+  background: var(--cal-hover);
+  font-size: 0.86rem;
+}
+.cal-reschedule input:focus {
+  border-color: var(--cal-iris);
+  outline: none;
+}
+.cal-reschedule .cal-popover-error {
+  margin: 0;
+}
+.cal-reschedule-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.cal-reschedule-actions button {
+  padding: 7px 11px;
+  border: 1px solid var(--cal-line-strong);
+  border-radius: 7px;
+  color: var(--cal-text);
+  background: transparent;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.cal-reschedule-actions .primary {
+  border-color: var(--cal-iris);
+  color: #fff;
+  background: var(--cal-iris);
+}

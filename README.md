@@ -208,7 +208,7 @@ Tutorial: [FastAPI Quickstart](https://fastapi.tiangolo.com/tutorial/)
     </td>
     <td>
         <ul>
-            <li>Implement virtual camera/mic injection so Cue's outputs appear as native call audio/video</li>
+            <li>Implement virtual camera/mic injection so Iris outputs appear as native call audio/video</li>
         </ul>
     </td>
   </tr>
@@ -281,4 +281,3 @@ Tutorial: [FastAPI Quickstart](https://fastapi.tiangolo.com/tutorial/)
 <h2>🎊Industry Mentor🎊</h2>
 <h3>Abis Naqvi</h3><br/>
 <div />
-
