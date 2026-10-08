@@ -71,3 +71,5 @@ next-env.d.ts
 /backend/.venv/
 __pycache__/
 *.py[cod]
+
+README.md
