@@ -181,11 +181,12 @@
   font-size: 0.9rem;
 }
 
-/* ---- Layout: the camera centred, Type to speak underneath ---- */
+/* ---- Layout: the camera full width (lined up with the banner), Type to
+   speak underneath ---- */
 .tr-center {
   display: grid;
   gap: 20px;
-  max-width: 920px;
+  max-width: 1240px;
   margin: 0 auto;
 }
 .tr-card {
@@ -298,7 +299,13 @@
 .tr-preview {
   position: relative;
   overflow: hidden;
+  /* An explicit width keeps the preview full width; otherwise the height cap
+     below shrinks the width too, to keep 16:9 */
+  width: 100%;
   aspect-ratio: 16 / 9;
+  /* At full width a 16:9 preview gets very tall; cap it so Type to speak
+     stays in view (the video crops to fill, see object-fit below) */
+  max-height: max(340px, calc(100vh - 440px));
   border-radius: 16px;
   background: #1c2a47;
 }
