@@ -324,16 +324,20 @@ function createPopoutWindow() {
       backgroundThrottling: false,
     },
   });
+  
+  if (process.platform === "darwin") {
+    // macOS only lets a window join fullscreen Spaces if the app briefly
+    // hides its dock icon while the window is set up, then shows it again.
+    app.dock?.hide();
+    popoutWindow.setAlwaysOnTop(true, "screen-saver");
+    popoutWindow.setVisibleOnAllWorkspaces(true, {
+      visibleOnFullScreen: true,
+    });
+    void app.dock?.show();
+  } else {
+    popoutWindow.setAlwaysOnTop(true, "floating");
+  }
 
-  // "floating" keeps it above normal windows (Chrome, Meet) on macOS.
-  // "screen-saver" is high enough to float over fullscreen apps like Chrome.
-popoutWindow.setAlwaysOnTop(true, "screen-saver");
-// Show on every Space, including fullscreen ones. skipTransformProcessType
-// stops macOS from hiding Iris's dock icon when this is turned on.
-popoutWindow.setVisibleOnAllWorkspaces(true, {
-  visibleOnFullScreen: true,
-  skipTransformProcessType: true,
-});
 
   popoutWindow.on("closed", () => {
     popoutWindow = null;
