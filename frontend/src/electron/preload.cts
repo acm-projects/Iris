@@ -64,6 +64,10 @@ contextBridge.exposeInMainWorld("iris", {
   popout: {
     // Pop-out → main process.
     speak: (text: string) => ipcRenderer.invoke("iris:popout:speak", text),
+
+    open: () => ipcRenderer.invoke("iris:popout:open"),
+    close: () => ipcRenderer.invoke("iris:popout:close"),
+    
     // Main window: listen for speak requests; returns an unsubscribe function.
     onSpeakRequest: (
       listener: (request: { id: string; text: string }) => void,

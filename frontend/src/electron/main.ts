@@ -368,8 +368,6 @@ app.whenReady().then(() => {
   nativeTheme.on("updated", updateAppIcon);
   createWindow();
 
-  createPopoutWindow();
-
   // On macOS, re-create a window when the dock icon is selected.
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -951,6 +949,15 @@ ipcMain.on("iris:engine:frame", (_event, jpeg: Uint8Array) => {
       data: Buffer.from(jpeg).toString("base64"),
     }) + "\n",
   );
+});
+
+/** Opens (or focuses) the floating Type to speak window. */
+ipcMain.handle("iris:popout:open", () => {
+  createPopoutWindow();
+});
+/** Closes the floating window if it's open. */
+ipcMain.handle("iris:popout:close", () => {
+  if (popoutWindow && !popoutWindow.isDestroyed()) popoutWindow.close();
 });
 
 // --- Type to speak pop-out -----------------------------------------------

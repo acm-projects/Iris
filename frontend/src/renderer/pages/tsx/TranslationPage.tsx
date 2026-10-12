@@ -1280,9 +1280,18 @@ function TypeToSpeak({
             <p>Iris says it in the meeting and shows a caption.</p>
           </div>
         </div>
-        <button className="tr-ghost" onClick={onClearCaption} type="button">
-          Clear caption
-        </button>
+          <div className="tr-head-actions">
+            <button
+              className="tr-ghost"
+              onClick={() => void window.iris.popout.open()}
+              type="button"
+            >
+              Pop out
+            </button>
+            <button className="tr-ghost" onClick={onClearCaption} type="button">
+              Clear caption
+            </button>
+          </div>
       </header>
       <form
         className={`tr-speak ${disabled ? "locked" : ""}`}
