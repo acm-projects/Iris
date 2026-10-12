@@ -13,6 +13,7 @@ import {
   systemPreferences,
 } from "electron";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { hash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import path from "node:path";
@@ -24,6 +25,7 @@ import { fileURLToPath } from "node:url";
 // ---------------------------------------------------------------------------
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 let mainWindow: BrowserWindow | null = null;
+let popoutWindow: BrowserWindow | null = null;
 // An iris://auth/callback URL waiting for React to pick it up.
 let pendingAuthCallback: string | null = null;
 // Tiny local web server that receives Supabase OAuth redirects (see below).
@@ -266,6 +268,13 @@ function createWindow() {
       backgroundThrottling: false,
     },
   });
+  
+  //closes popout when main window closes
+    mainWindow.on("closed", () => {
+    if (popoutWindow && !popoutWindow.isDestroyed()) popoutWindow.close();
+    mainWindow = null;
+  });
+
   const devServerUrl = process.env.VITE_DEV_SERVER_URL;
 
   mainWindow.webContents.once("did-finish-load", () => {
@@ -288,6 +297,59 @@ function createWindow() {
   void mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
 }
 
+/** Opens the small floating Type to speak window (or focuses it if open). */
+function createPopoutWindow() {
+  // Already open: bring it forward instead of making a second one.
+  if (popoutWindow && !popoutWindow.isDestroyed()) {
+    popoutWindow.show();
+    popoutWindow.focus();
+    return;
+  }
+
+  popoutWindow = new BrowserWindow({
+    width: 420,
+    height: 300,
+    minWidth: 320,
+    minHeight: 220,
+    title: "Iris - Type to speak",
+    icon: currentAppIcon(),
+    frame: false,
+    resizable: true,
+    alwaysOnTop: true,
+    webPreferences: {
+      // Same preload as the main window, so window.iris exists here too.
+      preload: path.join(__dirname, "preload.cjs"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      backgroundThrottling: false,
+    },
+  });
+
+  // "floating" keeps it above normal windows (Chrome, Meet) on macOS.
+  // "screen-saver" is high enough to float over fullscreen apps like Chrome.
+popoutWindow.setAlwaysOnTop(true, "screen-saver");
+// Show on every Space, including fullscreen ones. skipTransformProcessType
+// stops macOS from hiding Iris's dock icon when this is turned on.
+popoutWindow.setVisibleOnAllWorkspaces(true, {
+  visibleOnFullScreen: true,
+  skipTransformProcessType: true,
+});
+
+  popoutWindow.on("closed", () => {
+    popoutWindow = null;
+  });
+
+  // Same app, but the "#/popout" hash lets React know to show only the box.
+  const devServerUrl = process.env.VITE_DEV_SERVER_URL;
+  if (devServerUrl) {
+    void popoutWindow.loadURL(`${devServerUrl}#/popout`);
+  } else {
+    void popoutWindow.loadFile(path.join(__dirname, "../dist/index.html"), {
+      hash: "/popout",
+    });
+  }
+}
+
 // ---------------------------------------------------------------------------
 // App start-up
 // ---------------------------------------------------------------------------
@@ -301,6 +363,8 @@ app.whenReady().then(() => {
   updateAppIcon();
   nativeTheme.on("updated", updateAppIcon);
   createWindow();
+
+  createPopoutWindow();
 
   // On macOS, re-create a window when the dock icon is selected.
   app.on("activate", () => {
