@@ -1269,7 +1269,7 @@ function TypeToSpeak({
     }
   };
   return (
-    <section className="tr-card">
+    <section className="tr-card tr-speak-card">
       <header className="tr-card-head">
         <div className="tr-title">
           <span className="tr-tile purple">
