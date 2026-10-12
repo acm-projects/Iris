@@ -324,7 +324,7 @@ function createPopoutWindow() {
       backgroundThrottling: false,
     },
   });
-  
+
   if (process.platform === "darwin") {
     // macOS only lets a window join fullscreen Spaces if the app briefly
     // hides its dock icon while the window is set up, then shows it again.
@@ -951,6 +951,46 @@ ipcMain.on("iris:engine:frame", (_event, jpeg: Uint8Array) => {
       data: Buffer.from(jpeg).toString("base64"),
     }) + "\n",
   );
+});
+
+// --- Type to speak pop-out -----------------------------------------------
+// The pop-out can't call the engine itself: captions and speak() live in the
+// main window. So we forward the text there and wait for it to report back.
+const popoutPending = new Map<
+  string,
+  { resolve: () => void; reject: (error: Error) => void; timer: NodeJS.Timeout }
+>();
+let popoutRequestId = 0;
+
+/** Pop-out asks to speak: forward to the main window, resolve when it replies. */
+ipcMain.handle("iris:popout:speak", (_event, text: string) => {
+  if (typeof text !== "string" || !text.trim() || text.length > 500)
+    throw new Error("Type something to speak first.");
+  if (!mainWindow || mainWindow.isDestroyed())
+    throw new Error("The main Iris window is closed.");
+  const id = String(++popoutRequestId);
+  return new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      popoutPending.delete(id);
+      reject(
+        new Error(
+          "Iris didn't answer. Open the Translation page in the main window.",
+        ),
+      );
+    }, 90_000);
+    popoutPending.set(id, { resolve, reject, timer });
+    mainWindow?.webContents.send("iris:popout:speak-request", { id, text });
+  });
+});
+
+/** Main window reports the result (error is null on success). */
+ipcMain.on("iris:popout:speak-reply", (_event, id: string, error: string | null) => {
+  const pending = popoutPending.get(id);
+  if (!pending) return;
+  clearTimeout(pending.timer);
+  popoutPending.delete(id);
+  if (error) pending.reject(new Error(error));
+  else pending.resolve();
 });
 
 // macOS applications stay open after their last window closes.

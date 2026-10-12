@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { engineError } from "../../utils/translation";
 import "../css/popout.css";
 
 const QUICK_PHRASES = [
@@ -11,12 +12,22 @@ const QUICK_PHRASES = [
 /** The floating Type to speak window (no sign-in, no sidebar). */
 export default function PopoutPage() {
   const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
-  // TODO (next step): send this to the main window through the main process.
-  const say = (value: string) => {
-    if (!value.trim()) return;
-    console.log("would speak:", value.trim());
-    setText("");
+  // Sends the text to the main window's speak(); shows errors under the box.
+  const say = async (value: string) => {
+    if (!value.trim() || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await window.iris.popout.speak(value.trim());
+      setText("");
+    } catch (problem) {
+      setError(engineError(problem, "Iris couldn't speak that."));
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -29,12 +40,13 @@ export default function PopoutPage() {
         </button>
       </header>
       <textarea
+        disabled={busy}
         maxLength={500}
         onChange={(event) => setText(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === "Enter" && !event.shiftKey) {
             event.preventDefault();
-            say(text);
+            void say(text);
           }
         }}
         placeholder="Type a message and press Enter…"
@@ -42,19 +54,25 @@ export default function PopoutPage() {
       />
       <div className="popout-phrases">
         {QUICK_PHRASES.map((phrase) => (
-          <button key={phrase} onClick={() => say(phrase)} type="button">
+          <button
+            disabled={busy}
+            key={phrase}
+            onClick={() => void say(phrase)}
+            type="button"
+          >
             {phrase}
           </button>
         ))}
       </div>
       <button
         className="popout-speak"
-        disabled={!text.trim()}
-        onClick={() => say(text)}
+        disabled={busy || !text.trim()}
+        onClick={() => void say(text)}
         type="button"
       >
-        Speak
+        {busy ? "Speaking…" : "Speak"}
       </button>
+      {error && <p className="popout-error">{error}</p>}
     </main>
   );
 }

@@ -346,6 +346,22 @@ export default function TranslationPage() {
     await window.iris.engine.request("speak", { text, device: label });
   }, []);
 
+    // Speak requests from the floating Type to speak window.
+  useEffect(() => {
+    if (typeof window.iris.popout?.onSpeakRequest !== "function") return;
+    return window.iris.popout.onSpeakRequest(async ({ id, text }) => {
+      try {
+        await speak(text);
+        window.iris.popout.reply(id, null);
+      } catch (error) {
+        window.iris.popout.reply(
+          id,
+          engineError(error, "Iris couldn't speak that."),
+        );
+      }
+    });
+  }, [speak]);
+
   // Engine events: virtual camera status and recognised signs.
   useEffect(() => {
     if (typeof window.iris.engine?.onEvent !== "function") return;
