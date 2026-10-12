@@ -55,12 +55,16 @@ export const RESOLUTIONS = {
 export const isVirtualCamera = (label: string) =>
   /obs virtual camera|obs-camera|iris virtual/i.test(label);
 export const isVirtualMic = (label: string) =>
-  /blackhole|cable input|cable output|vb-audio|loopback/i.test(label);
+  /blackhole|cable input|cable output|vb-audio|loopback|iris microphone|iris speaker/i.test(
+    label,
+  );
 
 /** What engine.py's `system_check` returns. */
 export type EngineCheck = {
   python: string;
   platform: string;
+  // True when running as the standalone engine bundled with installed Iris.
+  bundled?: boolean;
   modules: Record<string, true | string>;
   missingPackages: string[];
   virtualCamera: {
@@ -69,7 +73,8 @@ export type EngineCheck = {
     error?: string;
     inUse?: boolean;
   };
-  virtualMic: { ok: boolean; device?: string; error?: string };
+  // On Linux `detail` explains why Iris Microphone isn't available yet.
+  virtualMic: { ok: boolean; device?: string; error?: string; detail?: string };
   speech: { ok: boolean; engine: string };
   signModel: { ok: boolean; status: string };
 };

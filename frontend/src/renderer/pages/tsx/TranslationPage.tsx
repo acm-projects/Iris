@@ -22,6 +22,15 @@ import {
   type TranslationSettings,
 } from "../../utils/translation";
 import { asset } from "../../utils/assets";
+import {
+  MEET_DEVICE_NAMES,
+  VIRTUAL_CAMERA_GUIDE,
+  VIRTUAL_MIC_GUIDE,
+  VOICE_GUIDE,
+  osKind,
+  type Guide,
+} from "../../utils/setupGuide";
+import { readLocal, saveLocal } from "../../utils/storage";
 import "../css/translation.css";
 import { useAutoDismiss } from "../../utils/useAutoDismiss";
 
@@ -60,9 +69,13 @@ const INSTALL_COMMAND =
     : "cd backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt";
 // Where users unblock the camera/microphone if they said no.
 const PRIVACY_SETTINGS =
-  window.iris?.platform === "win32"
+  osKind === "windows"
     ? "Windows Settings → Privacy & security"
-    : "System Settings → Privacy & Security";
+    : osKind === "mac"
+      ? "System Settings → Privacy & Security"
+      : "your system's privacy settings";
+// Remembers that the setup guide opened by itself once (first visit).
+const SETUP_SHOWN_KEY = "iris-translation-setup-shown";
 
 /** Names of the small line icons used on this page. */
 type IconName =
@@ -481,7 +494,7 @@ export default function TranslationPage() {
   const hasVirtualMic =
     Boolean(engineCheck?.virtualMic.ok) ||
     devices.outputs.some((d) => isVirtualMic(d.label));
-  const isMac = window.iris.platform === "darwin";
+  const meetNames = MEET_DEVICE_NAMES[osKind];
 
   const checks = useMemo(() => {
     const rows: {
@@ -491,6 +504,8 @@ export default function TranslationPage() {
       detail: string;
       action?: { label: string; run: () => void };
       command?: string;
+      // Numbered, OS-specific instructions for fixing this step.
+      guide?: Guide;
     }[] = [];
     rows.push(
       !cameraOn
@@ -498,7 +513,7 @@ export default function TranslationPage() {
             id: "camera",
             title: "Camera",
             state: "pending",
-            detail: "Your camera is off. Turn it on to check it.",
+            detail: "Turn on your camera to test it.",
             action: { label: "Turn on camera", run: () => setCameraOn(true) },
           }
         : videoTrack?.readyState === "live"
@@ -525,7 +540,7 @@ export default function TranslationPage() {
             id: "mic",
             title: "Microphone",
             state: "pending",
-            detail: "Your microphone turns on with your camera.",
+            detail: "Turns on with your camera.",
           }
         : audioTrack?.readyState === "live"
           ? {
@@ -559,6 +574,8 @@ export default function TranslationPage() {
             id: "engine",
             title: "Translation engine",
             state: checking ? "pending" : "fail",
+            // Installed copies bundle the engine, so missing packages only
+            // happen when running from the project folder (development).
             detail: checking
               ? "Checking…"
               : engineCheck
@@ -583,18 +600,8 @@ export default function TranslationPage() {
             id: "vcam",
             title: "Virtual camera",
             state: "fail",
-            // On macOS the OBS camera is a system extension that OBS installs the
-            // first time "Start Virtual Camera" is clicked.
-            detail: isMac
-              ? "Install OBS Studio (free), open it once, click Start Virtual Camera, then allow the extension in System Settings → General → Login Items & Extensions. You can quit OBS afterwards."
-              : "Install OBS Studio (free). Iris uses its virtual camera driver; you don't need to open OBS.",
-            action: {
-              label: "Get OBS",
-              run: () =>
-                void window.iris.auth.openExternal(
-                  "https://obsproject.com/download",
-                ),
-            },
+            detail: "Lets Meet see Iris.",
+            guide: VIRTUAL_CAMERA_GUIDE[osKind],
           },
     );
     rows.push(
@@ -614,18 +621,16 @@ export default function TranslationPage() {
             id: "vmic",
             title: "Virtual microphone",
             state: "fail",
-            detail: isMac
-              ? "Install BlackHole 2ch (free) so Meet can hear Iris's voice."
-              : "Install VB-CABLE (free) so Meet can hear Iris's voice, then restart Windows.",
-            action: {
-              label: isMac ? "Get BlackHole" : "Get VB-CABLE",
-              run: () =>
-                void window.iris.auth.openExternal(
-                  isMac
-                    ? "https://existential.audio/blackhole/"
-                    : "https://vb-audio.com/Cable/",
-                ),
-            },
+            detail: "Lets Meet hear Iris.",
+            guide: VIRTUAL_MIC_GUIDE[osKind],
+            // Linux: Iris creates the microphone itself.
+            action:
+              osKind === "linux" && engineCheck
+                ? {
+                    label: "Create Iris Microphone",
+                    run: () => void createLinuxMic(),
+                  }
+                : undefined,
           },
     );
     rows.push(
@@ -639,8 +644,11 @@ export default function TranslationPage() {
         : {
             id: "voice",
             title: "Voice",
-            state: checking ? "pending" : "warn",
-            detail: "Text-to-speech will be checked with the engine.",
+            state: checking || !engineCheck ? "pending" : "warn",
+            detail: engineCheck
+              ? "Lets Iris speak in Meet."
+              : "Text-to-speech will be checked with the engine.",
+            guide: engineCheck ? VOICE_GUIDE[osKind] : undefined,
           },
     );
     rows.push({
@@ -662,7 +670,6 @@ export default function TranslationPage() {
     checking,
     hasVirtualCamera,
     hasVirtualMic,
-    isMac,
   ]);
 
   // Items that must be fixed before going live (failures and warnings).
@@ -677,7 +684,6 @@ export default function TranslationPage() {
   // What the Setup tab shows: one tile per step, a progress ring, and the
   // selected tile's details (by default the first problem).
   const stepRows = checks.filter((row) => row.state !== "info");
-  const noteRow = checks.find((row) => row.state === "info");
   const okCount = stepRows.filter((row) => row.state === "ok").length;
   const ringLength = 2 * Math.PI * 22;
   const activeId =
@@ -706,6 +712,30 @@ export default function TranslationPage() {
       setTestNote(engineError(error, "Could not play the test sound."));
     }
   }
+
+  /** Linux: asks the engine to create Iris Microphone, then re-checks. */
+  async function createLinuxMic() {
+    setTestNote("Creating Iris Microphone…");
+    try {
+      await window.iris.engine.request("create_virtual_mic");
+      setTestNote(
+        "Iris Microphone is ready. Choose it as the microphone in Meet.",
+      );
+    } catch (error) {
+      setTestNote(engineError(error, "Iris Microphone couldn't be created."));
+    }
+    await runEngineCheck();
+  }
+
+  // First visit: if something needs setting up, open the setup guide once.
+  useEffect(() => {
+    // (Also when the engine couldn't start at all.)
+    if ((!engineCheck && !engineProblem) || checking || blocking === 0) return;
+    if (readLocal(SETUP_SHOWN_KEY)) return;
+    saveLocal(SETUP_SHOWN_KEY, "true");
+    setTab("setup");
+    setPanel("menu");
+  }, [engineCheck, engineProblem, checking, blocking]);
 
   return (
     <section className="translation-page">
@@ -851,12 +881,11 @@ export default function TranslationPage() {
                   </li>
                   <li>
                     In Meet, open <strong>Settings ⚙ → Video</strong> and choose{" "}
-                    <strong>OBS Virtual Camera</strong>.
+                    <strong>{meetNames.camera}</strong>.
                   </li>
                   <li>
                     Open <strong>Audio</strong> and choose{" "}
-                    <strong>{isMac ? "BlackHole 2ch" : "CABLE Output"}</strong>{" "}
-                    as the microphone.
+                    <strong>{meetNames.microphone}</strong> as the microphone.
                   </li>
                 </ol>
               </div>
@@ -927,15 +956,8 @@ export default function TranslationPage() {
                         <h2>
                           {blocking === 0
                             ? "You're all set"
-                            : okCount >= stepRows.length / 2
-                              ? "Almost there"
-                              : "Let's get you set up"}
+                            : `${blocking} step${blocking > 1 ? "s" : ""} left`}
                         </h2>
-                        <p>
-                          {blocking
-                            ? `Fix ${blocking} step${blocking > 1 ? "s" : ""} to go live in Meet.`
-                            : "Everything Meet needs is ready."}
-                        </p>
                       </div>
                       <button
                         className="tr-ghost"
@@ -980,6 +1002,13 @@ export default function TranslationPage() {
                         {activeRow.command && (
                           <CopyCommand command={activeRow.command} />
                         )}
+                        {activeRow.guide && (
+                          <SetupGuide
+                            checking={checking}
+                            guide={activeRow.guide}
+                            onCheck={() => void runEngineCheck()}
+                          />
+                        )}
                         {activeRow.action && (
                           <button
                             className="tr-ghost"
@@ -992,12 +1021,6 @@ export default function TranslationPage() {
                       </div>
                     )}
                     {testNote && <p className="tr-note">{testNote}</p>}
-                    {noteRow && (
-                      <p className="tr-footnote">
-                        <Icon name="info" size={16} />
-                        {noteRow.detail}
-                      </p>
-                    )}
                   </>
                 )}
 
@@ -1209,12 +1232,10 @@ function Shutter({
           ? "Camera unavailable"
           : starting
             ? "Starting your camera…"
-            : "Your camera is off"}
+            : "Camera off"}
       </strong>
-      <span>
-        {error ||
-          "Iris only turns on your camera when you ask. Turn it on to preview and go live."}
-      </span>
+      {/* Only explain when something went wrong; otherwise the button says it */}
+      {error && <span>{error}</span>}
       {!starting && (
         <button onClick={error ? onAllow : onTurnOn} type="button">
           {error ? "Allow camera & microphone" : "Turn on camera"}
@@ -1351,6 +1372,69 @@ function Toggle({
 }
 
 /** A shell command with a Copy button. */
+/**
+ * Numbered steps for fixing one setup item on this OS, with its download
+ * button, any terminal commands, and "Check again".
+ */
+function SetupGuide({
+  guide,
+  checking,
+  onCheck,
+}: {
+  guide: Guide;
+  checking: boolean;
+  onCheck: () => void;
+}) {
+  return (
+    <div className="tr-guide">
+      <ol>
+        {guide.steps.map((step) => (
+          <li key={step}>{step}</li>
+        ))}
+      </ol>
+      {guide.commands?.map((item) => (
+        <div className="tr-guide-command" key={item.command}>
+          {item.label && <small>{item.label}</small>}
+          <CopyCommand command={item.command} />
+        </div>
+      ))}
+      {/* Alternatives stay folded away so the guide stays short */}
+      {guide.more && (
+        <details className="tr-guide-more">
+          <summary>More options</summary>
+          {guide.more.map((item) => (
+            <div className="tr-guide-command" key={item.command}>
+              <small>{item.label}</small>
+              <CopyCommand command={item.command} />
+            </div>
+          ))}
+        </details>
+      )}
+      <div className="tr-guide-actions">
+        {guide.download && (
+          <button
+            className="tr-guide-download"
+            onClick={() =>
+              void window.iris.auth.openExternal(guide.download!.url)
+            }
+            type="button"
+          >
+            {guide.download.label} ↗
+          </button>
+        )}
+        <button
+          className="tr-ghost"
+          disabled={checking}
+          onClick={onCheck}
+          type="button"
+        >
+          {checking ? "Checking…" : "Check again"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function CopyCommand({ command }: { command: string }) {
   const [copied, setCopied] = useState(false);
   return (

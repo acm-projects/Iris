@@ -25,9 +25,8 @@
   overflow-y: auto;
   padding: 34px 40px 56px;
   color: var(--t-text);
-  background:
-    radial-gradient(circle at 95% 0, #e3f5f6 0, transparent 30%),
-    radial-gradient(circle at 0 100%, #fff4d1 0, transparent 28%), var(--t-bg);
+  background-color: var(--page-base);
+  background-image: var(--page-glow);
 }
 
 /* ---- Banner header (same look as the Home clock card) ---- */
@@ -588,6 +587,66 @@
 .tr-step-detail .tr-ghost {
   justify-self: start;
 }
+/* OS-specific setup guide inside a step's details */
+.tr-guide {
+  display: grid;
+  gap: 10px;
+}
+.tr-guide ol {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 20px;
+  color: var(--t-text);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+.tr-guide li::marker {
+  color: var(--t-purple);
+  font-weight: 800;
+}
+.tr-guide-command {
+  display: grid;
+  gap: 4px;
+}
+.tr-guide-command small {
+  color: var(--t-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+/* "More options": alternatives folded away to keep the guide short */
+.tr-guide-more {
+  display: grid;
+  gap: 8px;
+}
+.tr-guide-more summary {
+  width: fit-content;
+  color: var(--t-accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.tr-guide-more[open] summary {
+  margin-bottom: 6px;
+}
+.tr-guide-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.tr-guide-download {
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 10px;
+  color: #fff;
+  background: var(--t-purple);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+.tr-guide-download:hover {
+  filter: brightness(1.08);
+}
 .tr-command {
   display: flex;
   min-width: 0;
@@ -627,15 +686,6 @@
   font-size: 0.84rem;
 }
 /* Quiet note pinned to the bottom of the card */
-.tr-footnote {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  margin: auto 0 0;
-  padding-top: 18px;
-  color: var(--t-muted);
-  font-size: 0.82rem;
-}
 
 /* ---- Settings ---- */
 .tr-settings {
@@ -786,9 +836,6 @@
   --t-fail: #ff9d8f;
   --t-fail-soft: #2a1616;
   --t-fail-border: #5a2a24;
-  background:
-    radial-gradient(circle at 95% 0, #0d2a3a 0, transparent 30%),
-    radial-gradient(circle at 0 100%, #2a2512 0, transparent 28%), var(--t-bg);
 }
 :root[data-theme="dark"] .tr-header {
   background: linear-gradient(110deg, #3b3180 0%, #34457f 55%, #3f6a7c 100%);

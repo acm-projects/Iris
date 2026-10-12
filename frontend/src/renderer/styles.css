@@ -69,12 +69,31 @@ textarea {
   background: none;
   color: #4075ae;
 }
-/* ---- Signed-in app shell (soft gradient background) ---- */
+/* ---- Page background (Home, Calendar, Translation, Settings) ----
+   A soft "aurora" made of overlapping brand-colour glows: Iris Blue and
+   Turquoise across the top-right, the app purple drifting in from the left,
+   and Soft Yellow warming the bottom-left. Dark mode redefines these in
+   theme.css. Each page applies them to the area right of the sidebar. */
+:root {
+  --page-base: #f4f8fc;
+  --page-glow:
+    radial-gradient(58% 50% at 100% 0%, #c8ddf4 0%, #c8ddf400 72%),
+    radial-gradient(38% 36% at 70% 4%, #cbeef0 0%, #cbeef000 72%),
+    radial-gradient(42% 42% at 14% 18%, #e8e3fa 0%, #e8e3fa00 70%),
+    radial-gradient(50% 48% at 0% 100%, #fdedc2 0%, #fdedc200 70%),
+    radial-gradient(40% 38% at 64% 100%, #daf0f2 0%, #daf0f200 72%),
+    linear-gradient(160deg, #f8fbfe 0%, #f3f7fb 55%, #f7f6f1 100%);
+}
+/* ---- Signed-in app shell ---- */
 .dashboard-shell {
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 60% 0, #dff6f8, transparent 35%),
-    radial-gradient(circle at 100% 50%, #fff4ce, transparent 28%), #f5fbfc;
+  /* Glow sized to the content area so it lines up with the other pages */
+  background-color: var(--page-base);
+  background-image: var(--page-glow);
+  background-position: right top;
+  background-repeat: no-repeat;
+  background-size: calc(100% - 240px) 100%;
+  background-attachment: fixed;
 }
 /* ---- Sidebar: layout, collapse toggle, nav links, profile, sign out ---- */
 .sidebar {
@@ -117,25 +136,37 @@ textarea {
   width: 18px;
   height: 18px;
 }
-/* Profile photo, name and sign out at the bottom */
+/* Profile at the bottom of the sidebar */
 .sidebar-footer {
+  display: grid;
+  gap: 14px;
   margin-top: auto;
 }
+/* Profile: photo, name and email (opens Settings) */
 .user-chip {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
+  min-width: 0;
+  padding: 10px;
   border: 0;
-  background: none;
+  border-radius: 14px;
   color: #fff;
+  background: none;
   text-align: left;
+  transition: background 0.15s;
+}
+.user-chip:hover {
+  background: #ffffff14;
 }
 .user-chip img,
 .avatar-fallback {
+  flex-shrink: 0;
   width: 42px;
   height: 42px;
   border-radius: 50%;
   object-fit: cover;
+  box-shadow: 0 0 0 2px #ffffff40;
 }
 .avatar-fallback {
   display: grid;
@@ -144,23 +175,19 @@ textarea {
   color: #08285b;
   font-weight: 800;
 }
-.user-chip span:not(.avatar-fallback) {
+.user-copy {
   display: grid;
+  min-width: 0;
 }
-.user-chip small {
-  color: #e4f1f8;
+.user-copy strong,
+.user-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.sidebar-sign-out {
-  margin-top: 14px;
-  padding: 8px 10px;
-  border: 0;
-  border-radius: 8px;
-  color: #dbeaf5;
-  background: transparent;
-}
-.sidebar-sign-out:hover {
-  background: #ffffff18;
-  color: #fff;
+.user-copy small {
+  color: #cfe0f2;
+  font-size: 0.78rem;
 }
 /* Hidden visually but still available to screen readers */
 .visually-hidden {
@@ -182,6 +209,7 @@ textarea {
   }
   .dashboard-shell {
     display: block;
+    background-size: 100% 100%;
   }
 }
 

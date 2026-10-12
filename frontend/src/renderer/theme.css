@@ -40,11 +40,21 @@
   background: #e6edf7;
 }
 
+/* ---- Page background: deep navy with the same aurora, glowing softly ---- */
+:root[data-theme="dark"] {
+  --page-base: #070f1d;
+  --page-glow:
+    radial-gradient(58% 50% at 100% 0%, #234d80a6 0%, #234d8000 72%),
+    radial-gradient(38% 36% at 70% 4%, #0d9da44d 0%, #0d9da400 72%),
+    radial-gradient(42% 42% at 14% 18%, #5c4bab59 0%, #5c4bab00 70%),
+    radial-gradient(50% 48% at 0% 100%, #f6bf411f 0%, #f6bf4100 70%),
+    radial-gradient(40% 38% at 64% 100%, #0d9da426 0%, #0d9da400 72%),
+    linear-gradient(160deg, #09152b 0%, #070f1d 55%, #0a1220 100%);
+}
+
 /* ---- App shell and sidebar ---- */
 :root[data-theme="dark"] .dashboard-shell {
-  background:
-    radial-gradient(circle at 60% 0, #0d2a3a, transparent 35%),
-    radial-gradient(circle at 100% 50%, #2a2512, transparent 28%), var(--d-bg);
+  background-color: var(--page-base);
 }
 :root[data-theme="dark"] .sidebar {
   background: linear-gradient(160deg, #040c1a, #0f2a52 60%, #146b73);

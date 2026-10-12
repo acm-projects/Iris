@@ -699,7 +699,9 @@ ipcMain.handle("iris:media:request", async (_event, kind: string) => {
 
 // ---------------------------------------------------------------------------
 // Translation engine (backend/engine/engine.py)
-// A Python child process that drives the virtual camera and microphone.
+// A child process that drives the virtual camera and microphone. Packaged
+// copies run the standalone build (no Python needed, see
+// scripts/build-engine.mjs); development runs engine.py with Python.
 // Messages are JSON lines over stdin/stdout (see engine.py for the protocol).
 // ---------------------------------------------------------------------------
 
@@ -716,7 +718,7 @@ const enginePending = new Map<
 
 /** Folder containing engine.py: the repo's backend/ in development, bundled copy when packaged. */
 function engineFolder() {
-  return process.env.VITE_DEV_SERVER_URL || !app.isPackaged
+  return isDevelopment()
     ? path.resolve(process.cwd(), "..", "backend", "engine")
     : path.join(process.resourcesPath, "backend", "engine");
 }
@@ -731,6 +733,21 @@ function pythonCandidates() {
   ].filter((candidate) => !path.isAbsolute(candidate) || existsSync(candidate));
 }
 
+/** True when Iris runs from `npm run dev` rather than an installed copy. */
+const isDevelopment = () =>
+  Boolean(process.env.VITE_DEV_SERVER_URL) || !app.isPackaged;
+
+/** The standalone engine bundled with installed copies of Iris, if present. */
+function bundledEngine() {
+  if (isDevelopment()) return null;
+  const file = path.join(
+    process.resourcesPath,
+    "engine",
+    process.platform === "win32" ? "iris-engine.exe" : "iris-engine",
+  );
+  return existsSync(file) ? file : null;
+}
+
 /** Sends a message to every window (engine events such as status updates). */
 function broadcastEngineEvent(message: unknown) {
   for (const window of BrowserWindow.getAllWindows())
@@ -740,14 +757,21 @@ function broadcastEngineEvent(message: unknown) {
 /** Starts the engine if needed; resolves once it is accepting requests. */
 function ensureEngine() {
   if (engine && engine.exitCode === null) return Promise.resolve();
+  // Installed copies: the bundled program. Otherwise: engine.py with Python.
+  const bundled = bundledEngine();
   const script = path.join(engineFolder(), "engine.py");
-  if (!existsSync(script))
+  if (!bundled && !existsSync(script))
     return Promise.reject(
-      new Error(`The translation engine was not found at ${script}.`),
+      new Error(
+        "The translation engine is missing from this copy of Iris. Reinstall Iris.",
+      ),
     );
-  const python = pythonCandidates()[0];
-  const child = spawn(python, ["-u", script], {
+  const command = bundled ?? pythonCandidates()[0];
+  const child = spawn(command, bundled ? [] : ["-u", script], {
     stdio: ["pipe", "pipe", "pipe"],
+    // Windows: don't flash a console window for the engine.
+    windowsHide: true,
+    env: { ...process.env, PYTHONUNBUFFERED: "1" },
   });
   engine = child;
 
@@ -809,7 +833,9 @@ function ensureEngine() {
       if (engine === child) engine = null;
       reject(
         new Error(
-          `Could not start Python (${python}). Install Python 3 and the packages in backend/requirements.txt. (${error.message})`,
+          bundled
+            ? `The translation engine could not start. Reinstall Iris. (${error.message})`
+            : `Could not start Python (${command}). Install Python 3 and the packages in backend/requirements.txt. (${error.message})`,
         ),
       );
     });
@@ -843,6 +869,8 @@ const engineMethods = new Set([
   "stop_virtual_camera",
   "speak",
   "test_tone",
+  // Linux only: creates Iris's own virtual microphone.
+  "create_virtual_mic",
 ]);
 /** Runs an engine method requested by the Translation page. */
 ipcMain.handle(

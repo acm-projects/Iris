@@ -115,11 +115,11 @@ export default function HomePage(p: Props) {
       <Sidebar
         active={page}
         avatarUrl={p.avatarUrl}
+        email={p.account.email}
         fileInput={p.fileInput}
         name={p.name}
         onAvatarChange={p.onAvatarChange}
         onNavigate={setPage}
-        onSignOut={p.onSignOut}
       />
       {/* Selected page: Calendar, Settings, a placeholder, or Home */}
       {page === "Calendar" ? (
@@ -146,6 +146,7 @@ export default function HomePage(p: Props) {
           hasPassword={p.account.hasPassword}
           name={p.name}
           onChangePhoto={() => p.fileInput.current?.click()}
+          onSignOut={p.onSignOut}
           providers={p.account.providers}
           googleConnected={p.googleConnected}
           googleConnecting={p.googleConnecting}
@@ -200,7 +201,7 @@ export default function HomePage(p: Props) {
                     <ActionIcon type="camera" />
                   </b>
                   <span>
-                    {p.meetingBusy ? "Starting…" : "Start meeting"}
+                    {p.meetingBusy ? "Starting…" : "Start Meeting"}
                     <small aria-hidden="true">⌄</small>
                   </span>
                 </button>
@@ -242,7 +243,7 @@ export default function HomePage(p: Props) {
                 <b>
                   <ActionIcon type="join" />
                 </b>
-                <span>Join meeting</span>
+                <span>Join Meeting</span>
               </button>
               <button
                 className="iris-action schedule"
@@ -272,7 +273,7 @@ export default function HomePage(p: Props) {
                   <h2 className="iris-schedule-title">
                     {selectedMeetings.length
                       ? "Today & upcoming"
-                      : "Upcoming meetings"}
+                      : "Upcoming Meetings"}
                     <small>{upcoming.length}</small>
                   </h2>
                   <div className="iris-schedule-list">

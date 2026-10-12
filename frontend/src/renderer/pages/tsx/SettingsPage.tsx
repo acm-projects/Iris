@@ -37,6 +37,7 @@ type Props = {
     next: string,
   ) => Promise<string | null>;
   onSendReset: () => Promise<string | null>;
+  onSignOut: () => void;
 };
 
 /** Id of a settings section (also its element id). */
@@ -102,6 +103,7 @@ export default function SettingsPage(p: Props) {
             title="Security"
           >
             <PasswordRow {...p} />
+            <SignOutRow onSignOut={p.onSignOut} />
           </Section>
         </div>
       </div>
@@ -415,6 +417,30 @@ function GoogleCalendarRow(p: Props) {
 // Security
 // ---------------------------------------------------------------------------
 
+/** Signs out of Iris on this computer (Google Calendar stays connected). */
+function SignOutRow({ onSignOut }: { onSignOut: () => void }) {
+  return (
+    <div className="integration">
+      <div className="integration-row">
+        <span className="integration-logo key" aria-hidden="true">
+          <SettingsIcon name="signOut" />
+        </span>
+        <div className="integration-copy">
+          <strong>Sign out</strong>
+          <span>Sign out of Iris on this computer.</span>
+        </div>
+        <button
+          className="settings-button danger"
+          onClick={onSignOut}
+          type="button"
+        >
+          Sign out
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Password row that expands into the Change password form (or Set a password
  * for Google-only accounts). App verifies the current password before saving.
@@ -573,7 +599,7 @@ function PasswordRow(p: Props) {
 // ---------------------------------------------------------------------------
 
 /** Names of the small line icons used in Settings. */
-type IconName = "palette" | "user" | "link" | "lock";
+type IconName = "palette" | "user" | "link" | "lock" | "signOut";
 
 /** Line icons for the section menu and badges (inherit the text colour). */
 function SettingsIcon({ name }: { name: IconName }) {
@@ -583,6 +609,7 @@ function SettingsIcon({ name }: { name: IconName }) {
     user: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 21a8 8 0 0 1 16 0",
     link: "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1",
     lock: "M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3",
+    signOut: "M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4M10 16l-4-4 4-4M6 12h10",
   };
   return (
     <svg
