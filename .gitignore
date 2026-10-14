@@ -72,4 +72,14 @@ next-env.d.ts
 __pycache__/
 *.py[cod]
 
-README.md
+# Standalone engine built by `npm run build:engine`
+/backend/build/
+
+# WLASL dataset (splits + ~1.3M pose files). Too large for git; copy it in locally.
+/data/
+
+# TGCN pose-feature cache and pretrained checkpoints (regenerated / downloaded locally)
+/ml/TGCN/features_cache/
+/ml/TGCN/archived/
+/ml/TGCN/output/
+/ml/TGCN/checkpoints/

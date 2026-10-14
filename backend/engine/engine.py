@@ -9,6 +9,9 @@ A long-running helper process that Electron starts (see frontend/src/electron
   * Virtual microphone - audio is played with sounddevice into a loopback
                       driver (BlackHole 2ch on macOS, VB-CABLE on Windows).
                       In Meet: Microphone -> "BlackHole 2ch" / "CABLE Output".
+                      On Linux there is nothing to install: Iris creates an
+                      "Iris Microphone" with PulseAudio/PipeWire (pactl) and
+                      plays into it with paplay.
 
 The Iris app owns the real camera. It draws the preview and caption overlay
 and streams JPEG frames here; this process forwards them to the virtual
@@ -20,6 +23,9 @@ Protocol (one JSON object per line, same as server/main.py):
   stdin  frame   : {"method": "frame", "data": "<base64 JPEG>"}   (no reply)
   stdout event   : {"event": "status", ...}                         (unsolicited)
 Diagnostics go to stderr so they never mix with replies.
+
+Packaged copies of Iris ship this file as a standalone program built with
+PyInstaller (frontend/scripts/build-engine.mjs), so users don't need Python.
 
 Run manually:  python3 backend/engine/engine.py
 Then type:     {"id": "1", "method": "system_check"}
@@ -51,6 +57,15 @@ REQUIRED_MODULES = {
 
 # Substrings that identify loopback audio drivers usable as a virtual mic.
 VIRTUAL_MIC_HINTS = ("blackhole", "cable input", "vb-audio", "loopback")
+
+# Linux: Iris's own virtual microphone. Audio is played into the
+# "Iris Speaker" null sink; "Iris Microphone" (a source remapped from that
+# sink's monitor) is what Meet picks as its microphone.
+LINUX_SINK = "iris_speaker"
+LINUX_SOURCE = "iris_mic"
+
+# True when running as the standalone program bundled with Iris.
+BUNDLED = bool(getattr(sys, "frozen", False))
 
 _print_lock = threading.Lock()
 
@@ -236,6 +251,81 @@ def refresh_audio_devices() -> None:
         _audio_lock.release()
 
 
+# ---- Linux (PulseAudio / PipeWire) ----
+
+
+def _pactl(*args: str) -> str:
+    return subprocess.run(["pactl", *args], capture_output=True, text=True,
+                          check=True, timeout=10).stdout
+
+
+def linux_mic_status() -> dict:
+    """Whether Iris's virtual microphone exists (and the tools it needs)."""
+    if not shutil.which("pactl") or not shutil.which("paplay"):
+        return {"ok": False, "error": "missing-tools",
+                "detail": "pactl and paplay were not found (package: pulseaudio-utils)."}
+    try:
+        sinks = _pactl("list", "short", "sinks")
+        sources = _pactl("list", "short", "sources")
+    except Exception as error:  # noqa: BLE001
+        return {"ok": False, "error": "no-sound-server", "detail": str(error)}
+    if f"\t{LINUX_SINK}\t" in f"\t{sinks}" and f"\t{LINUX_SOURCE}\t" in f"\t{sources}":
+        return {"ok": True, "device": "Iris Microphone"}
+    return {"ok": False, "error": "not-created",
+            "detail": "Iris Microphone has not been created yet."}
+
+
+def create_linux_mic() -> dict:
+    """Creates Iris's virtual microphone (lasts until the computer restarts)."""
+    if platform.system() != "Linux":
+        raise RuntimeError("Iris only creates its own microphone on Linux.")
+    status = linux_mic_status()
+    if status["ok"]:
+        return status
+    if status["error"] == "missing-tools":
+        raise RuntimeError(status["detail"])
+    sinks = _pactl("list", "short", "sinks")
+    if f"\t{LINUX_SINK}\t" not in f"\t{sinks}":
+        _pactl("load-module", "module-null-sink", f"sink_name={LINUX_SINK}",
+               'sink_properties=device.description="Iris Speaker"')
+    _pactl("load-module", "module-remap-source", f"master={LINUX_SINK}.monitor",
+           f"source_name={LINUX_SOURCE}",
+           'source_properties=device.description="Iris Microphone"')
+    status = linux_mic_status()
+    if not status["ok"]:
+        raise RuntimeError("Iris Microphone could not be created.")
+    return status
+
+
+def play_linux(audio, rate: int) -> dict:
+    """Plays audio into Iris Speaker, which Meet hears as Iris Microphone."""
+    import numpy as np
+
+    if not linux_mic_status()["ok"]:
+        create_linux_mic()
+    channels = 1 if audio.ndim == 1 else audio.shape[1]
+    pcm = (np.clip(audio, -1, 1) * 32767).astype(np.int16)
+    with tempfile.TemporaryDirectory() as folder:
+        path = Path(folder) / "out.wav"
+        with wave.open(str(path), "wb") as wav:
+            wav.setnchannels(channels)
+            wav.setsampwidth(2)
+            wav.setframerate(rate)
+            wav.writeframes(pcm.tobytes())
+        with _audio_lock:
+            subprocess.run(["paplay", f"--device={LINUX_SINK}", str(path)],
+                           check=True, timeout=120)
+    return {"device": "Iris Microphone", "durationMs": int(len(audio) / rate * 1000)}
+
+
+def linux_voice() -> str | None:
+    """The espeak program to use for text-to-speech on Linux, if installed."""
+    return shutil.which("espeak-ng") or shutil.which("espeak")
+
+
+# ---- macOS / Windows (sounddevice) ----
+
+
 def find_output_device(name: str | None) -> tuple[int, str]:
     """Find an output device by (partial) name; defaults to a loopback driver.
 
@@ -290,7 +380,14 @@ def synthesize_speech(text: str) -> tuple:
             subprocess.run(["powershell", "-NoProfile", "-Command", script],
                            input=text, text=True, encoding="utf-8", check=True, timeout=60)
         else:
-            raise RuntimeError("Text-to-speech is only set up for macOS and Windows.")
+            voice = linux_voice()
+            if not voice:
+                raise RuntimeError(
+                    "No voice is installed. Install espeak-ng (e.g. sudo apt install espeak-ng)."
+                )
+            # Text goes in on stdin so quotes and other characters are safe.
+            subprocess.run([voice, "-w", str(path), "--stdin"], input=text, text=True,
+                           encoding="utf-8", check=True, timeout=60)
         with wave.open(str(path), "rb") as wav:
             rate = wav.getframerate()
             channels = wav.getnchannels()
@@ -316,6 +413,8 @@ def resample(audio, rate: int, target: int):
 
 
 def play(audio, rate: int, device_name: str | None) -> dict:
+    if platform.system() == "Linux":
+        return play_linux(audio, rate)
     import sounddevice as sd
 
     index, resolved = find_output_device(device_name)
@@ -352,6 +451,7 @@ def system_check() -> dict:
     result: dict = {
         "python": platform.python_version(),
         "platform": platform.system(),
+        "bundled": BUNDLED,
         "modules": modules,
         "missingPackages": [REQUIRED_MODULES[m] for m, ok in modules.items() if ok is not True],
     }
@@ -371,8 +471,11 @@ def system_check() -> dict:
     else:
         result["virtualCamera"] = {"ok": False, "error": "pyvirtualcam is not installed."}
 
-    # Virtual microphone: look for a loopback output device.
-    if modules.get("sounddevice") is True:
+    # Virtual microphone: Iris's own one on Linux, otherwise a loopback driver.
+    system = platform.system()
+    if system == "Linux":
+        result["virtualMic"] = linux_mic_status()
+    elif modules.get("sounddevice") is True:
         try:
             _, name = find_output_device(None)
             result["virtualMic"] = {"ok": True, "device": name}
@@ -381,10 +484,15 @@ def system_check() -> dict:
     else:
         result["virtualMic"] = {"ok": False, "error": "sounddevice is not installed."}
 
-    # Text-to-speech uses the voice built into the OS.
-    system = platform.system()
-    tts_ok = (system == "Darwin" and shutil.which("say") is not None) or system == "Windows"
-    result["speech"] = {"ok": tts_ok, "engine": "macOS say" if system == "Darwin" else "Windows SAPI"}
+    # Text-to-speech uses the voice built into the OS (espeak-ng on Linux).
+    if system == "Darwin":
+        result["speech"] = {"ok": shutil.which("say") is not None, "engine": "macOS say"}
+    elif system == "Windows":
+        result["speech"] = {"ok": True, "engine": "Windows SAPI"}
+    else:
+        voice = linux_voice()
+        result["speech"] = {"ok": voice is not None,
+                            "engine": Path(voice).name if voice else "espeak-ng"}
 
     result["signModel"] = {"ok": False, "status": "not-connected"}
     return result
@@ -411,6 +519,8 @@ def handle(method: str, params: dict):
             raise ValueError("Nothing to say.")
         audio, rate = synthesize_speech(text)
         return play(audio, rate, params.get("device"))
+    if method == "create_virtual_mic":
+        return create_linux_mic()
     if method == "test_tone":
         audio, rate = test_tone()
         return play(audio, rate, params.get("device"))
