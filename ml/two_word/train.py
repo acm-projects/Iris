@@ -20,7 +20,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from data import DEFAULT_DATA_ROOT, NUM_JOINTS, PoseClipDataset, load_instances
+from data import DEFAULT_DATA_ROOT, DEFAULT_FEATURES, PoseClipDataset, load_instances
 from model import PoseGRU
 
 # Folder this script lives in, so runs/ always ends up next to it no matter
@@ -75,6 +75,8 @@ def main():
                     help="folder containing splits/ and pose_per_individual_videos/")
     ap.add_argument("--split-file", default=None, help="defaults to <data-root>/splits/asl100.json")
     ap.add_argument("--num-frames", type=int, default=32)       # frames sampled per clip
+    ap.add_argument("--features", default=DEFAULT_FEATURES,
+                    help="'legacy' (original neck-centered xy) or any of pos,vel,bone,mask (see data.py)")
     ap.add_argument("--hidden-size", type=int, default=64)      # model width (see model.py)
     ap.add_argument("--dropout", type=float, default=0.3)
     ap.add_argument("--epochs", type=int, default=150)          # full passes over the training set
@@ -109,20 +111,22 @@ def main():
 
     # Training data gets random sampling + augmentation; validation doesn't,
     # so validation scores are comparable from one epoch to the next.
-    train_ds = PoseClipDataset(train_rows, pose_root, args.num_frames, train=True, seed=args.seed)
-    val_ds = PoseClipDataset(val_rows, pose_root, args.num_frames, train=False)
+    train_ds = PoseClipDataset(train_rows, pose_root, args.num_frames, train=True, seed=args.seed,
+                               features=args.features)
+    val_ds = PoseClipDataset(val_rows, pose_root, args.num_frames, train=False, features=args.features)
     # shuffle=True gives a different batch order each epoch, which helps training.
     train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True)
     val_loader = DataLoader(val_ds, batch_size=args.batch_size)
 
     # ---- Model, optimizer, loss ----------------------------------------------
     device = pick_device(args.device)
-    # Input size is 55 joints x 2 coordinates = 110 numbers per frame.
-    model = PoseGRU(NUM_JOINTS * 2, len(args.glosses), args.hidden_size, dropout=args.dropout).to(device)
+    # Input size depends on --features (110 numbers per frame for legacy, 371 for all four parts).
+    model = PoseGRU(train_ds.feature_dim, len(args.glosses), args.hidden_size, dropout=args.dropout).to(device)
     # Adam is a standard optimizer that adapts the step size for each weight.
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     # Cross-entropy is the standard loss for "pick one of N classes".
     loss_fn = nn.CrossEntropyLoss()
+    print(f"features: {args.features} ({train_ds.feature_dim} per frame)")
     print(f"device: {device}, parameters: {sum(p.numel() for p in model.parameters()):,}")
 
     # Checkpoints and history go in runs/<run-name>/, e.g. runs/book_drink/.

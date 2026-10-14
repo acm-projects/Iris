@@ -32,6 +32,18 @@ Useful flags: `train.py --glosses book drink computer` (any asl100 words),
 `--epochs`, `--hidden-size`, `--num-frames`, `--seed`, `--run-name`;
 `evaluate.py --split val --checkpoint runs/<name>/best.pt`.
 
+## Features (`--features`)
+
+| value | per frame | what it is |
+|---|---|---|
+| `pos,vel,bone,mask` (default) | 371 | body relative to neck / shoulder width and each hand relative to its own wrist / size (via `backend/sign_inference/landmark_normalization.py`, so training matches live inference), plus frame-to-frame movement, bone vectors and a detected/not-detected flag per joint |
+| any subset, e.g. `pos,mask` | varies | for comparing which parts help |
+| `legacy` | 110 | the original neck-centered (x, y) used for the first results below |
+
+Normalized positions are capped at ±4 (`POS_CLIP` in `data.py`) because bad
+OpenPose hand detections can produce values up to ±30. Live inference must
+apply the same cap.
+
 ## How it works
 
 - **`data.py`**: reads each OpenPose frame and keeps 13 upper-body + 21 + 21 hand

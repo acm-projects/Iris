@@ -12,7 +12,7 @@ import os
 import torch
 from torch.utils.data import DataLoader
 
-from data import NUM_JOINTS, PoseClipDataset, load_instances
+from data import PoseClipDataset, load_instances
 from model import PoseGRU
 
 # Folder this script lives in, used to find runs/ by default.
@@ -35,11 +35,13 @@ def main():
     split_file = cfg["split_file"] or os.path.join(cfg["data_root"], "splits", "asl100.json")
     pose_root = os.path.join(cfg["data_root"], "pose_per_individual_videos")
     rows = [r for r in load_instances(split_file, glosses) if r["split"] == args.split]
-    loader = DataLoader(PoseClipDataset(rows, pose_root, cfg["num_frames"]), batch_size=64)
+    # Checkpoints from before --features existed used the legacy features.
+    dataset = PoseClipDataset(rows, pose_root, cfg["num_frames"], features=cfg.get("features", "legacy"))
+    loader = DataLoader(dataset, batch_size=64)
 
     # Rebuild the model with the same shape as during training, then load the
     # trained weights into it. eval() turns dropout off.
-    model = PoseGRU(NUM_JOINTS * 2, len(glosses), cfg["hidden_size"], dropout=cfg["dropout"])
+    model = PoseGRU(dataset.feature_dim, len(glosses), cfg["hidden_size"], dropout=cfg["dropout"])
     model.load_state_dict(ckpt["model_state"])
     model.eval()
 
