@@ -59,6 +59,32 @@ contextBridge.exposeInMainWorld("iris", {
     openExternal: (url: string) =>
       ipcRenderer.invoke("iris:meetings:open-external", url),
   },
+
+  // Type to speak pop-out.
+  popout: {
+    // Pop-out → main process.
+    speak: (text: string) => ipcRenderer.invoke("iris:popout:speak", text),
+
+    open: () => ipcRenderer.invoke("iris:popout:open"),
+    close: () => ipcRenderer.invoke("iris:popout:close"),
+    
+    // Main window: listen for speak requests; returns an unsubscribe function.
+    onSpeakRequest: (
+      listener: (request: { id: string; text: string }) => void,
+    ) => {
+      const handler = (
+        _event: Electron.IpcRendererEvent,
+        request: { id: string; text: string },
+      ) => listener(request);
+      ipcRenderer.on("iris:popout:speak-request", handler);
+      return () =>
+        ipcRenderer.removeListener("iris:popout:speak-request", handler);
+    },
+    // Main window → main process: "done" (null) or an error message.
+    reply: (id: string, error: string | null) =>
+      ipcRenderer.send("iris:popout:speak-reply", id, error),
+  },
+
   // Google Calendar API calls (performed by main.ts with the user's token).
   google: {
     createMeetEvent: (
