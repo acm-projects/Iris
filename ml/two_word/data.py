@@ -117,6 +117,12 @@ def feature_dim(components: list[str]) -> int:
     return sum(sizes[c] for c in components)
 
 
+def all_glosses(split_file: str) -> list[str]:
+    """Every word in a split file, in the file's order (most videos first)."""
+    with open(split_file) as f:
+        return [entry["gloss"] for entry in json.load(f)]
+
+
 def load_instances(split_file: str, glosses: list[str]) -> list[dict]:
     """Return [{video_id, label, split, frame_start, frame_end, signer_id}] for the given glosses."""
     # The split file is a list of {"gloss": "book", "instances": [...]}.
@@ -376,7 +382,11 @@ class PoseClipDataset(Dataset):
 
         # Read every video's JSON files up front. Parsing JSON is the slow
         # part, and this way it happens once instead of every epoch.
-        raw = [load_raw_video(pose_root, inst) for inst in instances]
+        raw = []
+        for n, inst in enumerate(instances, start=1):
+            raw.append(load_raw_video(pose_root, inst))
+            if n % 2000 == 0:  # big loads (e.g. pretraining on asl2000) take a few minutes
+                print(f"  loaded {n}/{len(instances)} videos")
         # Legacy normalizes the whole clip once; the new features are built
         # per example, after augmentation.
         self.clips = [legacy_normalize(r) for r in raw] if self.legacy else raw
