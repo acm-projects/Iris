@@ -5,21 +5,25 @@ own (a small GRU), trained on the [WLASL](https://github.com/dxli94/WLASL)
 dataset's OpenPose keypoints: first **pretrained on all 2,000 WLASL words**,
 then **fine-tuned** on the word list we care about.
 
-The folder is still called `two_word` because it started as a book-vs-drink
-experiment; it now handles any number of words.
+The folder is still called `two_word` for historical reasons; it handles any
+number of words.
 
 ## Results
 
-All numbers are on WLASL's **test** split: videos never used for training or
-for picking the best epoch.
+All results come from the pretrained model
+`pretrained/pretrain_asl2000_e100.pt`, fine-tuned on each word list, and are
+measured on WLASL's **test** split: videos never used for training or for
+picking the best epoch.
 
-| Words | Split | Train videos / word | Test top-1 | Test top-5 |
-|---|---|---|---|---|
-| 15 (asl100's 15 most frequent) | asl100 | ~18 | **80.0%** (40/50) | 96.0% |
-| 50 (asl2000's 50 most frequent) | asl2000 | ~16 | **75.5%** (avg of 3 seeds) | ~92% |
-| **100 (all of asl100)** | asl100 | ~14 | **72.1%** (186/258) | **91.5%** |
-| 50 (words only in asl2000) | asl2000 | ~7 | **67.3%** (avg of 3 seeds, noisy) | ~94% |
-| 300 (all of asl300) | asl300 | ~11 | **53.3%** (356/668) | 81.1% |
+**Pretraining** on all 2,000 asl2000 words (14,296 training videos, 100
+epochs): best validation accuracy **26.4%** at epoch 95 (chance is 0.05%).
+
+**Fine-tuned:**
+
+| Words | Split | Train videos / word | Val | Test top-1 | Test top-5 |
+|---|---|---|---|---|---|
+| 15 (asl100's 15 most frequent) | asl100 | ~18 | 83.1% | **80.0%** (40/50) | 96.0% |
+| 100 (all of asl100) | asl100 | ~14 | 70.4% | **72.1%** (186/258) | 91.5% |
 
 ### Compared with the WLASL paper (asl100, same 258 test videos)
 
@@ -33,25 +37,9 @@ for picking the best epoch.
 the asl2000 *training* videos, which the paper's asl100 Pose-TGCN didn't use,
 so part of the gap is extra training data. No test video is used anywhere.
 
-### What pretraining adds (test top-1, same features)
-
-| Words | From scratch | Pretrained + fine-tuned | Gain |
-|---|---|---|---|
-| 15 | 74.0% | 80.0% | +6.0 |
-| 50 (most frequent) | 66.4% | 75.5% | +9.1 |
-| 50 (asl2000-only, ~7 videos / word) | 52.8% | 67.3% | +14.5 |
-| 300 | 44.5% | 53.3% | +8.8 |
-
-The less data a word has, the more pretraining helps. (The from-scratch 15-
-and 50-word runs used hidden size 64; the 300-word one used 128, the same size
-as the pretrained model.)
-
 Notes:
-- Small test sets (50–143 videos) move about ±5–7 points between seeds;
-  asl100 (258) and asl300 (668) are the most reliable numbers.
-- The 15- and 100-word results use the 100-epoch pretraining
-  (`pretrain_asl2000_e100`); the 50- and 300-word results use the earlier
-  40-epoch one and may improve slightly when rerun.
+- The 15-word test set has only 50 videos, so that result moves a few points
+  between seeds; the 100-word result (258 videos) is the more reliable one.
 - These are OpenPose keypoints from WLASL videos. The live app uses MediaPipe
   on a webcam, so **live accuracy still has to be measured separately**.
 
@@ -105,11 +93,6 @@ python ml/two_word/train.py --glosses all --init-from ml/two_word/pretrained/pre
 python ml/two_word/train.py --init-from ml/two_word/pretrained/pretrain_asl2000_e100.pt \
     --lr 3e-4 --epochs 200 --patience 20 --run-name asl100_15_ft_e100 \
     --glosses book drink computer before chair go clothes who candy cousin deaf fine help no thin
-
-# all 300 asl300 words
-python ml/two_word/train.py --split-file data/splits/asl300.json --glosses all \
-    --init-from ml/two_word/pretrained/pretrain_asl2000_e100.pt \
-    --lr 3e-4 --epochs 200 --patience 20 --run-name asl300_ft_e100
 ```
 
 **3. Evaluate:**
@@ -210,10 +193,6 @@ score is optimistic.
 ```bash
 python ml/two_word/evaluate.py --checkpoint ml/two_word/runs/asl100_all_ft_e100 --split val --show 100
 ```
-
-Words recognized perfectly on val + test by the 50-word model: family, chair,
-can, bowling, year, many, help, orange, black, tall, book, dog, study, fish,
-white, blue, man.
 
 ## Files
 
