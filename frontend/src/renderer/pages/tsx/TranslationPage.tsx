@@ -136,6 +136,24 @@ export default function TranslationPage() {
   // Error banner fades away after a few seconds (hover keeps it open).
   const liveErrorTimer = useAutoDismiss(liveError, () => setLiveError(""));
   const [caption, setCaption] = useState("");
+  // Bumped for every new caption, so saying the same thing twice still
+  // restarts the timer that hides it.
+  const [captionId, setCaptionId] = useState(0);
+  /** Shows a caption on the preview and in Meet; it hides itself shortly after. */
+  const showCaption = useCallback((text: string) => {
+    setCaption(text);
+    setCaptionId((id) => id + 1);
+  }, []);
+  // Hide each caption after a few seconds: 3s, plus a little more for long
+  // text so there's time to read it (at most 10s).
+  useEffect(() => {
+    if (!captionId) return;
+    const timer = window.setTimeout(
+      () => setCaption(""),
+      Math.min(3000 + captionRef.current.length * 60, 10_000),
+    );
+    return () => window.clearTimeout(timer);
+  }, [captionId]);
   // The camera stays off (shutter closed) until the user turns it on.
   const [cameraOn, setCameraOn] = useState(false);
   // "Start translation" pressed while the camera was off: start once it's on.
@@ -351,15 +369,27 @@ export default function TranslationPage() {
   }, [runEngineCheck]);
 
   /** Speaks text into the meeting through the virtual microphone. */
-  const speak = useCallback(async (text: string) => {
-    const label = devicesRef.current.outputs.find(
-      (d) => d.deviceId === settingsRef.current.virtualMicId,
-    )?.label;
-    setCaption(text);
-    await window.iris.engine.request("speak", { text, device: label });
+  const speak = useCallback(
+    async (text: string) => {
+      const label = devicesRef.current.outputs.find(
+        (d) => d.deviceId === settingsRef.current.virtualMicId,
+      )?.label;
+      showCaption(text);
+      await window.iris.engine.request("speak", { text, device: label });
+    },
+    [showCaption],
+  );
+
+  // True while Type to speak is in its own floating window (the box here
+  // is replaced by a "Bring back" card until it closes).
+  const [poppedOut, setPoppedOut] = useState(false);
+  useEffect(() => {
+    if (typeof window.iris.popout?.onStateChange !== "function") return;
+    void window.iris.popout.isOpen().then(setPoppedOut);
+    return window.iris.popout.onStateChange(setPoppedOut);
   }, []);
 
-    // Speak requests from the floating Type to speak window.
+  // Speak requests from the floating Type to speak window.
   useEffect(() => {
     if (typeof window.iris.popout?.onSpeakRequest !== "function") return;
     return window.iris.popout.onSpeakRequest(async ({ id, text }) => {
@@ -381,7 +411,7 @@ export default function TranslationPage() {
     return window.iris.engine.onEvent((raw) => {
       const message = raw as EngineEvent;
       if (message.event === "sign") {
-        setCaption(message.text);
+        showCaption(message.text);
         if (settingsRef.current.speakSigns)
           void speak(message.text).catch(() => undefined);
       } else if (message.event === "status") {
@@ -765,15 +795,6 @@ export default function TranslationPage() {
           <h1>Live translation</h1>
         </div>
         <div className="tr-header-actions">
-          <span
-            className={`tr-pill ${live === "live" ? "live" : ready ? "ready" : "setup"}`}
-          >
-            {live === "live"
-              ? "Live in Meet"
-              : ready
-                ? "Ready"
-                : `${blocking || 1} to set up`}
-          </span>
           {live === "live" ? (
             <button
               className="tr-stop"
@@ -1201,15 +1222,30 @@ export default function TranslationPage() {
           </div>
         </section>
 
-        <TypeToSpeak
-          disabled={
-            !engineCheck ||
-            engineCheck.missingPackages.length > 0 ||
-            !hasVirtualMic
-          }
-          onClearCaption={() => setCaption("")}
-          onSpeak={speak}
-        />
+        {poppedOut ? (
+          <section className="tr-card tr-popped">
+            <span className="tr-tile purple">
+              <Icon name="message" />
+            </span>
+            <strong>Type to speak is in its own window</strong>
+            <button
+              className="tr-ghost"
+              onClick={() => void window.iris.popout.close()}
+              type="button"
+            >
+              Bring back
+            </button>
+          </section>
+        ) : (
+          <TypeToSpeak
+            disabled={
+              !engineCheck ||
+              engineCheck.missingPackages.length > 0 ||
+              !hasVirtualMic
+            }
+            onSpeak={speak}
+          />
+        )}
       </div>
     </section>
   );
@@ -1264,11 +1300,9 @@ function Shutter({
 /** Type to speak: send typed text (or a quick phrase) as Iris's voice. */
 function TypeToSpeak({
   disabled,
-  onClearCaption,
   onSpeak,
 }: {
   disabled: boolean;
-  onClearCaption: () => void;
   onSpeak: (text: string) => Promise<void>;
 }) {
   const [text, setText] = useState("");
@@ -1296,23 +1330,17 @@ function TypeToSpeak({
           <span className="tr-tile purple">
             <Icon name="message" />
           </span>
-          <div>
-            <h2>Type to speak</h2>
-            <p>Iris says it in the meeting and shows a caption.</p>
-          </div>
+          <h2>Type to Speak</h2>
         </div>
-          <div className="tr-head-actions">
-            <button
-              className="tr-ghost"
-              onClick={() => void window.iris.popout.open()}
-              type="button"
-            >
-              Pop out
-            </button>
-            <button className="tr-ghost" onClick={onClearCaption} type="button">
-              Clear caption
-            </button>
-          </div>
+        <div className="tr-head-actions">
+          <button
+            className="tr-ghost"
+            onClick={() => void window.iris.popout.open()}
+            type="button"
+          >
+            Pop out
+          </button>
+        </div>
       </header>
       <form
         className={`tr-speak ${disabled ? "locked" : ""}`}

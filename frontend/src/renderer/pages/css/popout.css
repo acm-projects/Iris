@@ -34,6 +34,25 @@
   font-size: 1rem;
   -webkit-app-region: no-drag;
 }
+.popout-bar-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.popout-bar-actions button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+}
+.popout-bar-actions button:hover {
+  background: #ffffff26;
+}
+.popout-bar-actions svg {
+  width: 17px;
+  height: 17px;
+}
 .popout textarea {
   resize: none;
   padding: 10px;

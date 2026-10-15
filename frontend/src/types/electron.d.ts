@@ -10,6 +10,24 @@ interface Window {
       setIcon(choice: "auto" | "light" | "dark" | "mono"): Promise<void>;
       flushStorage(): Promise<void>;
     };
+    /** Type to speak pop-out window. */
+    popout: {
+      /** Pop-out → main process: speak this text. */
+      speak(text: string): Promise<void>;
+      open(): Promise<void>;
+      close(): Promise<void>;
+      /** Closes the pop-out and brings the main window forward. */
+      dock(): Promise<void>;
+      isOpen(): Promise<boolean>;
+      /** Main window: told when the pop-out opens/closes; returns an unsubscribe. */
+      onStateChange(listener: (open: boolean) => void): () => void;
+      /** Main window: listen for speak requests; returns an unsubscribe function. */
+      onSpeakRequest(
+        listener: (request: { id: string; text: string }) => void,
+      ): () => void;
+      /** Main window → main process: "done" (null) or an error message. */
+      reply(id: string, error: string | null): void;
+    };
     /** Browser sign-in, iris:// callbacks, and encrypted storage. */
     auth: {
       openExternal(url: string): Promise<void>;

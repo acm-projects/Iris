@@ -67,7 +67,17 @@ contextBridge.exposeInMainWorld("iris", {
 
     open: () => ipcRenderer.invoke("iris:popout:open"),
     close: () => ipcRenderer.invoke("iris:popout:close"),
-    
+    // Closes the pop-out and brings the main window forward.
+    dock: () => ipcRenderer.invoke("iris:popout:dock"),
+    isOpen: () => ipcRenderer.invoke("iris:popout:is-open"),
+    // Main window: told when the pop-out opens/closes; returns an unsubscribe.
+    onStateChange: (listener: (open: boolean) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, open: boolean) =>
+        listener(open);
+      ipcRenderer.on("iris:popout:state", handler);
+      return () => ipcRenderer.removeListener("iris:popout:state", handler);
+    },
+
     // Main window: listen for speak requests; returns an unsubscribe function.
     onSpeakRequest: (
       listener: (request: { id: string; text: string }) => void,

@@ -8,12 +8,12 @@ import {
   nativeTheme,
   powerSaveBlocker,
   safeStorage,
+  screen,
   session,
   shell,
   systemPreferences,
 } from "electron";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { hash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import path from "node:path";
@@ -268,9 +268,9 @@ function createWindow() {
       backgroundThrottling: false,
     },
   });
-  
+
   //closes popout when main window closes
-    mainWindow.on("closed", () => {
+  mainWindow.on("closed", () => {
     if (popoutWindow && !popoutWindow.isDestroyed()) popoutWindow.close();
     mainWindow = null;
   });
@@ -297,6 +297,12 @@ function createWindow() {
   void mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
 }
 
+/** Tells the main window whether Type to speak is popped out. */
+function sendPopoutState(open: boolean) {
+  if (mainWindow && !mainWindow.isDestroyed())
+    mainWindow.webContents.send("iris:popout:state", open);
+}
+
 /** Opens the small floating Type to speak window (or focuses it if open). */
 function createPopoutWindow() {
   // Already open: bring it forward instead of making a second one.
@@ -306,12 +312,22 @@ function createPopoutWindow() {
     return;
   }
 
+  // Open in the bottom-right corner of the screen Iris is on (inside the
+  // area not covered by the Dock / taskbar), with a small margin.
+  const width = 420;
+  const height = 300;
+  const margin = 20;
+  const { workArea } = mainWindow
+    ? screen.getDisplayMatching(mainWindow.getBounds())
+    : screen.getPrimaryDisplay();
   popoutWindow = new BrowserWindow({
-    width: 420,
-    height: 300,
+    width,
+    height,
+    x: workArea.x + workArea.width - width - margin,
+    y: workArea.y + workArea.height - height - margin,
     minWidth: 320,
     minHeight: 220,
-    title: "Iris - Type to speak",
+    title: "Iris - Type to Speak",
     icon: currentAppIcon(),
     frame: false,
     resizable: true,
@@ -338,10 +354,12 @@ function createPopoutWindow() {
     popoutWindow.setAlwaysOnTop(true, "floating");
   }
 
-
   popoutWindow.on("closed", () => {
     popoutWindow = null;
+    sendPopoutState(false);
   });
+  // The main window hides its own Type to speak box while this is open.
+  sendPopoutState(true);
 
   // Same app, but the "#/popout" hash lets React know to show only the box.
   const devServerUrl = process.env.VITE_DEV_SERVER_URL;
@@ -987,6 +1005,18 @@ ipcMain.handle("iris:popout:open", () => {
 ipcMain.handle("iris:popout:close", () => {
   if (popoutWindow && !popoutWindow.isDestroyed()) popoutWindow.close();
 });
+/** Puts Type to speak back in the app: closes the pop-out and shows Iris. */
+ipcMain.handle("iris:popout:dock", () => {
+  if (popoutWindow && !popoutWindow.isDestroyed()) popoutWindow.close();
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.show();
+    mainWindow.focus();
+  }
+});
+/** Whether the pop-out is open (for a page that loads after it opened). */
+ipcMain.handle("iris:popout:is-open", () =>
+  Boolean(popoutWindow && !popoutWindow.isDestroyed()),
+);
 
 // --- Type to speak pop-out -----------------------------------------------
 // The pop-out can't call the engine itself: captions and speak() live in the
@@ -1019,14 +1049,17 @@ ipcMain.handle("iris:popout:speak", (_event, text: string) => {
 });
 
 /** Main window reports the result (error is null on success). */
-ipcMain.on("iris:popout:speak-reply", (_event, id: string, error: string | null) => {
-  const pending = popoutPending.get(id);
-  if (!pending) return;
-  clearTimeout(pending.timer);
-  popoutPending.delete(id);
-  if (error) pending.reject(new Error(error));
-  else pending.resolve();
-});
+ipcMain.on(
+  "iris:popout:speak-reply",
+  (_event, id: string, error: string | null) => {
+    const pending = popoutPending.get(id);
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    popoutPending.delete(id);
+    if (error) pending.reject(new Error(error));
+    else pending.resolve();
+  },
+);
 
 // macOS applications stay open after their last window closes.
 app.on("window-all-closed", () => {

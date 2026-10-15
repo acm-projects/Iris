@@ -211,7 +211,7 @@ const APP_ICONS: { id: AppIconChoice; label: string; image: string | null }[] =
     { id: "auto", label: "Auto", image: null },
     { id: "light", label: "Light", image: asset("iris-dock-light.png") },
     { id: "dark", label: "Dark", image: asset("iris-dock-dark.png") },
-    { id: "mono", label: "Muted", image: asset("iris-dock-mono.png") },
+    { id: "mono", label: "Monochrome", image: asset("iris-dock-mono.png") },
   ];
 
 /** Dock icon choices; Auto switches between Light and Dark with the theme. */

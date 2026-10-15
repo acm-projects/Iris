@@ -34,10 +34,34 @@ export default function PopoutPage() {
     <main className="popout">
       {/* Dragging this bar moves the window */}
       <header className="popout-bar">
-        <strong>Type to speak</strong>
-        <button onClick={() => window.close()} type="button" aria-label="Close">
-          ✕
-        </button>
+        <strong>Type to Speak</strong>
+        <div className="popout-bar-actions">
+          {/* Put the box back inside the Iris window */}
+          <button
+            aria-label="Return to Iris"
+            onClick={() => void window.iris.popout.dock()}
+            title="Return to Iris"
+            type="button"
+          >
+            <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
+              <path
+                d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4M20 4l-8 8M12 7v5h5"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="1.8"
+              />
+            </svg>
+          </button>
+          <button
+            aria-label="Close"
+            onClick={() => window.close()}
+            title="Close"
+            type="button"
+          >
+            ✕
+          </button>
+        </div>
       </header>
       <textarea
         disabled={busy}
