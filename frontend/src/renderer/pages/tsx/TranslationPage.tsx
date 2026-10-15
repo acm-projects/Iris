@@ -337,13 +337,10 @@ export default function TranslationPage() {
     void runEngineCheck();
   }, [runEngineCheck]);
 
-  /** Speaks text into the meeting through the virtual microphone. */
+    /** Speaks text into the meeting through the virtual microphone. */
   const speak = useCallback(async (text: string) => {
-    const label = devicesRef.current.outputs.find(
-      (d) => d.deviceId === settingsRef.current.virtualMicId,
-    )?.label;
     setCaption(text);
-    await window.iris.engine.request("speak", { text, device: label });
+    await window.iris.tts.speak(text);
   }, []);
 
     // Speak requests from the floating Type to speak window.
