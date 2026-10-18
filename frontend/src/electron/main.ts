@@ -316,6 +316,12 @@ function createPopoutWindow() {
     frame: false,
     resizable: true,
     alwaysOnTop: true,
+    // A floating box should never go fullscreen. Without this, macOS
+    // fullscreens it when it opens while the main window is fullscreen.
+    fullscreenable: false,
+    // Stay hidden until the floating setup below is done, so macOS never
+    // sees it as a normal window in the current (possibly fullscreen) Space.
+    show: false,
     webPreferences: {
       // Same preload as the main window, so window.iris exists here too.
       preload: path.join(__dirname, "preload.cjs"),
@@ -338,6 +344,9 @@ function createPopoutWindow() {
     popoutWindow.setAlwaysOnTop(true, "floating");
   }
 
+  popoutWindow.once("ready-to-show", () => {
+    popoutWindow?.show();
+  });
 
   popoutWindow.on("closed", () => {
     popoutWindow = null;
