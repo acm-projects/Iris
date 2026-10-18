@@ -346,6 +346,22 @@ export default function TranslationPage() {
     await window.iris.engine.request("speak", { text, device: label });
   }, []);
 
+    // Speak requests from the floating Type to speak window.
+  useEffect(() => {
+    if (typeof window.iris.popout?.onSpeakRequest !== "function") return;
+    return window.iris.popout.onSpeakRequest(async ({ id, text }) => {
+      try {
+        await speak(text);
+        window.iris.popout.reply(id, null);
+      } catch (error) {
+        window.iris.popout.reply(
+          id,
+          engineError(error, "Iris couldn't speak that."),
+        );
+      }
+    });
+  }, [speak]);
+
   // Engine events: virtual camera status and recognised signs.
   useEffect(() => {
     if (typeof window.iris.engine?.onEvent !== "function") return;
@@ -1253,7 +1269,7 @@ function TypeToSpeak({
     }
   };
   return (
-    <section className="tr-card">
+    <section className="tr-card tr-speak-card">
       <header className="tr-card-head">
         <div className="tr-title">
           <span className="tr-tile purple">
@@ -1264,9 +1280,18 @@ function TypeToSpeak({
             <p>Iris says it in the meeting and shows a caption.</p>
           </div>
         </div>
-        <button className="tr-ghost" onClick={onClearCaption} type="button">
-          Clear caption
-        </button>
+          <div className="tr-head-actions">
+            <button
+              className="tr-ghost"
+              onClick={() => void window.iris.popout.open()}
+              type="button"
+            >
+              Pop out
+            </button>
+            <button className="tr-ghost" onClick={onClearCaption} type="button">
+              Clear caption
+            </button>
+          </div>
       </header>
       <form
         className={`tr-speak ${disabled ? "locked" : ""}`}

@@ -13,6 +13,7 @@ import {
   systemPreferences,
 } from "electron";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { hash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import path from "node:path";
@@ -24,6 +25,7 @@ import { fileURLToPath } from "node:url";
 // ---------------------------------------------------------------------------
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 let mainWindow: BrowserWindow | null = null;
+let popoutWindow: BrowserWindow | null = null;
 // An iris://auth/callback URL waiting for React to pick it up.
 let pendingAuthCallback: string | null = null;
 // Tiny local web server that receives Supabase OAuth redirects (see below).
@@ -266,6 +268,13 @@ function createWindow() {
       backgroundThrottling: false,
     },
   });
+  
+  //closes popout when main window closes
+    mainWindow.on("closed", () => {
+    if (popoutWindow && !popoutWindow.isDestroyed()) popoutWindow.close();
+    mainWindow = null;
+  });
+
   const devServerUrl = process.env.VITE_DEV_SERVER_URL;
 
   mainWindow.webContents.once("did-finish-load", () => {
@@ -286,6 +295,63 @@ function createWindow() {
 
   // Production loads Vite's static build from the local filesystem.
   void mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
+}
+
+/** Opens the small floating Type to speak window (or focuses it if open). */
+function createPopoutWindow() {
+  // Already open: bring it forward instead of making a second one.
+  if (popoutWindow && !popoutWindow.isDestroyed()) {
+    popoutWindow.show();
+    popoutWindow.focus();
+    return;
+  }
+
+  popoutWindow = new BrowserWindow({
+    width: 420,
+    height: 300,
+    minWidth: 320,
+    minHeight: 220,
+    title: "Iris - Type to speak",
+    icon: currentAppIcon(),
+    frame: false,
+    resizable: true,
+    alwaysOnTop: true,
+    webPreferences: {
+      // Same preload as the main window, so window.iris exists here too.
+      preload: path.join(__dirname, "preload.cjs"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      backgroundThrottling: false,
+    },
+  });
+
+  if (process.platform === "darwin") {
+    // macOS only lets a window join fullscreen Spaces if the app briefly
+    // hides its dock icon while the window is set up, then shows it again.
+    app.dock?.hide();
+    popoutWindow.setAlwaysOnTop(true, "screen-saver");
+    popoutWindow.setVisibleOnAllWorkspaces(true, {
+      visibleOnFullScreen: true,
+    });
+    void app.dock?.show();
+  } else {
+    popoutWindow.setAlwaysOnTop(true, "floating");
+  }
+
+
+  popoutWindow.on("closed", () => {
+    popoutWindow = null;
+  });
+
+  // Same app, but the "#/popout" hash lets React know to show only the box.
+  const devServerUrl = process.env.VITE_DEV_SERVER_URL;
+  if (devServerUrl) {
+    void popoutWindow.loadURL(`${devServerUrl}#/popout`);
+  } else {
+    void popoutWindow.loadFile(path.join(__dirname, "../dist/index.html"), {
+      hash: "/popout",
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -883,6 +949,55 @@ ipcMain.on("iris:engine:frame", (_event, jpeg: Uint8Array) => {
       data: Buffer.from(jpeg).toString("base64"),
     }) + "\n",
   );
+});
+
+/** Opens (or focuses) the floating Type to speak window. */
+ipcMain.handle("iris:popout:open", () => {
+  createPopoutWindow();
+});
+/** Closes the floating window if it's open. */
+ipcMain.handle("iris:popout:close", () => {
+  if (popoutWindow && !popoutWindow.isDestroyed()) popoutWindow.close();
+});
+
+// --- Type to speak pop-out -----------------------------------------------
+// The pop-out can't call the engine itself: captions and speak() live in the
+// main window. So we forward the text there and wait for it to report back.
+const popoutPending = new Map<
+  string,
+  { resolve: () => void; reject: (error: Error) => void; timer: NodeJS.Timeout }
+>();
+let popoutRequestId = 0;
+
+/** Pop-out asks to speak: forward to the main window, resolve when it replies. */
+ipcMain.handle("iris:popout:speak", (_event, text: string) => {
+  if (typeof text !== "string" || !text.trim() || text.length > 500)
+    throw new Error("Type something to speak first.");
+  if (!mainWindow || mainWindow.isDestroyed())
+    throw new Error("The main Iris window is closed.");
+  const id = String(++popoutRequestId);
+  return new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      popoutPending.delete(id);
+      reject(
+        new Error(
+          "Iris didn't answer. Open the Translation page in the main window.",
+        ),
+      );
+    }, 90_000);
+    popoutPending.set(id, { resolve, reject, timer });
+    mainWindow?.webContents.send("iris:popout:speak-request", { id, text });
+  });
+});
+
+/** Main window reports the result (error is null on success). */
+ipcMain.on("iris:popout:speak-reply", (_event, id: string, error: string | null) => {
+  const pending = popoutPending.get(id);
+  if (!pending) return;
+  clearTimeout(pending.timer);
+  popoutPending.delete(id);
+  if (error) pending.reject(new Error(error));
+  else pending.resolve();
 });
 
 // macOS applications stay open after their last window closes.
