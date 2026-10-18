@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import base64
 import importlib
+import importlib.util
 import json
 import platform
 import shutil
@@ -40,13 +41,25 @@ import time
 import wave
 from pathlib import Path
 
+# The engine is executed as a script from backend/engine. Add the repository
+# roots needed by the sibling sign-inference and confidence modules. The same
+# layout is preserved under Electron's packaged resources directory.
+BACKEND_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = BACKEND_ROOT.parent
+SIGN_INFERENCE_ROOT = BACKEND_ROOT / "sign_inference"
+for import_root in (str(SIGN_INFERENCE_ROOT), str(REPO_ROOT)):
+    if import_root not in sys.path:
+        sys.path.insert(0, import_root)
+
 # Third-party modules are imported lazily so `health` and `system_check`
 # still work (and can report what is missing) before `pip install`.
 REQUIRED_MODULES = {
     "numpy": "numpy",
-    "cv2": "opencv-python",
+    "cv2": "opencv-contrib-python",
     "pyvirtualcam": "pyvirtualcam",
     "sounddevice": "sounddevice",
+    "torch": "torch",
+    "mediapipe": "mediapipe",
 }
 
 # Substrings that identify loopback audio drivers usable as a virtual mic.
@@ -71,27 +84,81 @@ def module_status() -> dict:
     status = {}
     for module in REQUIRED_MODULES:
         try:
-            importlib.import_module(module)
-            status[module] = True
+            status[module] = True if importlib.util.find_spec(module) else "not installed"
         except Exception as error:  # noqa: BLE001 - report any import failure
             status[module] = f"{type(error).__name__}: {error}"
     return status
 
 
 # ---------------------------------------------------------------------------
-# Sign recognition hook
+# Sign recognition worker
 # ---------------------------------------------------------------------------
 
+_recognizer = None
+_recognizer_lock = threading.Lock()
 
-def recognize_sign(frame_rgb) -> str | None:
-    """Return the sign recognised in this frame, or None.
 
-    Placeholder until the MediaPipe + Pose-TGCN model is connected. Every frame
-    the app streams passes through here, so the model can keep its own
-    rolling buffer of keypoints and return a word/phrase when it is confident.
-    Returned text is sent to the app (event "sign") to show and speak.
-    """
-    return None
+def sign_model_status() -> dict:
+    """Report whether the reviewed sign model and runtime assets are available."""
+    missing_modules = []
+    for module in ("torch", "mediapipe"):
+        try:
+            available = importlib.util.find_spec(module) is not None
+        except Exception:
+            available = False
+        if not available:
+            missing_modules.append(module)
+    required_assets = (
+        SIGN_INFERENCE_ROOT / "checkpoints" / "asl100" / "pytorch_model.bin",
+        SIGN_INFERENCE_ROOT / "mediapipe_models" / "pose_landmarker.task",
+        SIGN_INFERENCE_ROOT / "mediapipe_models" / "hand_landmarker.task",
+        SIGN_INFERENCE_ROOT / "asl100.json",
+    )
+    missing_assets = [path.name for path in required_assets if not path.is_file()]
+    if missing_modules or missing_assets:
+        return {
+            "ok": False,
+            "status": "missing",
+            "missingModules": missing_modules,
+            "missingAssets": missing_assets,
+        }
+    try:
+        from checkpoint_compatibility import ASL100_AUDIT, require_compatible
+
+        require_compatible(ASL100_AUDIT)
+    except Exception as error:  # noqa: BLE001
+        return {"ok": False, "status": "blocked", "error": str(error)}
+    return {"ok": True, "status": "ready", "model": "Pose-TGCN WLASL-100"}
+
+
+def start_sign_recognition() -> None:
+    global _recognizer
+    with _recognizer_lock:
+        if _recognizer is not None and _recognizer.running:
+            return
+        try:
+            from live_recognizer import LiveSignRecognizer
+
+            _recognizer = LiveSignRecognizer(send)
+            _recognizer.start()
+        except Exception as error:  # noqa: BLE001
+            log(f"sign recognizer could not start: {error}")
+            send({"event": "sign_status", "state": "error", "error": str(error)})
+
+
+def stop_sign_recognition() -> None:
+    global _recognizer
+    with _recognizer_lock:
+        if _recognizer is not None:
+            _recognizer.stop()
+        _recognizer = None
+
+
+def recognize_sign(frame_rgb) -> None:
+    """Submit the newest frame without blocking virtual-camera delivery."""
+    worker = _recognizer
+    if worker is not None:
+        worker.submit(frame_rgb)
 
 
 # ---------------------------------------------------------------------------
@@ -130,9 +197,12 @@ class VirtualCameraStream:
         opened = threading.Event()
         self._thread = threading.Thread(target=self._run, args=(opened,), daemon=True)
         self._thread.start()
-        opened.wait(timeout=8)
+        if not opened.wait(timeout=8):
+            self._stop.set()
+            self.last_error = "Timed out while opening the virtual camera driver."
         if self.last_error:
             raise RuntimeError(self.last_error)
+        start_sign_recognition()
         return {"device": self.device, "width": self.size[0], "height": self.size[1]}
 
     def stop(self) -> None:
@@ -141,6 +211,7 @@ class VirtualCameraStream:
             self._thread.join(timeout=3)
         self._thread = None
         self.device = None
+        stop_sign_recognition()
 
     def push_jpeg(self, data_b64: str) -> None:
         """Decode a JPEG from the app and keep it as the newest frame."""
@@ -157,9 +228,7 @@ class VirtualCameraStream:
         with self._lock:
             self._latest = frame_rgb
         self.frames_in += 1
-        sign = recognize_sign(frame_rgb)
-        if sign:
-            send({"event": "sign", "text": sign})
+        recognize_sign(frame_rgb)
 
     def _placeholder(self):
         """Deep-navy frame shown before the first real frame arrives."""
@@ -201,6 +270,7 @@ class VirtualCameraStream:
             opened.set()
             with self._lock:
                 self._latest = None
+            stop_sign_recognition()
             send({"event": "status", "camera": "stopped"})
 
 
@@ -356,18 +426,19 @@ def system_check() -> dict:
         "missingPackages": [REQUIRED_MODULES[m] for m, ok in modules.items() if ok is not True],
     }
 
-    # Virtual camera: briefly open it (unless we are already streaming).
+    # Do not open the driver as a readiness probe. Some Windows virtual-camera
+    # backends block indefinitely when OBS is installed but its driver is not
+    # ready. Electron also enumerates the device; the real open happens when
+    # the user starts translation and already has an 8-second guarded path.
     if modules.get("pyvirtualcam") is True:
         if camera.running:
             result["virtualCamera"] = {"ok": True, "device": camera.device, "inUse": True}
         else:
-            try:
-                import pyvirtualcam
-
-                with pyvirtualcam.Camera(width=320, height=180, fps=10) as cam:
-                    result["virtualCamera"] = {"ok": True, "device": cam.device}
-            except Exception as error:  # noqa: BLE001
-                result["virtualCamera"] = {"ok": False, "error": str(error)}
+            result["virtualCamera"] = {
+                "ok": False,
+                "status": "device-enumeration-required",
+                "error": "Virtual camera runtime installed; waiting for the OBS Virtual Camera device.",
+            }
     else:
         result["virtualCamera"] = {"ok": False, "error": "pyvirtualcam is not installed."}
 
@@ -386,7 +457,7 @@ def system_check() -> dict:
     tts_ok = (system == "Darwin" and shutil.which("say") is not None) or system == "Windows"
     result["speech"] = {"ok": tts_ok, "engine": "macOS say" if system == "Darwin" else "Windows SAPI"}
 
-    result["signModel"] = {"ok": False, "status": "not-connected"}
+    result["signModel"] = sign_model_status()
     return result
 
 

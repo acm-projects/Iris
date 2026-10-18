@@ -1,7 +1,10 @@
 pyvirtualcam>=0.11.1
 sounddevice>=0.4.6
-numpy>=1.24
-opencv-python>=4.8
+numpy>=1.26,<3
+# MediaPipe requires the contrib wheel, which also provides the cv2 module.
+opencv-contrib-python>=4.9,<6
+mediapipe>=0.10.14,<0.11
+torch>=2.2,<3
 google-cloud-texttospeech>=2.0,<3.0
 fastapi>=0.115,<1.0
 uvicorn>=0.30,<1.0

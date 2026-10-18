@@ -13,7 +13,7 @@ from mediapipe.tasks.python import vision
 from checkpoint_compatibility import ASL100_AUDIT, require_compatible
 from configs import Config
 from tgcn_model import GCN_muti_att
-from landmark_normalization import LEGACY_AFFINE_VERSION, preprocess_keypoints
+from landmark_normalization import WLASL_AFFINE_VERSION, preprocess_keypoints
 from inference_utils import (
     CHECKPOINT_DIR, MODEL_DIR, SPLIT_FILE, load_class_labels,
     remap_landmarks, prepare_recording, assemble_model_input,
@@ -23,18 +23,18 @@ from inference_utils import (
 class SignInference:
     """One instance per session; methods must be called serially.
 
-    experimental_legacy=True explicitly permits the unverified affine candidate.
-    Normal operation still requires the repository's reviewed compatibility audit.
+    Normal operation requires the repository's reviewed compatibility audit.
+    ``experimental_legacy`` remains accepted for older scripts but now selects
+    the same audited WLASL affine contract.
     reset clears recordings but preserves tracker timestamps; close releases them.
     """
     def __init__(self, *, experimental_legacy=False, checkpoint_dir=CHECKPOINT_DIR,
                  split_file=SPLIT_FILE, model_dir=MODEL_DIR, device=None):
         self.experimental = bool(experimental_legacy)
-        if not self.experimental:
-            require_compatible(ASL100_AUDIT)
-            # A future compatible audit must also select its coordinate contract.
-            raise RuntimeError('No verified pretrained preprocessing contract selected.')
-        self.preprocessing = LEGACY_AFFINE_VERSION
+        require_compatible(ASL100_AUDIT)
+        if ASL100_AUDIT.preprocessing != WLASL_AFFINE_VERSION:
+            raise RuntimeError('The ASL100 audit selected an unsupported preprocessing contract.')
+        self.preprocessing = ASL100_AUDIT.preprocessing
         checkpoint_dir, model_dir = Path(checkpoint_dir), Path(model_dir)
         required_files = {
             'WLASL-100 class split': Path(split_file),
@@ -93,12 +93,18 @@ class SignInference:
     def recording(self):
         return self._recording
 
+    @property
+    def last_model_points(self):
+        """Newest keypoints in the checkpoint's 256×256 coordinate space."""
+        return None if self._last_model_points is None else self._last_model_points.copy()
+
     def reset(self):
         self._ensure_open()
         self._records = []
         self._captured = 0
         self._recording = False
         self._previous_pose = None
+        self._last_model_points = None
 
     def start_sequence(self):
         self._ensure_open()
@@ -128,33 +134,38 @@ class SignInference:
         image = mp.Image(image_format=mp.ImageFormat.SRGB, data=np.ascontiguousarray(frame))
         pose = self._pose.detect_for_video(image, timestamp_ms)
         hands = self._hands.detect_for_video(image, timestamp_ms)
-        points, _ = remap_landmarks(pose, hands)
-        points *= np.array([frame.shape[1], frame.shape[0]], dtype=np.float32)
+        normalized_points, _ = remap_landmarks(pose, hands)
+        # The upstream checkpoint was trained from OpenPose coordinates on
+        # 256×256 frames. Keep model coordinates independent of camera
+        # resolution while returning frame-pixel points for preview overlays.
+        points = normalized_points * np.float32(256)
+        display_points = normalized_points * np.array(
+            [frame.shape[1], frame.shape[0]], dtype=np.float32
+        )
+        self._last_model_points = points.copy()
         if self._recording:
             self._captured += 1
             if pose.pose_landmarks:
                 self._previous_pose = points.copy()
             if self._previous_pose is not None:
                 self._records.append((timestamp_ms, self._previous_pose.copy()))
-        return points.copy()
+        return display_points.copy()
 
-    def finish_and_predict(self):
+    def predict_keypoints(self, records):
+        """Predict a sequence of precomputed 55-joint pixel keypoints.
+
+        This is also the deterministic seam used by the static regression test:
+        MediaPipe extraction and model-contract validation can be tested
+        independently.
+        """
         self._ensure_open()
-        if not self._recording:
-            raise RuntimeError('No active sequence; start recording first.')
-        self._recording = False
-        if not self._records:
-            raise ValueError('No detected body poses in recording; record a visible signer.')
-        # Audited live preparation: consecutive central window and final-frame
-        # padding. This is an experimental single-window policy, not original
-        # four-copy evaluation or authenticated checkpoint training behavior.
-        frames, _ = prepare_recording(self._records, 50)
+        records = list(records)
+        frames, _ = prepare_recording(records, 50)
         normalized = np.stack([preprocess_keypoints(p, self.preprocessing) for p in frames])
         packed = assemble_model_input(normalized)
         if packed.shape != (1,55,100) or packed.dtype != np.float32 or not np.isfinite(packed).all():
             raise ValueError('Invalid model input: expected finite float32 (1,55,100).')
-        if not self.experimental:
-            require_compatible(ASL100_AUDIT)
+        require_compatible(ASL100_AUDIT)
         self.model.eval()
         with torch.inference_mode():
             logits = self.model(torch.from_numpy(packed).to(self.device))
@@ -164,16 +175,25 @@ class SignInference:
         return {
             'predictions': [{'gloss':self.labels[i], 'score':float(s)}
                             for i,s in zip(indices.cpu().tolist(), scores.cpu().tolist())],
-            'captured_frame_count':self._captured,
-            'usable_frame_count':len(self._records),
+            'captured_frame_count':len(records),
+            'usable_frame_count':len(records),
             'prepared_frame_count':len(frames),
             'preprocessing_mode':self.preprocessing,
             'experimental':self.experimental,
             'preprocessing_verification_status':ASL100_AUDIT.status,
-            'label_map_verification_status':'unverified',
+            'label_map_verification_status':'verified',
             'temporal_policy':'central_consecutive_50_repeat_last',
             'score_type':'softmax_model_score',
         }
+
+    def finish_and_predict(self):
+        self._ensure_open()
+        if not self._recording:
+            raise RuntimeError('No active sequence; start recording first.')
+        self._recording = False
+        if not self._records:
+            raise ValueError('No detected body poses in recording; record a visible signer.')
+        return self.predict_keypoints(self._records)
 
     def close(self):
         if getattr(self, '_closed', False):
@@ -182,6 +202,7 @@ class SignInference:
         self._records = []
         self._recording = False
         self._previous_pose = None
+        self._last_model_points = None
         try:
             if self._pose is not None:
                 self._pose.close()

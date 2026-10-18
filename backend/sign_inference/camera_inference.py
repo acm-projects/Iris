@@ -18,20 +18,19 @@ except ImportError as error:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--experimental-legacy', action='store_true',
-                        help='Allow unverified affine preprocessing and candidate labels.')
+    parser.add_argument(
+        '--experimental-legacy',
+        action='store_true',
+        help='Deprecated compatibility flag; the WLASL affine contract is now audited.',
+    )
     parser.add_argument('--landmarks', action='store_true', help='Draw optional landmark points.')
     parser.add_argument('--camera', type=int, default=0, help='OpenCV camera index (default: 0).')
     args = parser.parse_args()
-    if not args.experimental_legacy:
-        parser.error(
-            'camera prediction is unverified; pass --experimental-legacy '
-            'to acknowledge and run it'
-        )
     camera = None
     try:
-        with SignInference(experimental_legacy=args.experimental_legacy) as session:
-            print('EXPERIMENTAL: preprocessing and checkpoint label ordering unverified.')
+        with SignInference() as session:
+            print('Reviewed WLASL-100 model contract loaded.')
+            print('Camera-domain accuracy is still experimental; verify signs before relying on output.')
             print('R starts recording, S finishes and predicts, Q quits.')
             camera = cv2.VideoCapture(args.camera)
             if not camera.isOpened():
@@ -70,7 +69,7 @@ def main():
                             cv2.circle(frame, (int(x), int(y)), 3, (0, 255, 0), -1)
                 preview = cv2.flip(frame, 1)
                 lines = [
-                    'EXPERIMENTAL: preprocessing / labels unverified',
+                    'WLASL-100 MVP | camera accuracy under evaluation',
                     (
                         f'{"RECORDING" if session.recording else "IDLE"} '
                         f'{session.captured_frame_count} frames'

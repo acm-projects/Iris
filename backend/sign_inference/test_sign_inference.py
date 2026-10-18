@@ -1,4 +1,6 @@
 import json
+import hashlib
+import math
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -8,6 +10,10 @@ import numpy as np
 import torch
 from sign_inference import SignInference
 from inference_utils import CHECKPOINT_DIR
+from checkpoint_compatibility import PreprocessingAudit
+
+
+FIXTURE = Path(__file__).resolve().parent / 'test_fixtures' / 'static_keypoints.json'
 
 
 def make_pose_result():
@@ -45,8 +51,10 @@ class IntegrationTests(unittest.TestCase):
         self.addCleanup(session.close)
         return session
 
-    def test_normal_gate_before_load(self):
-        with patch('sign_inference.torch.load') as load:
+    def test_incompatible_gate_before_load(self):
+        blocked = PreprocessingAudit('unknown', 'test contract is not reviewed')
+        with patch('sign_inference.ASL100_AUDIT', blocked), \
+             patch('sign_inference.torch.load') as load:
             with self.assertRaisesRegex(RuntimeError,'predictions blocked'):
                 SignInference()
             load.assert_not_called()
@@ -84,21 +92,27 @@ class IntegrationTests(unittest.TestCase):
             self.assertEqual(inputs[0].dtype,torch.float32)
             self.assertTrue(torch.isfinite(inputs[0]).all())
             np.testing.assert_array_equal(inputs[0][0,0].numpy(),-np.ones(100))
-            expected_xy = np.nan_to_num(points,nan=0)/np.float32(128)-np.float32(1)
+            model_points = points / np.array([320, 240], dtype=np.float32) * np.float32(256)
+            expected_xy = np.nan_to_num(model_points,nan=0)/np.float32(128)-np.float32(1)
             expected_input = np.repeat(expected_xy[:,None,:],50,axis=1).reshape(1,55,100)
-            np.testing.assert_array_equal(inputs[0].numpy(),expected_input)
+            np.testing.assert_allclose(inputs[0].numpy(), expected_input, rtol=1e-6, atol=1e-7)
             with torch.inference_mode():
                 expected_scores, expected_indices = session.model(torch.from_numpy(expected_input)).softmax(1)[0].topk(3)
             self.assertEqual([p['gloss'] for p in result['predictions']],
                              [session.labels[i] for i in expected_indices.tolist()])
-            self.assertEqual([p['score'] for p in result['predictions']],expected_scores.tolist())
+            np.testing.assert_allclose(
+                [p['score'] for p in result['predictions']],
+                expected_scores.tolist(),
+                rtol=1e-5,
+                atol=1e-7,
+            )
             self.assertEqual(result['captured_frame_count'],1)
             self.assertEqual(result['prepared_frame_count'],50)
             self.assertEqual(len(result['predictions']),3)
-            self.assertEqual(result['preprocessing_mode'],'legacy_affine_256_candidate')
+            self.assertEqual(result['preprocessing_mode'],'wlasl_affine_256_v1')
             self.assertTrue(result['experimental'])
-            self.assertEqual(result['preprocessing_verification_status'],'unknown')
-            self.assertEqual(result['label_map_verification_status'],'unverified')
+            self.assertEqual(result['preprocessing_verification_status'],'compatible')
+            self.assertEqual(result['label_map_verification_status'],'verified')
             json.dumps(result,allow_nan=False)
             session.reset()
             self.assertEqual(session.captured_frame_count,0)
@@ -162,6 +176,36 @@ class IntegrationTests(unittest.TestCase):
         first.reset()
         self.assertEqual(second.captured_frame_count,1)
         self.assertEqual(pose2.timestamps,[1])
+
+    def test_static_keypoint_checkpoint_regression(self):
+        checkpoint = CHECKPOINT_DIR / 'pytorch_model.bin'
+        if not checkpoint.is_file():
+            self.skipTest('Checkpoint unavailable')
+        fixture = json.loads(FIXTURE.read_text(encoding='utf-8'))
+        digest = hashlib.sha256(checkpoint.read_bytes()).hexdigest()
+        self.assertEqual(digest, fixture['expected']['checkpoint_sha256'])
+        base = np.asarray(fixture['base_points'], dtype=np.float32)
+        motion = fixture['motion']
+        records = []
+        for index in range(motion['frames']):
+            phase = math.sin(2 * math.pi * index / motion['period_denominator'])
+            points = base.copy()
+            points[13:, 0] += phase * motion['all_hands_x_amplitude']
+            points[13:34, 1] += phase * motion['left_hand_y_amplitude']
+            points[34:, 1] += phase * motion['right_hand_y_amplitude']
+            records.append((index, points))
+        result = self.session().predict_keypoints(records)
+        self.assertEqual(result['preprocessing_mode'], fixture['expected']['preprocessing'])
+        self.assertEqual(
+            [prediction['gloss'] for prediction in result['predictions']],
+            fixture['expected']['top_glosses'],
+        )
+        np.testing.assert_allclose(
+            [prediction['score'] for prediction in result['predictions']],
+            fixture['expected']['top_scores'],
+            rtol=1e-5,
+            atol=1e-7,
+        )
 
 
 if __name__ == '__main__':

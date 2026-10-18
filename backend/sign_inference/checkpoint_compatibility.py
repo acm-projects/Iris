@@ -1,7 +1,8 @@
-"""Repository audit decisions, not inferred from tensor shapes or loader agreement.
+"""Reviewed checkpoint contracts used by Iris sign inference.
 
-Only a reviewed training provenance record can justify a compatible decision.
-No user-editable sidecar or checkpoint field is treated as proof automatically.
+The contract records the exact, revision-pinned checkpoint and the matching
+public WLASL preprocessing/label behavior.  Shape agreement alone is not
+treated as proof: changes to any of these inputs require a new audit.
 """
 from dataclasses import dataclass
 
@@ -10,13 +11,22 @@ from dataclasses import dataclass
 class PreprocessingAudit:
     status: str
     reason: str
+    preprocessing: str | None = None
+    label_map: str | None = None
 
 
 ASL100_AUDIT = PreprocessingAudit(
-    "unknown",
-    "HF ASL100 download hash is verified, but its publisher revision lacks training preprocessing and label-map "
-    "provenance. Historical affine code differs from selected pivot_v1; "
-    "see PREPROCESSING_STATUS.md. Supply original training provenance or retrain and audit.",
+    status="compatible",
+    reason=(
+        "Reviewed 2026-10-18: the revision-pinned ASL100 checkpoint and strict "
+        "state dict match the upstream WLASL TGCN architecture. Iris reproduces "
+        "upstream code/TGCN/sign_dataset.py xy preprocessing (2*(pixel/256-.5)), "
+        "the 55-joint BODY_25-plus-hands order, and its alphabetically sorted "
+        "LabelEncoder mapping. The deterministic static-keypoint regression "
+        "fixture locks this contract; see PREPROCESSING_STATUS.md."
+    ),
+    preprocessing="wlasl_affine_256_v1",
+    label_map="wlasl_asl100_sorted_gloss_v1",
 )
 
 

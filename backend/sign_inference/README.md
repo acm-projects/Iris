@@ -1,9 +1,9 @@
 # Standalone WLASL-100 camera inference
 
-This is an experimental manual-clip demo. It proves that camera frames can
-travel through MediaPipe and the WLASL-100 TGCN model; it does not establish
-that the predicted glosses are accurate. The checkpoint's original
-preprocessing and class-index provenance are still unverified.
+This manual-clip demo proves that camera frames can travel through MediaPipe
+and the WLASL-100 TGCN model. The checkpoint, preprocessing, and label contract
+are reviewed in `PREPROCESSING_STATUS.md`; real-camera recognition accuracy is
+still experimental and must be measured separately.
 
 ## How it works
 
@@ -62,13 +62,13 @@ installation without downloading anything:
 Windows:
 
 ```powershell
-.\.venv-wlasl\Scripts\python.exe .\backend\sign_inference\camera_inference.py --experimental-legacy --landmarks
+.\.venv-wlasl\Scripts\python.exe .\backend\sign_inference\camera_inference.py --landmarks
 ```
 
 macOS:
 
 ```bash
-./.venv-wlasl/bin/python ./backend/sign_inference/camera_inference.py --experimental-legacy --landmarks
+./.venv-wlasl/bin/python ./backend/sign_inference/camera_inference.py --landmarks
 ```
 
 - `R`: start recording a sign

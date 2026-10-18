@@ -38,14 +38,17 @@ def normalize_keypoints(points):
     return output
 
 
-LEGACY_AFFINE_VERSION = "legacy_affine_256_candidate"
+WLASL_AFFINE_VERSION = "wlasl_affine_256_v1"
+# Kept as an import alias for callers created before the contract audit.
+LEGACY_AFFINE_VERSION = WLASL_AFFINE_VERSION
 
 
 def legacy_affine_keypoints(points):
-    """Reproduce historical raw-JSON xy arithmetic, not a verified HF contract.
+    """Reproduce the reviewed upstream WLASL TGCN raw-JSON xy arithmetic.
 
     Preserve global body/hand placement: x and y are each 2*(pixel/256 - .5).
-    Historical confidence is ignored, and raw zero coordinates become -1.
+    OpenPose confidence is not an input feature, and raw zero coordinates
+    become -1.
     Live nonfinite observations map individually to zero pixels before scaling.
     No pivot distance, one-pixel threshold, clipping, or epsilon applies here.
     """
