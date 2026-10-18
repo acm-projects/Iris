@@ -71,7 +71,14 @@ export type EngineCheck = {
   };
   virtualMic: { ok: boolean; device?: string; error?: string };
   speech: { ok: boolean; engine: string };
-  signModel: { ok: boolean; status: string };
+  signModel: {
+    ok: boolean;
+    status: string;
+    model?: string;
+    error?: string;
+    missingModules?: string[];
+    missingAssets?: string[];
+  };
 };
 
 /** Engine events forwarded by Electron. */
@@ -84,7 +91,22 @@ export type EngineEvent =
       framesOut?: number;
       engine?: string;
     }
-  | { event: "sign"; text: string };
+  | {
+      event: "sign";
+      text: string;
+      score: number;
+      confidence: number;
+      calibrated: boolean;
+      accepted: boolean;
+      repeatNeeded: boolean;
+      latencyMs: number;
+      candidates: { gloss: string; score: number }[];
+    }
+  | {
+      event: "sign_status";
+      state: "listening" | "capturing" | "predicting" | "error";
+      error?: string;
+    };
 
 /** A user-friendly message for an error from the translation engine (see utils/errors.ts). */
 export function engineError(error: unknown, fallback: string) {

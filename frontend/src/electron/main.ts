@@ -13,7 +13,6 @@ import {
   systemPreferences,
 } from "electron";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { hash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import path from "node:path";
@@ -787,10 +786,16 @@ function engineFolder() {
     : path.join(process.resourcesPath, "backend", "engine");
 }
 
-/** Prefers the project's virtual environment (backend/.venv), then the system Python. */
+/** Prefers the Python 3.12 sign-runtime environment, then older fallbacks. */
 function pythonCandidates() {
   const backend = path.resolve(engineFolder(), "..");
+  const repository = path.resolve(backend, "..");
   return [
+    path.join(backend, ".venv-sign", "bin", "python3"),
+    path.join(backend, ".venv-sign", "Scripts", "python.exe"),
+    // Backward-compatible development environment documented by sign inference.
+    path.join(repository, ".venv-wlasl", "bin", "python3"),
+    path.join(repository, ".venv-wlasl", "Scripts", "python.exe"),
     path.join(backend, ".venv", "bin", "python3"),
     path.join(backend, ".venv", "Scripts", "python.exe"),
     process.platform === "win32" ? "python" : "python3",

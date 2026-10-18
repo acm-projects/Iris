@@ -33,6 +33,16 @@ interface Window {
     meetings: {
       openExternal(url: string): Promise<void>;
     };
+    /** Floating Type-to-Speak window communication. */
+    popout: {
+      speak(text: string): Promise<void>;
+      open(): Promise<void>;
+      close(): Promise<void>;
+      onSpeakRequest(
+        listener: (request: { id: string; text: string }) => void,
+      ): () => void;
+      reply(id: string, error: string | null): void;
+    };
     /** Google Calendar actions; each takes the user's Google access token. */
     google: {
       /** Creates a calendar event with a new Google Meet link. */

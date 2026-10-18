@@ -29,6 +29,8 @@ import { useAutoDismiss } from "../../utils/useAutoDismiss";
 type LiveState = "off" | "starting" | "live";
 /** Result of one system-check row (drives its icon and colour). */
 type CheckState = "ok" | "warn" | "fail" | "pending" | "info";
+type SignFeedback = Extract<EngineEvent, { event: "sign" }>;
+type SignState = "off" | "listening" | "capturing" | "predicting" | "error";
 /** Devices the OS reports, grouped for the settings dropdowns. */
 type Devices = {
   cameras: MediaDeviceInfo[];
@@ -56,8 +58,8 @@ const QUICK_PHRASES = [
 // Windows uses the `py` launcher, a Scripts\ folder and `;` (PowerShell 5 has no &&).
 const INSTALL_COMMAND =
   window.iris?.platform === "win32"
-    ? "cd backend; py -m venv .venv; .venv\\Scripts\\pip install -r requirements.txt"
-    : "cd backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt";
+    ? "cd backend; py -3.12 -m venv .venv-sign; .venv-sign\\Scripts\\pip install -r requirements.txt; .venv-sign\\Scripts\\python sign_inference\\setup_assets.py"
+    : "cd backend && python3.12 -m venv .venv-sign && .venv-sign/bin/pip install -r requirements.txt && .venv-sign/bin/python sign_inference/setup_assets.py";
 // Where users unblock the camera/microphone if they said no.
 const PRIVACY_SETTINGS =
   window.iris?.platform === "win32"
@@ -123,6 +125,8 @@ export default function TranslationPage() {
   // Error banner fades away after a few seconds (hover keeps it open).
   const liveErrorTimer = useAutoDismiss(liveError, () => setLiveError(""));
   const [caption, setCaption] = useState("");
+  const [signFeedback, setSignFeedback] = useState<SignFeedback | null>(null);
+  const [signState, setSignState] = useState<SignState>("off");
   // The camera stays off (shutter closed) until the user turns it on.
   const [cameraOn, setCameraOn] = useState(false);
   // "Start translation" pressed while the camera was off: start once it's on.
@@ -368,9 +372,14 @@ export default function TranslationPage() {
     return window.iris.engine.onEvent((raw) => {
       const message = raw as EngineEvent;
       if (message.event === "sign") {
-        setCaption(message.text);
-        if (settingsRef.current.speakSigns)
+        setSignFeedback(message);
+        if (message.accepted) setCaption(message.text);
+        if (message.accepted && settingsRef.current.speakSigns)
           void speak(message.text).catch(() => undefined);
+      } else if (message.event === "sign_status") {
+        setSignState(message.state);
+        if (message.state === "error")
+          setLiveError(message.error ?? "Sign recognition stopped.");
       } else if (message.event === "status") {
         if (message.camera === "running") setLiveDevice(message.device ?? "");
         if (message.camera === "error")
@@ -394,6 +403,8 @@ export default function TranslationPage() {
     if (!videoRef.current) return;
     setLive("starting");
     setLiveError("");
+    setSignFeedback(null);
+    setSignState("listening");
     const size = RESOLUTIONS[settings.resolution];
     try {
       const result = await window.iris.engine.request<{ device: string }>(
@@ -423,6 +434,7 @@ export default function TranslationPage() {
   const stopLive = async () => {
     pumpRef.current?.stop();
     setLive("off");
+    setSignState("off");
     await window.iris.engine
       .request("stop_virtual_camera")
       .catch(() => undefined);
@@ -659,12 +671,26 @@ export default function TranslationPage() {
             detail: "Text-to-speech will be checked with the engine.",
           },
     );
-    rows.push({
-      id: "model",
-      title: "Sign recognition",
-      state: "info",
-      detail: "Not connected yet. Captions and Type to speak work today.",
-    });
+    rows.push(
+      engineCheck?.signModel.ok
+        ? {
+            id: "model",
+            title: "Sign recognition",
+            state: "ok",
+            detail: engineCheck.signModel.model ?? "Pose-TGCN model ready",
+          }
+        : {
+            id: "model",
+            title: "Sign recognition",
+            state: checking ? "pending" : "fail",
+            detail: engineCheck?.signModel.error
+              ? engineCheck.signModel.error
+              : engineCheck?.signModel.missingAssets?.length
+                ? `Missing model assets: ${engineCheck.signModel.missingAssets.join(", ")}. Run setup:`
+                : "Sign recognition packages are missing. Run setup:",
+            command: INSTALL_COMMAND,
+          },
+    );
     return rows;
   }, [
     cameraOn,
@@ -801,6 +827,9 @@ export default function TranslationPage() {
               <div className={`tr-caption ${settings.captionSize}`}>
                 {caption}
               </div>
+            )}
+            {stream && live === "live" && (
+              <SignOverlay feedback={signFeedback} state={signState} />
             )}
           </div>
 
@@ -1189,6 +1218,54 @@ export default function TranslationPage() {
         />
       </div>
     </section>
+  );
+}
+
+/** Live signer-facing feedback; it is not burned into the outgoing video. */
+function SignOverlay({
+  feedback,
+  state,
+}: {
+  feedback: SignFeedback | null;
+  state: SignState;
+}) {
+  const activeFeedback =
+    state === "capturing" || state === "predicting" ? null : feedback;
+  const percent = Math.round(
+    Math.max(0, Math.min(1, activeFeedback?.confidence ?? 0)) * 100,
+  );
+  const status =
+    state === "capturing"
+      ? "Reading sign…"
+      : state === "predicting"
+        ? "Recognizing…"
+        : state === "error"
+          ? "Recognition unavailable"
+          : "Ready for a sign";
+  return (
+    <aside
+      aria-live="polite"
+      className={`tr-sign ${activeFeedback?.repeatNeeded ? "repeat" : activeFeedback ? "accepted" : ""}`}
+    >
+      <small>Detected sign</small>
+      <strong>{activeFeedback?.text ?? status}</strong>
+      {activeFeedback ? (
+        <>
+          <span>
+            <i style={{ width: `${percent}%` }} />
+          </span>
+          <em>
+            {activeFeedback.repeatNeeded
+              ? "Low confidence — please repeat"
+              : activeFeedback.calibrated
+                ? `${percent}% calibrated confidence`
+                : `${percent}% model score · calibrating`}
+          </em>
+        </>
+      ) : (
+        <em>{status}</em>
+      )}
+    </aside>
   );
 }
 

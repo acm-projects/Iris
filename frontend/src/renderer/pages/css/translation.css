@@ -357,6 +357,64 @@
 .tr-tag {
   background: #ffffff2e;
 }
+/* Sign recognition is signer-facing feedback and is not drawn into Meet. */
+.tr-sign {
+  position: absolute;
+  top: 50px;
+  left: 12px;
+  display: grid;
+  gap: 4px;
+  width: min(250px, calc(100% - 96px));
+  padding: 10px 12px;
+  border: 1px solid #ffffff38;
+  border-radius: 12px;
+  color: #fff;
+  background: rgba(0, 34, 78, 0.86);
+  box-shadow: 0 8px 24px #00152f47;
+  backdrop-filter: blur(8px);
+}
+.tr-sign small {
+  color: #d8e7f7;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.tr-sign strong {
+  overflow: hidden;
+  font-size: 1.15rem;
+  text-overflow: ellipsis;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+.tr-sign > span {
+  overflow: hidden;
+  height: 5px;
+  border-radius: 999px;
+  background: #ffffff2e;
+}
+.tr-sign > span i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--t-gold);
+  transition: width 0.2s ease;
+}
+.tr-sign em {
+  color: #d8e7f7;
+  font-size: 0.72rem;
+  font-style: normal;
+}
+.tr-sign.accepted {
+  border-color: #7ee0aa80;
+}
+.tr-sign.repeat {
+  border-color: #ff9d8f;
+  background: rgba(88, 24, 24, 0.9);
+}
+.tr-sign.repeat > span i {
+  background: #ff9d8f;
+}
 /* HTML copy of the caption bar drawn into the outgoing video */
 .tr-caption {
   position: absolute;

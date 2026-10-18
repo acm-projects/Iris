@@ -72,6 +72,22 @@
         "filter": [
           "*.py"
         ]
+      },
+      {
+        "from": "../backend/sign_inference",
+        "to": "backend/sign_inference",
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**",
+          "!**/*.pyc"
+        ]
+      },
+      {
+        "from": "../sign_confidence",
+        "to": "sign_confidence",
+        "filter": [
+          "*.py"
+        ]
       }
     ],
     "protocols": [
