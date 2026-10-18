@@ -1,5 +1,5 @@
-// Development launcher used by `npm run dev`: builds a real packaged copy of
-// Iris and opens it. Restart `npm run dev` after editing src/electron/*.
+// Development launcher used by `npm run dev`. Restart it after editing
+// src/electron/*.
 import { spawn, spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -37,7 +37,13 @@ const executable =
         "Iris",
       )
     : process.platform === "win32"
-      ? path.join(projectRoot, "release", "win-unpacked", "Iris.exe")
+      ? path.join(
+          projectRoot,
+          "node_modules",
+          "electron",
+          "dist",
+          "electron.exe",
+        )
       : path.join(projectRoot, "release", "linux-unpacked", "iris");
 
 /** Runs a command synchronously and stops this script if it fails. */
@@ -45,18 +51,27 @@ function run(command, args) {
   const result = spawnSync(command, args, {
     cwd: projectRoot,
     env: process.env,
+    // Windows cannot execute .cmd shims (npm.cmd, electron-builder.cmd)
+    // directly with spawnSync; route them through cmd.exe.
+    shell: process.platform === "win32",
     stdio: "inherit",
   });
+  if (result.error) {
+    console.error(`Could not run ${command}: ${result.error.message}`);
+  }
   if (result.status !== 0) {
     process.exit(result.status ?? 1);
   }
 }
 
-// 1) Compile Electron + React, 2) package an unpacked Iris.app (so macOS uses
-// the real app name, icon and iris:// link handling), 3) launch it. The React
-// UI still loads live from Vite because VITE_DEV_SERVER_URL is set.
+// Compile Electron + React, then launch it. macOS/Linux keep using an unpacked
+// application for native identity and permissions. Windows launches Electron
+// directly: repeatedly replacing win-unpacked is slow and commonly fails with
+// EPERM while antivirus/indexing software scans the directory.
 run(npmCommand, ["run", "build"]);
-run(builderCommand, [platform, "--dir", "--publish", "never"]);
+if (process.platform !== "win32") {
+  run(builderCommand, [platform, "--dir", "--publish", "never"]);
+}
 
 const iris = spawn(executable, ["."], {
   cwd: projectRoot,
