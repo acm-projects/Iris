@@ -8,7 +8,23 @@ CHECKPOINT_DIR = Path(__file__).resolve().parent / 'checkpoints' / 'asl100'
 SPLIT_FILE = Path(__file__).resolve().parent / 'asl100.json'
 MODEL_NUM_FRAMES = 50
 MODEL_NUM_LANDMARKS = 55
-def remap_landmarks(pose_result, hand_result):
+LEFT_WRIST, RIGHT_WRIST = 7, 4  # signer's wrists in the 55-joint body block
+
+
+def remap_landmarks(pose_result, hand_result, hand_assignment="label"):
+    """MediaPipe pose + hands -> (55, 2) points in OpenPose order, NaN = missing.
+
+    hand_assignment chooses which slot (signer's left 13..33, right 34..54)
+    each detected hand goes to:
+      "label": MediaPipe's handedness label (original behavior).
+      "wrist": the nearer pose wrist. MediaPipe's labels assume a mirrored
+               (selfie) image, so on unmirrored frames they can come out
+               swapped; the pose wrists are anatomical, so matching each hand
+               to the closest wrist puts it in the right slot either way.
+               Falls back to labels when no body is detected.
+    """
+    if hand_assignment not in ("label", "wrist"):
+        raise ValueError(f"hand_assignment must be 'label' or 'wrist', got {hand_assignment!r}")
     # NaN marks missing coordinates during this debugging stage.
     points = np.full((55, 2), np.nan, dtype=np.float32)
 
@@ -37,6 +53,9 @@ def remap_landmarks(pose_result, hand_result):
             xy(8),                  # Right ear
             xy(7),                  # Left ear
         ])
+
+    if hand_assignment == "wrist" and pose_result.pose_landmarks:
+        return _assign_hands_by_wrist(points, hand_result)
 
     # Use handedness labels, not detection-list order.
     best_score = {"Left": -1.0, "Right": -1.0}
@@ -69,6 +88,42 @@ def remap_landmarks(pose_result, hand_result):
         )
 
     return points, detected_sides
+
+
+def _assign_hands_by_wrist(points, hand_result):
+    """Place up to two detected hands by distance from each hand's wrist to the pose wrists."""
+    hands = []
+    for landmarks, categories in zip(hand_result.hand_landmarks, hand_result.handedness):
+        if len(landmarks) != 21:
+            continue
+        xy = np.array([[landmark.x, landmark.y] for landmark in landmarks], dtype=np.float32)
+        score = categories[0].score if categories else 0.0
+        hands.append((score, xy))
+    # At most two hands; keep the most confident ones.
+    hands = sorted(hands, key=lambda h: -h[0])[:2]
+
+    def dist(xy, wrist):
+        target = points[wrist]
+        return float(np.linalg.norm(xy[0] - target)) if np.isfinite(target).all() else np.inf
+
+    if len(hands) == 2:
+        (_, a), (_, b) = hands
+        # Pick the pairing with the smaller total wrist distance.
+        straight = dist(a, LEFT_WRIST) + dist(b, RIGHT_WRIST)
+        crossed = dist(a, RIGHT_WRIST) + dist(b, LEFT_WRIST)
+        pairs = [(a, "Left"), (b, "Right")] if straight <= crossed else [(a, "Right"), (b, "Left")]
+    elif len(hands) == 1:
+        (_, a), = hands
+        pairs = [(a, "Left" if dist(a, LEFT_WRIST) <= dist(a, RIGHT_WRIST) else "Right")]
+    else:
+        pairs = []
+    sides = []
+    for xy, side in pairs:
+        start = 13 if side == "Left" else 34
+        points[start:start + 21] = xy
+        sides.append(side)
+    return points, sides
+
 
 def normalize_landmarks(points, preprocessing=NORMALIZATION_VERSION):
     """Normalize equal-unit x/y coordinates using shared training pivots."""

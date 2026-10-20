@@ -1,1 +1,4 @@
 runs/
+
+# Model weights are shared on the team Drive, not in git
+pretrained/

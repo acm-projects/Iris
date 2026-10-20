@@ -186,6 +186,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--glosses", nargs="+", default=["book", "drink"],
                     help="words to learn, or 'all' for every word in the split file")
+    ap.add_argument("--glosses-file", default=None,
+                    help="text file with one word per line (overrides --glosses), e.g. ml/two_word/vocab/pretrain1000.txt")
     ap.add_argument("--data-root", default=DEFAULT_DATA_ROOT,
                     help="folder containing splits/ and pose_per_individual_videos/")
     ap.add_argument("--split-file", default=None, help="defaults to <data-root>/splits/asl100.json")
@@ -210,6 +212,9 @@ def main():
 
     split_file = args.split_file or os.path.join(args.data_root, "splits", "asl100.json")
     args.split_file = split_file
+    if args.glosses_file:
+        with open(args.glosses_file) as f:
+            args.glosses = [line.strip() for line in f if line.strip()]
     if args.glosses == ["all"]:
         args.glosses = all_glosses(split_file)
 
