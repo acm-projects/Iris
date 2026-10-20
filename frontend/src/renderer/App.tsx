@@ -40,6 +40,29 @@ import ResetPasswordPage from "./pages/tsx/ResetPasswordPage";
 // Shared types and small helpers
 // ---------------------------------------------------------------------------
 
+// Local-only test mode. Vite replaces DEV with false in production builds, so
+// this cannot bypass authentication in a packaged release.
+const DEV_BYPASS_AUTH =
+  import.meta.env.DEV &&
+  import.meta.env.VITE_DEV_BYPASS_AUTH === "true";
+const DEV_SESSION = {
+  access_token: "iris-development-only",
+  token_type: "bearer",
+  expires_in: Number.MAX_SAFE_INTEGER,
+  expires_at: Number.MAX_SAFE_INTEGER,
+  refresh_token: "iris-development-only",
+  user: {
+    id: "iris-local-tester",
+    aud: "authenticated",
+    role: "authenticated",
+    email: "tester@iris.local",
+    app_metadata: { provider: "development", providers: ["development"] },
+    user_metadata: { full_name: "Local Tester" },
+    identities: [],
+    created_at: new Date(0).toISOString(),
+  },
+} as Session;
+
 /** A row from the Supabase `meetings` table. */
 export type Meeting = {
   id: string;
@@ -87,7 +110,9 @@ export type MeetingDraft = {
  */
 export default function App() {
   // --- Auth state -----------------------------------------------------------
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<Session | null>(() =>
+    DEV_BYPASS_AUTH ? DEV_SESSION : null,
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [authNotice, setAuthNotice] = useState<AuthNotice | null>(null);
@@ -112,7 +137,7 @@ export default function App() {
   const [googleConnected, setGoogleConnected] = useState(false);
   // False until the stored Google token has been checked, so the "connect
   // Google Calendar" prompt does not flash for users who are connected.
-  const [googleChecked, setGoogleChecked] = useState(false);
+  const [googleChecked, setGoogleChecked] = useState(DEV_BYPASS_AUTH);
   const [googleConnecting, setGoogleConnecting] = useState(false);
   const [meetingBusy, setMeetingBusy] = useState(false);
   // Which provider started the current browser sign-in (to know when to save a Google token).
@@ -122,7 +147,7 @@ export default function App() {
   const fileInput = useRef<HTMLInputElement>(null);
   // Guards against handling the same sign-in callback twice.
   const handledCallbackUrls = useRef(new Set<string>());
-  const configured = isSupabaseConfigured();
+  const configured = !DEV_BYPASS_AUTH && isSupabaseConfigured();
   // Safety net: any failed async action that nothing else handled shows a
   // friendly message (on the dashboard, or on the sign-in screen) instead of
   // failing silently or with a technical error.
@@ -568,6 +593,10 @@ export default function App() {
   }
   /** Signs out of Iris (the Google connection is kept for next time). */
   async function signOut() {
+    if (DEV_BYPASS_AUTH) {
+      setNotice("Authentication is bypassed for this local development session.");
+      return;
+    }
     // The Google connection stays stored for this account, so it is still
     // there the next time the same user signs in.
     setGoogleConnected(false);
