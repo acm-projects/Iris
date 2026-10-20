@@ -186,24 +186,30 @@ class VirtualCameraStream:
         return self._thread is not None and self._thread.is_alive()
 
     def start(self, width: int, height: int, fps: int) -> dict:
-        import pyvirtualcam  # noqa: F401 - fail fast with a clear message
-
         if self.running:
-            return {"device": self.device, "width": self.size[0], "height": self.size[1]}
+            return {
+                "device": self.device,
+                "width": self.size[0],
+                "height": self.size[1],
+                "starting": self.device is None,
+            }
         self.size = (int(width), int(height))
         self.fps = max(5, min(int(fps), 30))
         self._stop.clear()
         self.last_error = None
-        opened = threading.Event()
-        self._thread = threading.Thread(target=self._run, args=(opened,), daemon=True)
+        self.device = None
+        # Opening the OBS backend can block inside native code for longer than
+        # Electron's request timeout. Delay it just enough for this request to
+        # reply; readiness or failure is delivered as a status event.
+        self._thread = threading.Timer(0.1, self._run)
+        self._thread.daemon = True
         self._thread.start()
-        if not opened.wait(timeout=8):
-            self._stop.set()
-            self.last_error = "Timed out while opening the virtual camera driver."
-        if self.last_error:
-            raise RuntimeError(self.last_error)
-        start_sign_recognition()
-        return {"device": self.device, "width": self.size[0], "height": self.size[1]}
+        return {
+            "device": self.device,
+            "width": self.size[0],
+            "height": self.size[1],
+            "starting": True,
+        }
 
     def stop(self) -> None:
         self._stop.set()
@@ -242,15 +248,24 @@ class VirtualCameraStream:
                     cv2.FONT_HERSHEY_SIMPLEX, 1.2, (230, 237, 247), 2, cv2.LINE_AA)
         return frame
 
-    def _run(self, opened: threading.Event) -> None:
+    def _run(self) -> None:
         import pyvirtualcam
 
         try:
             with pyvirtualcam.Camera(width=self.size[0], height=self.size[1], fps=self.fps) as cam:
                 self.device = cam.device
-                opened.set()
-                log(f"virtual camera started on {cam.device}")
                 placeholder = self._placeholder()
+                # The OBS backend can construct a camera object while another
+                # producer still owns its output, then fail on the first send.
+                # Verify one frame before telling Electron that startup worked.
+                cam.send(placeholder)
+                self.frames_out += 1
+                log(f"virtual camera started on {cam.device}")
+                send({"event": "status", "camera": "running", "device": self.device,
+                      "framesIn": self.frames_in, "framesOut": self.frames_out})
+                # Model imports and initialization happen on their own worker;
+                # they must never delay camera startup or frame delivery.
+                threading.Thread(target=start_sign_recognition, daemon=True).start()
                 last_status = 0.0
                 while not self._stop.is_set():
                     with self._lock:
@@ -267,7 +282,6 @@ class VirtualCameraStream:
             log(self.last_error)
             send({"event": "status", "camera": "error", "error": self.last_error})
         finally:
-            opened.set()
             with self._lock:
                 self._latest = None
             stop_sign_recognition()

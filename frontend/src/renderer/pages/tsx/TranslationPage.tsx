@@ -201,15 +201,55 @@ export default function TranslationPage() {
   const openPreview = useCallback(async () => {
     setPreviewError("");
     try {
-      const { cameraId, microphoneId } = settingsRef.current;
-      const next = await navigator.mediaDevices.getUserMedia({
-        video: {
-          deviceId: cameraId ? { exact: cameraId } : undefined,
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: { deviceId: microphoneId ? { exact: microphoneId } : undefined },
-      });
+      const saved = settingsRef.current;
+      const available = await navigator.mediaDevices.enumerateDevices();
+      // Device IDs can change after an OS update, reconnect, permission reset,
+      // or switching between packaged and development Electron builds.
+      const cameraId = available.some(
+        (device) =>
+          device.kind === "videoinput" && device.deviceId === saved.cameraId,
+      )
+        ? saved.cameraId
+        : "";
+      const microphoneId = available.some(
+        (device) =>
+          device.kind === "audioinput" &&
+          device.deviceId === saved.microphoneId,
+      )
+        ? saved.microphoneId
+        : "";
+      const acquire = (selectedCamera: string, selectedMicrophone: string) =>
+        navigator.mediaDevices.getUserMedia({
+          video: {
+            deviceId: selectedCamera
+              ? { exact: selectedCamera }
+              : undefined,
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: {
+            deviceId: selectedMicrophone
+              ? { exact: selectedMicrophone }
+              : undefined,
+          },
+        });
+      let next: MediaStream;
+      try {
+        next = await acquire(cameraId, microphoneId);
+      } catch (error) {
+        // A device may disappear between enumeration and acquisition. Retry
+        // once with OS defaults instead of trapping the user on stale IDs.
+        if (
+          error instanceof DOMException &&
+          (error.name === "OverconstrainedError" ||
+            error.name === "NotFoundError") &&
+          (cameraId || microphoneId)
+        ) {
+          next = await acquire("", "");
+        } else {
+          throw error;
+        }
+      }
       setStream((previous) => {
         previous?.getTracks().forEach((track) => track.stop());
         return next;
@@ -218,11 +258,14 @@ export default function TranslationPage() {
       // First run: remember the devices the OS picked, and a virtual mic if there is one.
       const current = settingsRef.current;
       const patch: Partial<TranslationSettings> = {};
-      if (!current.cameraId)
-        patch.cameraId = next.getVideoTracks()[0]?.getSettings().deviceId ?? "";
-      if (!current.microphoneId)
-        patch.microphoneId =
-          next.getAudioTracks()[0]?.getSettings().deviceId ?? "";
+      const resolvedCamera =
+        next.getVideoTracks()[0]?.getSettings().deviceId ?? "";
+      const resolvedMicrophone =
+        next.getAudioTracks()[0]?.getSettings().deviceId ?? "";
+      if (current.cameraId !== resolvedCamera)
+        patch.cameraId = resolvedCamera;
+      if (current.microphoneId !== resolvedMicrophone)
+        patch.microphoneId = resolvedMicrophone;
       if (!current.virtualMicId)
         patch.virtualMicId =
           all.find((d) => d.kind === "audiooutput" && isVirtualMic(d.label))
@@ -407,11 +450,14 @@ export default function TranslationPage() {
     setSignState("listening");
     const size = RESOLUTIONS[settings.resolution];
     try {
-      const result = await window.iris.engine.request<{ device: string }>(
+      const result = await window.iris.engine.request<{
+        device: string | null;
+        starting?: boolean;
+      }>(
         "start_virtual_camera",
         size,
       );
-      setLiveDevice(result.device);
+      setLiveDevice(result.device ?? "");
       pumpRef.current ??= new FramePump(videoRef.current, () => ({
         text: captionRef.current,
         size: settingsRef.current.captionSize,

@@ -56,8 +56,12 @@ const TRANSLATIONS: [RegExp, string][] = [
   ],
   // Translation engine (Python)
   [
+    /virtual camera output could not be started|virtual camera.*(?:busy|in use)|camera.*already in use/i,
+    "OBS Virtual Camera is busy. In OBS, click Stop Virtual Camera or quit OBS, then try again—only Iris should start the virtual-camera output.",
+  ],
+  [
     /OBS Virtual Camera is not installed|'obs' backend|pyvirtualcam/i,
-    "The OBS virtual camera isn't set up. Open OBS once, click Start Virtual Camera and approve it, then try again.",
+    "The OBS Virtual Camera driver is unavailable. Install or update OBS, open it once to finish setup, then quit OBS and try again.",
   ],
   [
     /PortAudio|Invalid sample rate|Error opening OutputStream|sounddevice/i,

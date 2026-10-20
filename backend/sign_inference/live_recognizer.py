@@ -11,8 +11,6 @@ from typing import Callable
 
 import numpy as np
 
-from sign_inference import SignInference
-
 
 @dataclass(frozen=True)
 class SegmentUpdate:
@@ -176,6 +174,7 @@ class LiveSignRecognizer:
         session = None
         try:
             # Imported here so engine health/TTS still work when sign extras are absent.
+            from sign_inference import SignInference
             from sign_confidence.sign_confidence import SignConfidence
 
             session = SignInference(device="cpu")

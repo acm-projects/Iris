@@ -838,6 +838,7 @@ function ensureEngine() {
           result?: unknown;
           error?: string;
           event?: string;
+          camera?: string;
         };
         const pending = message.id ? enginePending.get(message.id) : undefined;
         if (pending) {
@@ -846,6 +847,11 @@ function ensureEngine() {
           if (message.error) pending.reject(new Error(message.error));
           else pending.resolve(message.result);
         } else if (message.event) {
+          if (
+            message.event === "status" &&
+            (message.camera === "stopped" || message.camera === "error")
+          )
+            keepAwakeWhileLive(false);
           broadcastEngineEvent(message);
         }
       } catch {
