@@ -11,6 +11,34 @@ from typing import Callable
 
 import numpy as np
 
+LEFT_HAND = slice(13, 34)
+RIGHT_HAND = slice(34, 55)
+MODEL_POINT_SHAPE = (55, 2)
+MIN_INFERENCE_HAND_FRAMES = 10
+MIN_INFERENCE_HAND_RATIO = 0.8
+
+
+def has_detected_hand(points: np.ndarray) -> bool:
+    """Whether MediaPipe supplied one complete 21-landmark hand."""
+    points = np.asarray(points)
+    if points.shape != MODEL_POINT_SHAPE:
+        return False
+    finite = np.isfinite(points).all(axis=1)
+    return bool(finite[LEFT_HAND].all() or finite[RIGHT_HAND].all())
+
+
+def segment_has_sufficient_hands(
+    records: list[tuple[int, np.ndarray]],
+    *,
+    min_frames: int = MIN_INFERENCE_HAND_FRAMES,
+    min_ratio: float = MIN_INFERENCE_HAND_RATIO,
+) -> bool:
+    """Reject sequences that do not contain enough hand-visible samples."""
+    if not records:
+        return False
+    visible = sum(has_detected_hand(points) for _, points in records)
+    return visible >= min_frames and visible / len(records) >= min_ratio
+
 
 @dataclass(frozen=True)
 class SegmentUpdate:
@@ -31,6 +59,7 @@ class MotionSegmenter:
         min_frames: int = 10,
         max_frames: int = 50,
         pre_roll: int = 3,
+        hand_loss_grace_frames: int = 2,
     ):
         self.start_motion = start_motion
         self.stop_motion = stop_motion
@@ -38,11 +67,13 @@ class MotionSegmenter:
         self.quiet_frames = quiet_frames
         self.min_frames = min_frames
         self.max_frames = max_frames
+        self.hand_loss_grace_frames = hand_loss_grace_frames
         self._pre_roll = deque(maxlen=pre_roll)
         self._previous_normalized: np.ndarray | None = None
         self._active: list[tuple[int, np.ndarray]] | None = None
         self._moving = 0
         self._quiet = 0
+        self._missing_hand = 0
         self._cooldown = 0
 
     @staticmethod
@@ -61,13 +92,37 @@ class MotionSegmenter:
         if previous is None:
             return 0.0
         valid = np.isfinite(previous).all(axis=1) & np.isfinite(normalized).all(axis=1)
-        if int(valid.sum()) < 5:
+        hand_valid = valid.copy()
+        hand_valid[:LEFT_HAND.start] = False
+        if int(hand_valid.sum()) < 21:
             return 0.0
-        # A one-handed sign moves fewer than half of the 55 joints, so median
-        # motion would remain zero. The upper quartile catches that hand while
-        # still ignoring a few noisy landmarks.
-        distances = np.linalg.norm(normalized[valid] - previous[valid], axis=1)
+        # The upper quartile catches motion in a subset of finger joints while
+        # ignoring a few noisy points. Measure only hands so body motion cannot
+        # begin or extend a sign segment.
+        distances = np.linalg.norm(
+            normalized[hand_valid] - previous[hand_valid],
+            axis=1,
+        )
         return float(np.percentile(distances, 75))
+
+    def _reset_active(self) -> None:
+        self._active = None
+        self._pre_roll.clear()
+        self._moving = 0
+        self._quiet = 0
+        self._missing_hand = 0
+
+    def _finish(self, *, trim_quiet: bool = False) -> SegmentUpdate:
+        completed = self._active or []
+        if (
+            trim_quiet
+            and self._quiet
+            and len(completed) - self._quiet >= self.min_frames
+        ):
+            completed = completed[:-self._quiet]
+        self._reset_active()
+        self._cooldown = 3
+        return SegmentUpdate("predicting", completed)
 
     def observe(
         self,
@@ -77,11 +132,23 @@ class MotionSegmenter:
     ) -> SegmentUpdate:
         points = np.asarray(points, dtype=np.float32)
         visible = self._body_visible(points)
-        motion = self._motion(self._normalized(points, frame_shape)) if visible else 0.0
+        hand_visible = visible and has_detected_hand(points)
+        motion = (
+            self._motion(self._normalized(points, frame_shape))
+            if hand_visible
+            else 0.0
+        )
         record = (int(timestamp_ms), points.copy())
 
         if self._active is None:
-            if visible:
+            if not hand_visible:
+                self._pre_roll.clear()
+                self._previous_normalized = None
+                self._moving = 0
+                if self._cooldown:
+                    self._cooldown -= 1
+                return SegmentUpdate("listening")
+            if hand_visible:
                 self._pre_roll.append(record)
             if self._cooldown:
                 self._cooldown -= 1
@@ -92,10 +159,20 @@ class MotionSegmenter:
             self._active = list(self._pre_roll)
             self._moving = 0
             self._quiet = 0
+            self._missing_hand = 0
             return SegmentUpdate("capturing")
 
-        if visible:
-            self._active.append(record)
+        if not hand_visible:
+            self._missing_hand += 1
+            if self._missing_hand <= self.hand_loss_grace_frames:
+                return SegmentUpdate("capturing")
+            if len(self._active) >= self.min_frames:
+                return self._finish()
+            self._reset_active()
+            return SegmentUpdate("listening")
+
+        self._missing_hand = 0
+        self._active.append(record)
         self._quiet = self._quiet + 1 if motion < self.stop_motion else 0
         enough = len(self._active) >= self.min_frames
         reached_pause = enough and self._quiet >= self.quiet_frames
@@ -103,14 +180,7 @@ class MotionSegmenter:
         if not reached_pause and not reached_limit:
             return SegmentUpdate("capturing")
 
-        completed = self._active
-        if reached_pause and len(completed) - self._quiet >= self.min_frames:
-            completed = completed[:-self._quiet]
-        self._active = None
-        self._pre_roll.clear()
-        self._quiet = 0
-        self._cooldown = 3
-        return SegmentUpdate("predicting", completed)
+        return self._finish(trim_quiet=reached_pause)
 
 
 class LiveSignRecognizer:
@@ -203,6 +273,9 @@ class LiveSignRecognizer:
                 )
                 self._status(update.state)
                 if not update.completed:
+                    continue
+                if not segment_has_sufficient_hands(update.completed):
+                    self._status("listening")
                     continue
                 result = session.predict_keypoints(update.completed)
                 top = result["predictions"][0]
