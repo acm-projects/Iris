@@ -9,3 +9,8 @@ code/I3D/archived/
 *.pt
 
 *.zip
+.venv/
+node_modules/
+
+code/TGCN/mediapipe_models/
+code/TGCN/checkpoints/asl100/pytorch_model.bin
