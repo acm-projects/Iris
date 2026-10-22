@@ -33,6 +33,16 @@ interface Window {
     meetings: {
       openExternal(url: string): Promise<void>;
     };
+    /** Text-to-speech routed into the meeting's virtual microphone. */
+    tts: {
+      speak(text: string): Promise<{
+        device: string;
+        durationMs: number;
+        synthesisMs: number;
+        playbackMs: number;
+        totalLatencyMs: number;
+      }>;
+    };
     /** Floating Type-to-Speak window communication. */
     popout: {
       speak(text: string): Promise<void>;
