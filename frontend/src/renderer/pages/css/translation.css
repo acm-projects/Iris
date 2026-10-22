@@ -442,6 +442,55 @@
   font-size: 1.3rem;
 }
 
+/* Running phrase assembled from accepted signs. */
+.tr-sentence {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 12px 2px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--t-border);
+  border-radius: 14px;
+  background: var(--t-raised);
+}
+.tr-sentence > div:first-child {
+  display: grid;
+  min-width: 0;
+}
+.tr-sentence small {
+  color: var(--t-accent);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.tr-sentence strong {
+  overflow: hidden;
+  margin-top: 2px;
+  font-size: 1rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tr-sentence strong.empty {
+  color: var(--t-muted);
+  font-weight: 600;
+}
+.tr-sentence span {
+  margin-top: 2px;
+  color: var(--t-muted);
+  font-size: 0.76rem;
+}
+.tr-sentence-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+.tr-sentence-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 /* ---- Type to speak ---- */
 .tr-speak {
   display: grid;
@@ -905,6 +954,13 @@
   }
   .tr-steps {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .tr-sentence {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .tr-sentence-actions button {
+    flex: 1;
   }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -30,6 +30,7 @@ type LiveState = "off" | "starting" | "live";
 /** Result of one system-check row (drives its icon and colour). */
 type CheckState = "ok" | "warn" | "fail" | "pending" | "info";
 type SignFeedback = Extract<EngineEvent, { event: "sign" }>;
+type PhraseFeedback = Extract<EngineEvent, { event: "phrase" }>;
 type SignState = "off" | "listening" | "capturing" | "predicting" | "error";
 /** Devices the OS reports, grouped for the settings dropdowns. */
 type Devices = {
@@ -127,6 +128,11 @@ export default function TranslationPage() {
   const [caption, setCaption] = useState("");
   const [signFeedback, setSignFeedback] = useState<SignFeedback | null>(null);
   const [signState, setSignState] = useState<SignState>("off");
+  const [phraseFeedback, setPhraseFeedback] =
+    useState<PhraseFeedback | null>(null);
+  const [phraseDeadline, setPhraseDeadline] = useState<number | null>(null);
+  const [phraseRemainingMs, setPhraseRemainingMs] = useState(0);
+  const [phraseActionBusy, setPhraseActionBusy] = useState(false);
   // The camera stays off (shutter closed) until the user turns it on.
   const [cameraOn, setCameraOn] = useState(false);
   // "Start translation" pressed while the camera was off: start once it's on.
@@ -393,7 +399,53 @@ export default function TranslationPage() {
     await window.iris.engine.request("speak", { text, device: label });
   }, []);
 
-    // Speak requests from the floating Type to speak window.
+  const resetPhraseView = useCallback(() => {
+    setPhraseFeedback(null);
+    setPhraseDeadline(null);
+    setPhraseRemainingMs(0);
+    setCaption("");
+  }, []);
+
+  const finishPhrase = async () => {
+    setPhraseActionBusy(true);
+    try {
+      const result = await window.iris.engine.request<{ queued: boolean }>(
+        "finalize_phrase",
+      );
+      if (!result.queued)
+        setLiveError("Sentence assembly is not running yet.");
+    } catch (error) {
+      setLiveError(engineError(error, "The sentence could not be finished."));
+    } finally {
+      setPhraseActionBusy(false);
+    }
+  };
+
+  const clearCurrentPhrase = async () => {
+    resetPhraseView();
+    setPhraseActionBusy(true);
+    try {
+      await window.iris.engine.request("clear_phrase");
+    } catch (error) {
+      setLiveError(engineError(error, "The sentence could not be cleared."));
+    } finally {
+      setPhraseActionBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (phraseDeadline === null) {
+      setPhraseRemainingMs(0);
+      return;
+    }
+    const updateCountdown = () =>
+      setPhraseRemainingMs(Math.max(0, phraseDeadline - Date.now()));
+    updateCountdown();
+    const timer = window.setInterval(updateCountdown, 100);
+    return () => window.clearInterval(timer);
+  }, [phraseDeadline]);
+
+  // Speak requests from the floating Type to speak window.
   useEffect(() => {
     if (typeof window.iris.popout?.onSpeakRequest !== "function") return;
     return window.iris.popout.onSpeakRequest(async ({ id, text }) => {
@@ -416,9 +468,20 @@ export default function TranslationPage() {
       const message = raw as EngineEvent;
       if (message.event === "sign") {
         setSignFeedback(message);
-        if (message.accepted) setCaption(message.text);
-        if (message.accepted && settingsRef.current.speakSigns)
-          void speak(message.text).catch(() => undefined);
+      } else if (message.event === "phrase") {
+        setPhraseFeedback(message);
+        if (message.state === "building") {
+          setCaption(message.text);
+          setPhraseDeadline(Date.now() + message.idleTimeoutMs);
+          setPhraseRemainingMs(message.idleTimeoutMs);
+        } else if (message.state === "final") {
+          setCaption(message.text);
+          setPhraseDeadline(null);
+          if (message.reason === "manual" || settingsRef.current.speakSigns)
+            void speak(message.text).catch(() => undefined);
+        } else {
+          resetPhraseView();
+        }
       } else if (message.event === "sign_status") {
         setSignState(message.state);
         if (message.state === "error")
@@ -433,7 +496,7 @@ export default function TranslationPage() {
         }
       }
     });
-  }, [speak]);
+  }, [resetPhraseView, speak]);
 
   /** Starts sending video (with captions) to the virtual camera. */
   const startLive = async () => {
@@ -448,6 +511,7 @@ export default function TranslationPage() {
     setLiveError("");
     setSignFeedback(null);
     setSignState("listening");
+    resetPhraseView();
     const size = RESOLUTIONS[settings.resolution];
     try {
       const result = await window.iris.engine.request<{
@@ -481,6 +545,7 @@ export default function TranslationPage() {
     pumpRef.current?.stop();
     setLive("off");
     setSignState("off");
+    resetPhraseView();
     await window.iris.engine
       .request("stop_virtual_camera")
       .catch(() => undefined);
@@ -878,6 +943,15 @@ export default function TranslationPage() {
               <SignOverlay feedback={signFeedback} state={signState} />
             )}
           </div>
+          {live === "live" && (
+            <SentenceBuilder
+              busy={phraseActionBusy}
+              feedback={phraseFeedback}
+              onClear={() => void clearCurrentPhrase()}
+              onFinish={() => void finishPhrase()}
+              remainingMs={phraseRemainingMs}
+            />
+          )}
 
           {/* Top-right buttons; popups open below them */}
           <div className="tr-tools" ref={toolsRef}>
@@ -1235,8 +1309,8 @@ export default function TranslationPage() {
                       />
                       <Toggle
                         checked={settings.speakSigns}
-                        description="Iris speaks each recognised sign."
-                        label="Speak recognised signs aloud"
+                        description="Iris speaks once when the assembled sentence is ready."
+                        label="Speak assembled sentences aloud"
                         onChange={(value) => update({ speakSigns: value })}
                       />
                       <Toggle
@@ -1259,9 +1333,64 @@ export default function TranslationPage() {
             engineCheck.missingPackages.length > 0 ||
             !hasVirtualMic
           }
-          onClearCaption={() => setCaption("")}
+          onClearCaption={() => void clearCurrentPhrase()}
           onSpeak={speak}
         />
+      </div>
+    </section>
+  );
+}
+
+/** Running sentence assembled from accepted signs. */
+function SentenceBuilder({
+  busy,
+  feedback,
+  onClear,
+  onFinish,
+  remainingMs,
+}: {
+  busy: boolean;
+  feedback: PhraseFeedback | null;
+  onClear: () => void;
+  onFinish: () => void;
+  remainingMs: number;
+}) {
+  const building = feedback?.state === "building";
+  const hasSentence =
+    feedback?.state === "building" || feedback?.state === "final";
+  const text = hasSentence ? feedback.text : "Accepted signs will appear here.";
+  const status = building
+    ? `Speaking in ${(remainingMs / 1_000).toFixed(1)}s`
+    : feedback?.state === "final"
+      ? feedback.translated
+        ? "Translated sentence"
+        : "Sentence ready"
+      : "Waiting for a sign";
+
+  return (
+    <section className="tr-sentence" aria-live="polite">
+      <div>
+        <small>Sentence</small>
+        <strong className={hasSentence ? "" : "empty"}>{text}</strong>
+        <span>{status}</span>
+      </div>
+      <div className="tr-sentence-actions">
+        <button
+          className="tr-ghost"
+          disabled={!building || busy}
+          onClick={onFinish}
+          type="button"
+        >
+          {busy && building ? "Finishing…" : "Speak now"}
+        </button>
+        <button
+          className="tr-ghost"
+          disabled={!hasSentence || busy}
+          onClick={onClear}
+          type="button"
+        >
+          Clear
+        </button>
       </div>
     </section>
   );

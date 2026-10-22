@@ -106,6 +106,27 @@ export type EngineEvent =
       event: "sign_status";
       state: "listening" | "capturing" | "predicting" | "error";
       error?: string;
+    }
+  | {
+      event: "phrase";
+      state: "building";
+      glosses: string[];
+      text: string;
+      idleTimeoutMs: number;
+    }
+  | {
+      event: "phrase";
+      state: "final";
+      glosses: string[];
+      sourceText: string;
+      text: string;
+      translated: boolean;
+      reason: "idle" | "manual";
+      translationError?: string;
+    }
+  | {
+      event: "phrase";
+      state: "cleared";
     };
 
 /** A user-friendly message for an error from the translation engine (see utils/errors.ts). */
