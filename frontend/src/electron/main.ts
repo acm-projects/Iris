@@ -918,6 +918,8 @@ const engineMethods = new Set([
   "system_check",
   "start_virtual_camera",
   "stop_virtual_camera",
+  "finalize_phrase",
+  "clear_phrase",
   "speak",
   "test_tone",
 ]);

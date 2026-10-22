@@ -95,7 +95,19 @@ def module_status() -> dict:
 # ---------------------------------------------------------------------------
 
 _recognizer = None
+_phrase_worker = None
 _recognizer_lock = threading.Lock()
+
+
+def _handle_recognition_event(message: dict) -> None:
+    """Forward recognition feedback and assemble only accepted glosses."""
+    send(message)
+    if message.get("event") != "sign" or not message.get("accepted"):
+        return
+    worker = _phrase_worker
+    text = message.get("text")
+    if worker is not None and isinstance(text, str):
+        worker.submit(text)
 
 
 def sign_model_status() -> dict:
@@ -132,26 +144,36 @@ def sign_model_status() -> dict:
 
 
 def start_sign_recognition() -> None:
-    global _recognizer
+    global _phrase_worker, _recognizer
     with _recognizer_lock:
         if _recognizer is not None and _recognizer.running:
             return
         try:
             from live_recognizer import LiveSignRecognizer
+            from sentence_assembly import PhraseAssemblyWorker
 
-            _recognizer = LiveSignRecognizer(send)
+            _phrase_worker = PhraseAssemblyWorker(send)
+            _phrase_worker.start()
+            _recognizer = LiveSignRecognizer(_handle_recognition_event)
             _recognizer.start()
         except Exception as error:  # noqa: BLE001
+            if _phrase_worker is not None:
+                _phrase_worker.stop()
+            _phrase_worker = None
+            _recognizer = None
             log(f"sign recognizer could not start: {error}")
             send({"event": "sign_status", "state": "error", "error": str(error)})
 
 
 def stop_sign_recognition() -> None:
-    global _recognizer
+    global _phrase_worker, _recognizer
     with _recognizer_lock:
         if _recognizer is not None:
             _recognizer.stop()
+        if _phrase_worker is not None:
+            _phrase_worker.stop()
         _recognizer = None
+        _phrase_worker = None
 
 
 def recognize_sign(frame_rgb) -> None:
@@ -159,6 +181,18 @@ def recognize_sign(frame_rgb) -> None:
     worker = _recognizer
     if worker is not None:
         worker.submit(frame_rgb)
+
+
+def finalize_phrase() -> dict:
+    """Ask the phrase worker to finish the current sentence immediately."""
+    worker = _phrase_worker
+    return {"queued": bool(worker is not None and worker.finalize())}
+
+
+def clear_phrase() -> dict:
+    """Discard the current sentence without speaking it."""
+    worker = _phrase_worker
+    return {"queued": bool(worker is not None and worker.clear())}
 
 
 # ---------------------------------------------------------------------------
@@ -490,6 +524,10 @@ def handle(method: str, params: dict):
     if method == "stop_virtual_camera":
         camera.stop()
         return {"stopped": True}
+    if method == "finalize_phrase":
+        return finalize_phrase()
+    if method == "clear_phrase":
+        return clear_phrase()
     if method == "speak":
         text = str(params.get("text", "")).strip()[:500]
         if not text:

@@ -53,6 +53,52 @@ class EngineSignToSpeechTests(unittest.TestCase):
         play.assert_called_once_with(samples, 48000, "CABLE Input")
         self.assertEqual(result["device"], "CABLE Input")
 
+    def test_only_accepted_signs_are_submitted_for_sentence_assembly(self):
+        class PhraseWorker:
+            def __init__(self):
+                self.glosses = []
+
+            def submit(self, gloss):
+                self.glosses.append(gloss)
+                return True
+
+        worker = PhraseWorker()
+        accepted = {"event": "sign", "text": "help", "accepted": True}
+        rejected = {"event": "sign", "text": "wrong", "accepted": False}
+        with patch.object(engine, "_phrase_worker", worker), patch.object(
+            engine, "send"
+        ) as send:
+            engine._handle_recognition_event(accepted)
+            engine._handle_recognition_event(rejected)
+
+        self.assertEqual(worker.glosses, ["help"])
+        self.assertEqual(
+            [call.args[0] for call in send.call_args_list],
+            [accepted, rejected],
+        )
+
+    def test_phrase_controls_queue_work_on_the_phrase_worker(self):
+        class PhraseWorker:
+            def __init__(self):
+                self.actions = []
+
+            def finalize(self):
+                self.actions.append("finalize")
+                return True
+
+            def clear(self):
+                self.actions.append("clear")
+                return True
+
+        worker = PhraseWorker()
+        with patch.object(engine, "_phrase_worker", worker):
+            finalized = engine.handle("finalize_phrase", {})
+            cleared = engine.handle("clear_phrase", {})
+
+        self.assertEqual(finalized, {"queued": True})
+        self.assertEqual(cleared, {"queued": True})
+        self.assertEqual(worker.actions, ["finalize", "clear"])
+
 
 if __name__ == "__main__":
     unittest.main()
