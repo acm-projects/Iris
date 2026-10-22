@@ -191,6 +191,23 @@ class MotionSegmenterTests(unittest.TestCase):
         self.assertIsNotNone(completed)
         self.assertEqual(len(completed), 8)
 
+    def test_flush_finishes_only_a_complete_active_segment(self):
+        segmenter = MotionSegmenter(
+            start_motion=0.005,
+            start_frames=1,
+            min_frames=4,
+            pre_roll=1,
+        )
+        moving = self.one_hand()
+        segmenter.observe(0, moving, self.shape)
+        for index in range(1, 5):
+            moving = self.move_hands(moving)
+            segmenter.observe(index * 100, moving, self.shape)
+        completed = segmenter.flush()
+        self.assertEqual(completed.state, "predicting")
+        self.assertEqual(len(completed.completed), 4)
+        self.assertEqual(segmenter.flush().state, "listening")
+
     def test_inference_guard_requires_enough_hand_visible_frames(self):
         hand = self.one_hand()
         body = self.body_only()

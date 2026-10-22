@@ -7,6 +7,7 @@ import threading
 import time
 from collections import deque
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable
 
 import numpy as np
@@ -16,6 +17,9 @@ RIGHT_HAND = slice(34, 55)
 MODEL_POINT_SHAPE = (55, 2)
 MIN_INFERENCE_HAND_FRAMES = 10
 MIN_INFERENCE_HAND_RATIO = 0.8
+DEFAULT_CALIBRATION_PATH = (
+    Path(__file__).resolve().parent / "calibration" / "asl100-camera-v1.json"
+)
 
 
 def has_detected_hand(points: np.ndarray) -> bool:
@@ -124,6 +128,13 @@ class MotionSegmenter:
         self._cooldown = 3
         return SegmentUpdate("predicting", completed)
 
+    def flush(self) -> SegmentUpdate:
+        """Finish a sufficiently long active segment at an input boundary."""
+        if self._active is not None and len(self._active) >= self.min_frames:
+            return self._finish()
+        self._reset_active()
+        return SegmentUpdate("listening")
+
     def observe(
         self,
         timestamp_ms: int,
@@ -189,8 +200,14 @@ class LiveSignRecognizer:
     SAMPLE_INTERVAL_MS = 100
     BOOTSTRAP_MIN_SCORE = 0.55
 
-    def __init__(self, emit: Callable[[dict], None]):
+    def __init__(
+        self,
+        emit: Callable[[dict], None],
+        *,
+        calibration_path: str | Path = DEFAULT_CALIBRATION_PATH,
+    ):
         self._emit = emit
+        self._calibration_path = Path(calibration_path)
         self._frames: queue.Queue[np.ndarray | None] = queue.Queue(maxsize=1)
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
@@ -245,10 +262,32 @@ class LiveSignRecognizer:
         try:
             # Imported here so engine health/TTS still work when sign extras are absent.
             from sign_inference import SignInference
-            from sign_confidence.sign_confidence import SignConfidence
+            from confidence_calibration import ConfidenceCalibration
 
             session = SignInference(device="cpu")
-            confidence = SignConfidence()
+            calibration = None
+            if self._calibration_path.is_file():
+                calibration = ConfidenceCalibration.load(self._calibration_path)
+                if calibration.preprocessing != session.preprocessing:
+                    raise ValueError(
+                        "confidence calibration preprocessing does not match the model"
+                    )
+                self._emit(
+                    {
+                        "event": "sign_calibration",
+                        "state": "ready",
+                        "dataset": calibration.dataset,
+                        "sourceSha256": calibration.source_sha256,
+                    }
+                )
+            else:
+                self._emit(
+                    {
+                        "event": "sign_calibration",
+                        "state": "missing",
+                        "path": str(self._calibration_path),
+                    }
+                )
             segmenter = MotionSegmenter()
             self._status("listening")
             while not self._stop.is_set():
@@ -279,23 +318,29 @@ class LiveSignRecognizer:
                     continue
                 result = session.predict_keypoints(update.completed)
                 top = result["predictions"][0]
-                evaluated = confidence.evaluate(top["gloss"], top["score"])
-                calibrated = bool(evaluated["calibrated"])
-                relative = evaluated["relative"]
-                accepted = (
-                    bool(evaluated["successful"])
-                    if calibrated
-                    else float(top["score"]) >= self.BOOTSTRAP_MIN_SCORE
+                raw_score = float(top["score"])
+                evaluated = (
+                    calibration.evaluate(top["gloss"], raw_score)
+                    if calibration is not None
+                    else {
+                        "accepted": raw_score >= self.BOOTSTRAP_MIN_SCORE,
+                        "threshold": self.BOOTSTRAP_MIN_SCORE,
+                        "thresholdSource": "bootstrap",
+                    }
                 )
+                calibrated = calibration is not None
+                accepted = bool(evaluated["accepted"])
                 self._emit(
                     {
                         "event": "sign",
                         "text": top["gloss"],
-                        "score": float(top["score"]),
-                        "confidence": float(relative if relative is not None else top["score"]),
+                        "score": raw_score,
+                        "confidence": raw_score,
                         "calibrated": calibrated,
                         "accepted": accepted,
                         "repeatNeeded": not accepted,
+                        "threshold": float(evaluated["threshold"]),
+                        "thresholdSource": evaluated["thresholdSource"],
                         "candidates": result["predictions"],
                         "latencyMs": int((time.monotonic_ns() // 1_000_000) - self._last_sample_ms),
                     }
