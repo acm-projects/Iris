@@ -62,6 +62,7 @@ class PhraseAssembler:
         self.idle_timeout_ms = int(idle_timeout_ms)
         self.duplicate_window_ms = int(duplicate_window_ms)
         self._glosses: list[str] = []
+        self._started_ms: int | None = None
         self._last_append_ms: int | None = None
 
     @property
@@ -82,6 +83,8 @@ class PhraseAssembler:
             and 0 <= timestamp_ms - self._last_append_ms <= self.duplicate_window_ms
         )
         if not duplicate:
+            if not self._glosses:
+                self._started_ms = timestamp_ms
             self._glosses.append(cleaned)
             self._last_append_ms = timestamp_ms
         return PhraseAppend(
@@ -100,17 +103,24 @@ class PhraseAssembler:
         remaining = self.remaining_ms(timestamp_ms)
         return remaining is not None and remaining <= 0
 
+    def age_ms(self, timestamp_ms: int) -> int | None:
+        if self._started_ms is None:
+            return None
+        return max(0, int(timestamp_ms) - self._started_ms)
+
     def finalize(self) -> tuple[str, ...] | None:
         if not self._glosses:
             return None
         glosses = self.glosses
         self._glosses.clear()
+        self._started_ms = None
         self._last_append_ms = None
         return glosses
 
     def clear(self) -> bool:
         had_phrase = bool(self._glosses)
         self._glosses.clear()
+        self._started_ms = None
         self._last_append_ms = None
         return had_phrase
 
@@ -265,6 +275,7 @@ class PhraseAssemblyWorker:
                 )
 
     def _finalize(self, reason: str) -> None:
+        assembly_latency_ms = self._assembler.age_ms(self._clock_ms())
         glosses = self._assembler.finalize()
         if not glosses:
             return
@@ -284,6 +295,7 @@ class PhraseAssemblyWorker:
             "text": result.text.strip(),
             "translated": bool(result.translated),
             "reason": reason,
+            "assemblyLatencyMs": assembly_latency_ms,
         }
         if translation_error:
             event["translationError"] = translation_error

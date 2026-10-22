@@ -111,6 +111,7 @@ class PhraseAssemblyWorkerTests(unittest.TestCase):
         self.assertEqual(finalized[0]["text"], "Want help.")
         self.assertEqual(finalized[0]["reason"], "manual")
         self.assertFalse(finalized[0]["translated"])
+        self.assertGreaterEqual(finalized[0]["assemblyLatencyMs"], 0)
 
     def test_idle_timeout_finalizes(self):
         events = []

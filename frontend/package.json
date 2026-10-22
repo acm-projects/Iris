@@ -107,7 +107,7 @@
       ],
       "extendInfo": {
         "NSCameraUsageDescription": "Iris uses your camera to show your preview and translate your signing during meetings.",
-        "NSMicrophoneUsageDescription": "Iris uses your microphone to check your audio and caption meetings."
+        "NSMicrophoneUsageDescription": "Iris uses audio-device access to route synthesized speech into meetings."
       }
     },
     "win": {

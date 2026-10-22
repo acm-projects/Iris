@@ -99,8 +99,17 @@ export type EngineEvent =
       calibrated: boolean;
       accepted: boolean;
       repeatNeeded: boolean;
+      threshold: number;
+      thresholdSource: "per-gloss" | "global" | "bootstrap";
       latencyMs: number;
       candidates: { gloss: string; score: number }[];
+    }
+  | {
+      event: "sign_calibration";
+      state: "ready" | "missing";
+      dataset?: string;
+      sourceSha256?: string;
+      path?: string;
     }
   | {
       event: "sign_status";
@@ -122,6 +131,7 @@ export type EngineEvent =
       text: string;
       translated: boolean;
       reason: "idle" | "manual";
+      assemblyLatencyMs: number;
       translationError?: string;
     }
   | {

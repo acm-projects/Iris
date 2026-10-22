@@ -140,7 +140,39 @@ def sign_model_status() -> dict:
         require_compatible(ASL100_AUDIT)
     except Exception as error:  # noqa: BLE001
         return {"ok": False, "status": "blocked", "error": str(error)}
-    return {"ok": True, "status": "ready", "model": "Pose-TGCN WLASL-100"}
+    calibration_path = (
+        SIGN_INFERENCE_ROOT / "calibration" / "asl100-camera-v1.json"
+    )
+    calibration_status: dict = {
+        "status": "missing",
+        "path": str(calibration_path),
+    }
+    if calibration_path.is_file():
+        try:
+            from confidence_calibration import ConfidenceCalibration
+
+            calibration = ConfidenceCalibration.load(calibration_path)
+            if calibration.preprocessing != ASL100_AUDIT.preprocessing:
+                raise ValueError(
+                    "confidence calibration preprocessing does not match the checkpoint"
+                )
+            calibration_status = {
+                "status": "ready",
+                "dataset": calibration.dataset,
+                "sourceSha256": calibration.source_sha256,
+            }
+        except Exception as error:  # noqa: BLE001
+            return {
+                "ok": False,
+                "status": "blocked",
+                "error": f"Invalid confidence calibration: {error}",
+            }
+    return {
+        "ok": True,
+        "status": "ready",
+        "model": "Pose-TGCN WLASL-100",
+        "confidenceCalibration": calibration_status,
+    }
 
 
 def start_sign_recognition() -> None:
@@ -206,6 +238,7 @@ class VirtualCameraStream:
     def __init__(self) -> None:
         self._latest = None  # newest RGB frame (numpy array)
         self._lock = threading.Lock()
+        self._lifecycle_lock = threading.Lock()
         self._thread: threading.Thread | None = None
         self._stop = threading.Event()
         self.device: str | None = None
@@ -220,38 +253,51 @@ class VirtualCameraStream:
         return self._thread is not None and self._thread.is_alive()
 
     def start(self, width: int, height: int, fps: int) -> dict:
-        if self.running:
+        with self._lifecycle_lock:
+            if self.running:
+                return {
+                    "device": self.device,
+                    "width": self.size[0],
+                    "height": self.size[1],
+                    "starting": self.device is None,
+                }
+            self.size = (int(width), int(height))
+            self.fps = max(5, min(int(fps), 30))
+            self._stop.clear()
+            self.last_error = None
+            self.device = None
+            # Opening the OBS backend can block inside native code for longer than
+            # Electron's request timeout. Delay it just enough for this request to
+            # reply; readiness or failure is delivered as a status event.
+            self._thread = threading.Timer(0.1, self._run)
+            self._thread.daemon = True
+            self._thread.start()
             return {
                 "device": self.device,
                 "width": self.size[0],
                 "height": self.size[1],
-                "starting": self.device is None,
+                "starting": True,
             }
-        self.size = (int(width), int(height))
-        self.fps = max(5, min(int(fps), 30))
-        self._stop.clear()
-        self.last_error = None
-        self.device = None
-        # Opening the OBS backend can block inside native code for longer than
-        # Electron's request timeout. Delay it just enough for this request to
-        # reply; readiness or failure is delivered as a status event.
-        self._thread = threading.Timer(0.1, self._run)
-        self._thread.daemon = True
-        self._thread.start()
-        return {
-            "device": self.device,
-            "width": self.size[0],
-            "height": self.size[1],
-            "starting": True,
-        }
 
-    def stop(self) -> None:
+    def stop(self) -> bool:
         self._stop.set()
-        if self._thread:
-            self._thread.join(timeout=3)
-        self._thread = None
-        self.device = None
+        thread = self._thread
+        if thread and thread is not threading.current_thread():
+            thread.join(timeout=3)
+        stopped = thread is None or not thread.is_alive()
+        if stopped:
+            with self._lifecycle_lock:
+                if self._thread is thread:
+                    self._thread = None
+                self.device = None
+        else:
+            self.last_error = (
+                "Virtual camera shutdown is still pending; a second camera "
+                "will not start until the native driver returns."
+            )
+            log(self.last_error)
         stop_sign_recognition()
+        return stopped
 
     def push_jpeg(self, data_b64: str) -> None:
         """Decode a JPEG from the app and keep it as the newest frame."""
@@ -318,6 +364,8 @@ class VirtualCameraStream:
         finally:
             with self._lock:
                 self._latest = None
+            with self._lifecycle_lock:
+                self.device = None
             stop_sign_recognition()
             send({"event": "status", "camera": "stopped"})
 
@@ -522,8 +570,7 @@ def handle(method: str, params: dict):
     if method == "start_virtual_camera":
         return camera.start(params.get("width", 1280), params.get("height", 720), params.get("fps", 24))
     if method == "stop_virtual_camera":
-        camera.stop()
-        return {"stopped": True}
+        return {"stopped": camera.stop()}
     if method == "finalize_phrase":
         return finalize_phrase()
     if method == "clear_phrase":
@@ -532,8 +579,17 @@ def handle(method: str, params: dict):
         text = str(params.get("text", "")).strip()[:500]
         if not text:
             raise ValueError("Nothing to say.")
+        started = time.perf_counter_ns()
         audio, rate = synthesize_speech(text)
-        return play(audio, rate, params.get("device"))
+        synthesized = time.perf_counter_ns()
+        result = play(audio, rate, params.get("device"))
+        finished = time.perf_counter_ns()
+        return {
+            **result,
+            "synthesisMs": int((synthesized - started) / 1_000_000),
+            "playbackMs": int((finished - synthesized) / 1_000_000),
+            "totalLatencyMs": int((finished - started) / 1_000_000),
+        }
     if method == "test_tone":
         audio, rate = test_tone()
         return play(audio, rate, params.get("device"))
