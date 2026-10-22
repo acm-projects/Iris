@@ -32,6 +32,19 @@ a compatibility adapter; the checkpoint was not trained directly on MediaPipe
 detections, so real-camera accuracy must still be measured and reported
 separately.
 
+## Camera calibration status
+
+Checkpoint compatibility is not confidence calibration. Live thresholds are
+fitted only from labelled camera outcomes using `camera_evaluation.py` and
+stored in the versioned `calibration/asl100-camera-v1.json` artifact. The
+runtime validates that artifact's preprocessing contract before recognition.
+
+As of 2026-10-21, the repository contains no labelled camera dataset and no
+production calibration artifact. The recognizer therefore reports
+calibration as missing and uses its documented bootstrap cutoff. It does not
+learn ranges from unlabelled session predictions. See
+`../BACKEND_RUNTIME.md` for the evaluation command and current test results.
+
 ## Regression lock
 
 `test_fixtures/static_keypoints.json` contains a deterministic 50-frame

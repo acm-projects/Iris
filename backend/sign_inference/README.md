@@ -81,6 +81,22 @@ Record the complete sign between `R` and `S` with the upper body and both hands
 visible. The model receives unmirrored RGB frames; only the preview is mirrored.
 Scores are raw softmax model scores, not calibrated probabilities.
 
+## Live confidence calibration
+
+Live acceptance thresholds must come from labelled camera clips. Iris no
+longer learns confidence ranges from its own unlabelled predictions. Use
+`camera_evaluation.py` to run a versioned clip manifest through the same
+sampling, segmentation, and inference path used by the desktop app, then
+place the generated artifact at:
+
+```text
+backend/sign_inference/calibration/asl100-camera-v1.json
+```
+
+Without that artifact, live recognition reports calibration as missing and
+uses an explicit bootstrap cutoff. See `../BACKEND_RUNTIME.md` for the
+manifest format, command, runtime architecture, and current measured status.
+
 ## Test
 
 Windows:
