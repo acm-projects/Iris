@@ -327,5 +327,334 @@
         "split": "train"
       }
     ]
+  },
+  {
+    "gloss": "try",
+    "instances": [
+      {
+        "video_id": "try_both_001",
+        "signer": "both",
+        "frame_start": 1,
+        "frame_end": 26,
+        "split": "train"
+      },
+      {
+        "video_id": "try_both_002",
+        "signer": "both",
+        "frame_start": 1,
+        "frame_end": 29,
+        "split": "train"
+      },
+      {
+        "video_id": "try_both_003",
+        "signer": "both",
+        "frame_start": 1,
+        "frame_end": 30,
+        "split": "train"
+      },
+      {
+        "video_id": "try_both_004",
+        "signer": "both",
+        "frame_start": 1,
+        "frame_end": 29,
+        "split": "train"
+      },
+      {
+        "video_id": "try_both_005",
+        "signer": "both",
+        "frame_start": 1,
+        "frame_end": 34,
+        "split": "train"
+      },
+      {
+        "video_id": "try_both_006",
+        "signer": "both",
+        "frame_start": 1,
+        "frame_end": 27,
+        "split": "train"
+      }
+    ]
+  },
+  {
+    "gloss": "week",
+    "instances": [
+      {
+        "video_id": "week_left_001",
+        "signer": "left",
+        "frame_start": 1,
+        "frame_end": 39,
+        "split": "train"
+      },
+      {
+        "video_id": "week_left_002",
+        "signer": "left",
+        "frame_start": 1,
+        "frame_end": 40,
+        "split": "train"
+      },
+      {
+        "video_id": "week_left_003",
+        "signer": "left",
+        "frame_start": 1,
+        "frame_end": 37,
+        "split": "train"
+      },
+      {
+        "video_id": "week_right_001",
+        "signer": "right",
+        "frame_start": 1,
+        "frame_end": 39,
+        "split": "train"
+      },
+      {
+        "video_id": "week_right_002",
+        "signer": "right",
+        "frame_start": 1,
+        "frame_end": 40,
+        "split": "train"
+      },
+      {
+        "video_id": "week_right_003",
+        "signer": "right",
+        "frame_start": 1,
+        "frame_end": 40,
+        "split": "train"
+      }
+    ]
+  },
+  {
+    "gloss": "help",
+    "instances": [
+      {
+        "video_id": "help_right_001",
+        "signer": "right",
+        "frame_start": 1,
+        "frame_end": 38,
+        "split": "train"
+      },
+      {
+        "video_id": "help_right_002",
+        "signer": "right",
+        "frame_start": 1,
+        "frame_end": 45,
+        "split": "train"
+      },
+      {
+        "video_id": "help_right_003",
+        "signer": "right",
+        "frame_start": 1,
+        "frame_end": 44,
+        "split": "train"
+      },
+      {
+        "video_id": "help_left_001",
+        "signer": "left",
+        "frame_start": 1,
+        "frame_end": 37,
+        "split": "train"
+      },
+      {
+        "video_id": "help_left_002",
+        "signer": "left",
+        "frame_start": 1,
+        "frame_end": 42,
+        "split": "train"
+      },
+      {
+        "video_id": "help_left_003",
+        "signer": "left",
+        "frame_start": 1,
+        "frame_end": 39,
+        "split": "train"
+      }
+    ]
+  },
+  {
+    "gloss": "project",
+    "instances": [
+      {
+        "video_id": "project_right_001",
+        "signer": "right",
+        "frame_start": 1,
+        "frame_end": 40,
+        "split": "train"
+      },
+      {
+        "video_id": "project_right_002",
+        "signer": "right",
+        "frame_start": 1,
+        "frame_end": 51,
+        "split": "train"
+      },
+      {
+        "video_id": "project_right_003",
+        "signer": "right",
+        "frame_start": 1,
+        "frame_end": 40,
+        "split": "train"
+      },
+      {
+        "video_id": "project_left_001",
+        "signer": "left",
+        "frame_start": 1,
+        "frame_end": 43,
+        "split": "train"
+      },
+      {
+        "video_id": "project_left_002",
+        "signer": "left",
+        "frame_start": 1,
+        "frame_end": 43,
+        "split": "train"
+      },
+      {
+        "video_id": "project_left_003",
+        "signer": "left",
+        "frame_start": 1,
+        "frame_end": 40,
+        "split": "train"
+      }
+    ]
+  },
+  {
+    "gloss": "phone",
+    "instances": [
+      {
+        "video_id": "phone_right_001",
+        "signer": "right",
+        "frame_start": 1,
+        "frame_end": 25,
+        "split": "train"
+      },
+      {
+        "video_id": "phone_right_002",
+        "signer": "right",
+        "frame_start": 1,
+        "frame_end": 40,
+        "split": "train"
+      },
+      {
+        "video_id": "phone_right_003",
+        "signer": "right",
+        "frame_start": 1,
+        "frame_end": 39,
+        "split": "train"
+      },
+      {
+        "video_id": "phone_left_001",
+        "signer": "left",
+        "frame_start": 1,
+        "frame_end": 39,
+        "split": "train"
+      },
+      {
+        "video_id": "phone_left_002",
+        "signer": "left",
+        "frame_start": 1,
+        "frame_end": 36,
+        "split": "train"
+      },
+      {
+        "video_id": "phone_left_003",
+        "signer": "left",
+        "frame_start": 1,
+        "frame_end": 35,
+        "split": "train"
+      }
+    ]
+  },
+  {
+    "gloss": "time",
+    "instances": [
+      {
+        "video_id": "time_right_001",
+        "signer": "right",
+        "frame_start": 1,
+        "frame_end": 41,
+        "split": "train"
+      },
+      {
+        "video_id": "time_right_002",
+        "signer": "right",
+        "frame_start": 1,
+        "frame_end": 43,
+        "split": "train"
+      },
+      {
+        "video_id": "time_right_003",
+        "signer": "right",
+        "frame_start": 1,
+        "frame_end": 42,
+        "split": "train"
+      },
+      {
+        "video_id": "time_left_001",
+        "signer": "left",
+        "frame_start": 1,
+        "frame_end": 40,
+        "split": "train"
+      },
+      {
+        "video_id": "time_left_002",
+        "signer": "left",
+        "frame_start": 1,
+        "frame_end": 43,
+        "split": "train"
+      },
+      {
+        "video_id": "time_left_003",
+        "signer": "left",
+        "frame_start": 1,
+        "frame_end": 42,
+        "split": "train"
+      }
+    ]
+  },
+  {
+    "gloss": "agree",
+    "instances": [
+      {
+        "video_id": "agree_right_001",
+        "signer": "right",
+        "frame_start": 1,
+        "frame_end": 40,
+        "split": "train"
+      },
+      {
+        "video_id": "agree_right_002",
+        "signer": "right",
+        "frame_start": 1,
+        "frame_end": 38,
+        "split": "train"
+      },
+      {
+        "video_id": "agree_right_003",
+        "signer": "right",
+        "frame_start": 1,
+        "frame_end": 42,
+        "split": "train"
+      },
+      {
+        "video_id": "agree_left_001",
+        "signer": "left",
+        "frame_start": 1,
+        "frame_end": 37,
+        "split": "train"
+      },
+      {
+        "video_id": "agree_left_002",
+        "signer": "left",
+        "frame_start": 1,
+        "frame_end": 36,
+        "split": "train"
+      },
+      {
+        "video_id": "agree_left_003",
+        "signer": "left",
+        "frame_start": 1,
+        "frame_end": 36,
+        "split": "train"
+      }
+    ]
   }
 ]
