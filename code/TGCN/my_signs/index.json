@@ -45,5 +45,52 @@
         "split": "train"
       }
     ]
+  },
+  {
+    "gloss": "problem",
+    "instances": [
+      {
+        "video_id": "problem_safa-right_001",
+        "signer": "safa-right",
+        "frame_start": 1,
+        "frame_end": 42,
+        "split": "train"
+      },
+      {
+        "video_id": "problem_safa-right_002",
+        "signer": "safa-right",
+        "frame_start": 1,
+        "frame_end": 49,
+        "split": "train"
+      },
+      {
+        "video_id": "problem_safa-right_003",
+        "signer": "safa-right",
+        "frame_start": 1,
+        "frame_end": 46,
+        "split": "train"
+      },
+      {
+        "video_id": "problem_safa-left_001",
+        "signer": "safa-left",
+        "frame_start": 1,
+        "frame_end": 47,
+        "split": "train"
+      },
+      {
+        "video_id": "problem_safa-left_002",
+        "signer": "safa-left",
+        "frame_start": 1,
+        "frame_end": 43,
+        "split": "train"
+      },
+      {
+        "video_id": "problem_safa-left_003",
+        "signer": "safa-left",
+        "frame_start": 1,
+        "frame_end": 49,
+        "split": "train"
+      }
+    ]
   }
 ]
