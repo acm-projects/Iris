@@ -233,5 +233,52 @@
         "split": "train"
       }
     ]
+  },
+  {
+    "gloss": "share",
+    "instances": [
+      {
+        "video_id": "share_left_001",
+        "signer": "left",
+        "frame_start": 1,
+        "frame_end": 44,
+        "split": "train"
+      },
+      {
+        "video_id": "share_left_002",
+        "signer": "left",
+        "frame_start": 1,
+        "frame_end": 40,
+        "split": "train"
+      },
+      {
+        "video_id": "share_left_003",
+        "signer": "left",
+        "frame_start": 1,
+        "frame_end": 39,
+        "split": "train"
+      },
+      {
+        "video_id": "share_right_001",
+        "signer": "right",
+        "frame_start": 1,
+        "frame_end": 37,
+        "split": "train"
+      },
+      {
+        "video_id": "share_right_002",
+        "signer": "right",
+        "frame_start": 1,
+        "frame_end": 40,
+        "split": "train"
+      },
+      {
+        "video_id": "share_right_003",
+        "signer": "right",
+        "frame_start": 1,
+        "frame_end": 42,
+        "split": "train"
+      }
+    ]
   }
 ]
