@@ -1,0 +1,49 @@
+[
+  {
+    "gloss": "camera",
+    "instances": [
+      {
+        "video_id": "camera_safa-right_001",
+        "signer": "safa-right",
+        "frame_start": 1,
+        "frame_end": 50,
+        "split": "train"
+      },
+      {
+        "video_id": "camera_safa-right_002",
+        "signer": "safa-right",
+        "frame_start": 1,
+        "frame_end": 50,
+        "split": "train"
+      },
+      {
+        "video_id": "camera_safa-right_003",
+        "signer": "safa-right",
+        "frame_start": 1,
+        "frame_end": 47,
+        "split": "train"
+      },
+      {
+        "video_id": "camera_safa-left_001",
+        "signer": "safa-left",
+        "frame_start": 1,
+        "frame_end": 39,
+        "split": "train"
+      },
+      {
+        "video_id": "camera_safa-left_002",
+        "signer": "safa-left",
+        "frame_start": 1,
+        "frame_end": 48,
+        "split": "train"
+      },
+      {
+        "video_id": "camera_safa-left_003",
+        "signer": "safa-left",
+        "frame_start": 1,
+        "frame_end": 49,
+        "split": "train"
+      }
+    ]
+  }
+]
