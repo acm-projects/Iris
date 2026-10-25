@@ -186,5 +186,52 @@
         "split": "train"
       }
     ]
+  },
+  {
+    "gloss": "meet",
+    "instances": [
+      {
+        "video_id": "meet_both_001",
+        "signer": "both",
+        "frame_start": 1,
+        "frame_end": 37,
+        "split": "train"
+      },
+      {
+        "video_id": "meet_both_002",
+        "signer": "both",
+        "frame_start": 1,
+        "frame_end": 44,
+        "split": "train"
+      },
+      {
+        "video_id": "meet_both_003",
+        "signer": "both",
+        "frame_start": 1,
+        "frame_end": 39,
+        "split": "train"
+      },
+      {
+        "video_id": "meet_both_004",
+        "signer": "both",
+        "frame_start": 1,
+        "frame_end": 34,
+        "split": "train"
+      },
+      {
+        "video_id": "meet_both_005",
+        "signer": "both",
+        "frame_start": 1,
+        "frame_end": 37,
+        "split": "train"
+      },
+      {
+        "video_id": "meet_both_006",
+        "signer": "both",
+        "frame_start": 1,
+        "frame_end": 39,
+        "split": "train"
+      }
+    ]
   }
 ]
