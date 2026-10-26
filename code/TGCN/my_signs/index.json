@@ -3,43 +3,43 @@
     "gloss": "camera",
     "instances": [
       {
-        "video_id": "camera_safa-right_001",
-        "signer": "safa-right",
+        "video_id": "camera_right_001",
+        "signer": "right",
         "frame_start": 1,
         "frame_end": 50,
         "split": "train"
       },
       {
-        "video_id": "camera_safa-right_002",
-        "signer": "safa-right",
+        "video_id": "camera_right_002",
+        "signer": "right",
         "frame_start": 1,
         "frame_end": 50,
         "split": "train"
       },
       {
-        "video_id": "camera_safa-right_003",
-        "signer": "safa-right",
+        "video_id": "camera_right_003",
+        "signer": "right",
         "frame_start": 1,
         "frame_end": 47,
         "split": "train"
       },
       {
-        "video_id": "camera_safa-left_001",
-        "signer": "safa-left",
+        "video_id": "camera_left_001",
+        "signer": "left",
         "frame_start": 1,
         "frame_end": 39,
         "split": "train"
       },
       {
-        "video_id": "camera_safa-left_002",
-        "signer": "safa-left",
+        "video_id": "camera_left_002",
+        "signer": "left",
         "frame_start": 1,
         "frame_end": 48,
         "split": "train"
       },
       {
-        "video_id": "camera_safa-left_003",
-        "signer": "safa-left",
+        "video_id": "camera_left_003",
+        "signer": "left",
         "frame_start": 1,
         "frame_end": 49,
         "split": "train"
@@ -50,43 +50,43 @@
     "gloss": "problem",
     "instances": [
       {
-        "video_id": "problem_safa-right_001",
-        "signer": "safa-right",
+        "video_id": "problem_right_001",
+        "signer": "right",
         "frame_start": 1,
         "frame_end": 42,
         "split": "train"
       },
       {
-        "video_id": "problem_safa-right_002",
-        "signer": "safa-right",
+        "video_id": "problem_right_002",
+        "signer": "right",
         "frame_start": 1,
         "frame_end": 49,
         "split": "train"
       },
       {
-        "video_id": "problem_safa-right_003",
-        "signer": "safa-right",
+        "video_id": "problem_right_003",
+        "signer": "right",
         "frame_start": 1,
         "frame_end": 46,
         "split": "train"
       },
       {
-        "video_id": "problem_safa-left_001",
-        "signer": "safa-left",
+        "video_id": "problem_left_001",
+        "signer": "left",
         "frame_start": 1,
         "frame_end": 47,
         "split": "train"
       },
       {
-        "video_id": "problem_safa-left_002",
-        "signer": "safa-left",
+        "video_id": "problem_left_002",
+        "signer": "left",
         "frame_start": 1,
         "frame_end": 43,
         "split": "train"
       },
       {
-        "video_id": "problem_safa-left_003",
-        "signer": "safa-left",
+        "video_id": "problem_left_003",
+        "signer": "left",
         "frame_start": 1,
         "frame_end": 49,
         "split": "train"
