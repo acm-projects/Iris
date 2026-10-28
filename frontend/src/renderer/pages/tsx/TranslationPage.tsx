@@ -368,14 +368,12 @@ export default function TranslationPage() {
     void runEngineCheck();
   }, [runEngineCheck]);
 
-  /** Speaks text into the meeting through the virtual microphone. */
+  /** Speaks text into the meeting through the virtual microphone, with
+   *  Google's voice via the FastAPI server (server/api.py: /tts, /microphone). */
   const speak = useCallback(
     async (text: string) => {
-      const label = devicesRef.current.outputs.find(
-        (d) => d.deviceId === settingsRef.current.virtualMicId,
-      )?.label;
       showCaption(text);
-      await window.iris.engine.request("speak", { text, device: label });
+      await window.iris.tts.speak(text);
     },
     [showCaption],
   );

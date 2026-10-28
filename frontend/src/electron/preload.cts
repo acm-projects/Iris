@@ -60,6 +60,10 @@ contextBridge.exposeInMainWorld("iris", {
       ipcRenderer.invoke("iris:meetings:open-external", url),
   },
 
+  tts: {
+    speak: (text: string) => ipcRenderer.invoke("iris:tts:speak", text),
+  },
+
   // Type to speak pop-out.
   popout: {
     // Pop-out → main process.

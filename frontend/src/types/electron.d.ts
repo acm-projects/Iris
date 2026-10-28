@@ -51,6 +51,11 @@ interface Window {
     meetings: {
       openExternal(url: string): Promise<void>;
     };
+    /** Google text-to-speech into the virtual microphone, via the FastAPI
+     *  server (server/api.py). Resolves once the audio has finished playing. */
+    tts: {
+      speak(text: string): Promise<void>;
+    };
     /** Google Calendar actions; each takes the user's Google access token. */
     google: {
       /** Creates a calendar event with a new Google Meet link. */
