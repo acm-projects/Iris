@@ -1,14 +1,15 @@
 // Sidebar shown on every signed-in page.
 import type { ChangeEvent } from "react";
 import { asset } from "../utils/assets";
+import IrisLogo from "./IrisLogo";
 // Pages in the order they appear. Each name maps to an icon in
 // assets/sidebar-icons/<name>.svg (and <name>-active.svg when selected).
 const nav = ["Home", "Calendar", "Translation", "Settings"];
 
 /**
- * Left navigation: page links, and the profile (photo, name, email) at the
- * bottom. Signing out and changing
- * the photo live in Settings; clicking the profile opens it.
+ * Left navigation: logo, page links, and the profile (photo, name, email) at
+ * the bottom. Signing out and changing the photo live in Settings; clicking
+ * the profile opens it.
  */
 export default function Sidebar({
   active,
@@ -30,7 +31,7 @@ export default function Sidebar({
   return (
     <aside className="sidebar">
       <a className="wordmark" href="#home">
-        <img src={asset("iris-mark.png")} alt="" />
+        <IrisLogo />
         <span>Iris</span>
       </a>
       {/* Page links; the active page gets the gold icon and highlight */}

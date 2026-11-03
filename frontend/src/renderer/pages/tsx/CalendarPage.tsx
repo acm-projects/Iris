@@ -13,6 +13,7 @@ import {
   type EventColorKey,
 } from "../../utils/colors";
 import { friendlyError } from "../../utils/errors";
+import { readLocal, saveLocal } from "../../utils/storage";
 import "../css/calendar-page.css";
 import { useAutoDismiss } from "../../utils/useAutoDismiss";
 
@@ -22,6 +23,28 @@ import { useAutoDismiss } from "../../utils/useAutoDismiss";
 
 /** Which calendar layout is showing. */
 type View = "month" | "week" | "day";
+const VIEWS: View[] = ["month", "week", "day"];
+// The chosen view is remembered across restarts.
+const viewKey = "iris-calendar-view";
+/** The view saved from last time (Month, Week or Day), or Week if none is saved. */
+const savedView = (): View => {
+  const saved = readLocal(viewKey);
+  // First launch opens on the current week.
+  return VIEWS.find((option) => option === saved) ?? "week";
+};
+// Which calendars are shown (the checkboxes under the toolbar), remembered
+// across restarts. Both are on by default.
+type Shown = { iris: boolean; google: boolean };
+const shownKey = "iris-calendar-shown";
+/** The saved checkbox choices, or both calendars shown if none are saved. */
+const savedShown = (): Shown => {
+  try {
+    const saved = JSON.parse(readLocal(shownKey) ?? "{}") as Partial<Shown>;
+    return { iris: saved.iris !== false, google: saved.google !== false };
+  } catch {
+    return { iris: true, google: true };
+  }
+};
 /** One event as the calendar draws it, whether it came from Iris or Google. */
 type CalendarItem = {
   id: string;
@@ -69,8 +92,8 @@ type Props = {
 
 // Pixel height of one hour in Week/Day view (must match the grid lines in CSS).
 const HOUR_HEIGHT = 52;
-// Events shown per day in Month view before "N more".
-const MONTH_CHIP_LIMIT = 3;
+// Event dots shown per day in Month view (one tidy row) before "+N".
+const MONTH_DOT_LIMIT = 4;
 // How often Google Calendar is re-fetched while the page is open.
 const SYNC_INTERVAL_MS = 60_000;
 
@@ -80,9 +103,8 @@ const startOfDay = (d: Date) =>
 /** `d` moved by a number of whole days (DST-safe). */
 const addDays = (d: Date, days: number) =>
   new Date(d.getFullYear(), d.getMonth(), d.getDate() + days);
-// Weeks start on Monday, matching the dashboard.
-const startOfWeek = (d: Date) =>
-  addDays(startOfDay(d), -((d.getDay() + 6) % 7));
+// Weeks start on Sunday (Sun, Mon, … Sat).
+const startOfWeek = (d: Date) => addDays(startOfDay(d), -d.getDay());
 const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString();
 /** Locale-aware date formatting shortcut. */
 const format = (date: Date, options: Intl.DateTimeFormatOptions) =>
@@ -120,7 +142,7 @@ function visibleRange(view: View, cursor: Date) {
     cursor.getMonth() + 1,
     0,
   ).getDate();
-  const weeks = Math.ceil((((first.getDay() + 6) % 7) + daysInMonth) / 7);
+  const weeks = Math.ceil((first.getDay() + daysInMonth) / 7);
   return { start, end: addDays(start, weeks * 7), weeks };
 }
 
@@ -201,7 +223,6 @@ function layoutDay(items: CalendarItem[], day: Date): Block[] {
   return blocks;
 }
 
-/** Notion-style calendar showing Iris meetings and the user's Google Calendar. */
 // ---------------------------------------------------------------------------
 // Calendar page
 // ---------------------------------------------------------------------------
@@ -209,8 +230,30 @@ function layoutDay(items: CalendarItem[], day: Date): Block[] {
 /** Notion-style calendar showing Iris meetings and the user's Google Calendar. */
 export default function CalendarPage(p: Props) {
   // Current view and the date it is centred on.
-  const [view, setView] = useState<View>("month");
+  const [view, setViewState] = useState<View>(savedView);
   const [cursor, setCursor] = useState(() => startOfDay(new Date()));
+  // Bumped by the T shortcut so the Week/Day grid scrolls back to the current time.
+  const [todayTick, setTodayTick] = useState(0);
+  /** Switches Month / Week / Day and remembers the choice for next time. */
+  const setView = (next: View) => {
+    setViewState(next);
+    saveLocal(viewKey, next);
+  };
+  /** Jumps back to today (the T shortcut and Today button) and clears the selection. */
+  const goToday = () => {
+    setCursor(startOfDay(new Date()));
+    setTodayTick((tick) => tick + 1);
+    setSelected(null);
+  };
+  // Which calendars are shown: Iris meetings and/or the rest of Google Calendar.
+  const [shown, setShownState] = useState<Shown>(savedShown);
+  /** Shows or hides one calendar and remembers the choice for next time. */
+  const toggleShown = (calendar: keyof Shown) =>
+    setShownState((current) => {
+      const next = { ...current, [calendar]: !current[calendar] };
+      saveLocal(shownKey, JSON.stringify(next));
+      return next;
+    });
   // Google Calendar sync state.
   const [googleEvents, setGoogleEvents] = useState<GoogleEvent[]>([]);
   const [syncing, setSyncing] = useState(false);
@@ -357,6 +400,14 @@ export default function CalendarPage(p: Props) {
     return [...google, ...iris];
   }, [googleEvents, p.meetings, colorOverrides, timeOverrides]);
 
+  // Only the calendars whose checkbox is ticked. Iris meetings that are also
+  // on Google Calendar count as Iris meetings (source "iris"), so they follow
+  // the Iris checkbox and never show twice.
+  const visibleItems = useMemo(
+    () => items.filter((item) => shown[item.source]),
+    [items, shown],
+  );
+
   /**
    * Saves a new start/end after an event's edge was dragged. The new time is
    * shown right away; it snaps back (with a message) if a Google-only save fails.
@@ -440,7 +491,7 @@ export default function CalendarPage(p: Props) {
         return;
       const key = event.key.toLowerCase();
       if (key === "escape") setSelected(null);
-      else if (key === "t") setCursor(startOfDay(new Date()));
+      else if (key === "t") goToday();
       else if (key === "m") setView("month");
       else if (key === "w") setView("week");
       else if (key === "d") setView("day");
@@ -468,110 +519,115 @@ export default function CalendarPage(p: Props) {
 
   return (
     <section className="calendar-page" onClick={() => setSelected(null)}>
-      {/* Toolbar: title, sync status, Today, ‹ ›, view switch, + New */}
-      <header className="cal-toolbar">
-        <div className="cal-heading">
-          <p>Calendar</p>
-          <h1>{title}</h1>
-        </div>
-        <div className="cal-controls">
-          <SyncStatus
-            connected={p.googleConnected}
-            connecting={p.googleConnecting}
-            error={syncError}
-            onConnect={p.onConnectGoogle}
-            onRefresh={refresh}
-            syncedAt={syncedAt}
-            syncing={syncing}
-          />
-          <button
-            className="cal-button"
-            onClick={() => setCursor(startOfDay(new Date()))}
-            title="Today (T)"
-            type="button"
-          >
-            Today
-          </button>
-          <div className="cal-nav">
-            <button
-              aria-label="Previous"
-              onClick={() => go(-1)}
-              title="Previous (←)"
-              type="button"
-            >
-              ‹
-            </button>
-            <button
-              aria-label="Next"
-              onClick={() => go(1)}
-              title="Next (→)"
-              type="button"
-            >
-              ›
-            </button>
-          </div>
-          <div className="cal-views" role="tablist" aria-label="Calendar view">
-            {(["month", "week", "day"] as const).map((option) => (
+      <div className="cal-shell">
+        {/* Toolbar: title, sync, ‹ ›, view menu, + New */}
+        <header className="cal-toolbar">
+          <h1>
+            {view === "month" ? (
+              <>
+                {format(cursor, { month: "long" })}
+                <span>{format(cursor, { year: "numeric" })}</span>
+              </>
+            ) : (
+              title
+            )}
+          </h1>
+          <div className="cal-controls">
+            <SyncStatus
+              connected={p.googleConnected}
+              connecting={p.googleConnecting}
+              error={syncError}
+              onConnect={p.onConnectGoogle}
+              onRefresh={refresh}
+              syncedAt={syncedAt}
+              syncing={syncing}
+            />
+            <div className="cal-nav">
               <button
-                aria-selected={view === option}
-                className={view === option ? "active" : ""}
-                key={option}
-                onClick={() => setView(option)}
-                role="tab"
-                title={`${option[0].toUpperCase()}${option.slice(1)} (${option[0].toUpperCase()})`}
+                aria-label="Previous"
+                onClick={() => go(-1)}
+                title="Previous (←)"
                 type="button"
               >
-                {option[0].toUpperCase() + option.slice(1)}
+                <Chevron direction="left" />
               </button>
-            ))}
+              <button
+                aria-label="Next"
+                onClick={() => go(1)}
+                title="Next (→)"
+                type="button"
+              >
+                <Chevron direction="right" />
+              </button>
+            </div>
+            <ViewMenu onChange={setView} value={view} />
+            <button
+              className="cal-new"
+              onClick={() => {
+                const start = new Date(p.now);
+                start.setMinutes(start.getMinutes() < 30 ? 30 : 60, 0, 0);
+                p.onCreateAt(
+                  view === "month" || sameDay(cursor, p.now)
+                    ? start
+                    : new Date(
+                        cursor.getFullYear(),
+                        cursor.getMonth(),
+                        cursor.getDate(),
+                        9,
+                      ),
+                );
+              }}
+              type="button"
+            >
+              <span aria-hidden="true">+</span> New
+            </button>
           </div>
-          <button
-            className="cal-new"
-            onClick={() => {
-              const start = new Date(p.now);
-              start.setMinutes(start.getMinutes() < 30 ? 30 : 60, 0, 0);
-              p.onCreateAt(
-                view === "month" || sameDay(cursor, p.now)
-                  ? start
-                  : new Date(
-                      cursor.getFullYear(),
-                      cursor.getMonth(),
-                      cursor.getDate(),
-                      9,
-                    ),
-              );
-            }}
-            type="button"
-          >
-            ＋ New
-          </button>
-        </div>
-      </header>
+        </header>
 
-      {/* The grid for the current view */}
-      {view === "month" ? (
-        <MonthView
-          cursor={cursor}
-          items={items}
-          now={p.now}
-          onCreateAt={p.onCreateAt}
-          onOpenDay={openDay}
-          onSelect={select}
-          range={range}
-        />
-      ) : (
-        <TimeGrid
-          days={Array.from({ length: view === "week" ? 7 : 1 }, (_, i) =>
-            addDays(range.start, i),
+        {/* Which calendars to show, like Google Calendar's "My calendars" list */}
+        <div aria-label="Calendars" className="cal-filters" role="group">
+          <CalendarToggle
+            checked={shown.iris}
+            kind="iris"
+            label="Iris meetings"
+            onChange={() => toggleShown("iris")}
+          />
+          {p.googleConnected && (
+            <CalendarToggle
+              checked={shown.google}
+              kind="google"
+              label="Google Calendar"
+              onChange={() => toggleShown("google")}
+            />
           )}
-          items={items}
-          now={p.now}
-          onCreateAt={p.onCreateAt}
-          onOpenDay={openDay}
-          onResize={(item, start, end) => void changeTime(item, start, end)}
-          onSelect={select}
-        />
-      )}
+        </div>
+
+        {/* The grid for the current view */}
+        {view === "month" ? (
+          <MonthView
+            cursor={cursor}
+            items={visibleItems}
+            now={p.now}
+            onCreateAt={p.onCreateAt}
+            onOpenDay={openDay}
+            onSelect={select}
+            range={range}
+          />
+        ) : (
+          <TimeGrid
+            days={Array.from({ length: view === "week" ? 7 : 1 }, (_, i) =>
+              addDays(range.start, i),
+            )}
+            items={visibleItems}
+            now={p.now}
+            onCreateAt={p.onCreateAt}
+            onOpenDay={openDay}
+            onResize={(item, start, end) => void changeTime(item, start, end)}
+            onSelect={select}
+            scrollTick={todayTick}
+          />
+        )}
+      </div>
       {timeError && (
         <p className="cal-error" role="alert" {...timeErrorTimer}>
           {timeError}
@@ -612,7 +668,33 @@ function weekTitle(start: Date, end: Date) {
   return `${format(start, { month: "short", day: "numeric" })} – ${format(end, { month: "short", day: "numeric", year: "numeric" })}`;
 }
 
-/** Google Calendar status in the toolbar: Connect button, or synced time + refresh. */
+/** One calendar's show / hide checkbox: a coloured square plus its name. */
+function CalendarToggle({
+  checked,
+  kind,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  kind: "iris" | "google";
+  label: string;
+  onChange: () => void;
+}) {
+  return (
+    <label className={`cal-filter ${kind}`}>
+      <input checked={checked} onChange={onChange} type="checkbox" />
+      {/* The visible box; the real checkbox stays for keyboard and screen readers */}
+      <span aria-hidden="true" className="cal-filter-box">
+        <svg viewBox="0 0 12 12">
+          <path d="M2.5 6.2 5 8.6 9.6 3.6" />
+        </svg>
+      </span>
+      {label}
+    </label>
+  );
+}
+
+/** Google Calendar in the toolbar: a Connect button, or a refresh icon button. */
 function SyncStatus({
   connected,
   connecting,
@@ -642,27 +724,141 @@ function SyncStatus({
         {connecting ? "Finish in your browser…" : "Connect Google Calendar"}
       </button>
     );
+  // The last sync time lives in the tooltip instead of taking up toolbar space.
+  const label = error
+    ? `Sync failed: ${error}`
+    : syncing
+      ? "Syncing Google Calendar…"
+      : syncedAt
+        ? `Synced ${clock(syncedAt)}. Click to refresh`
+        : "Refresh Google Calendar";
   return (
-    <div className={`cal-sync ${error ? "error" : ""}`} title={error}>
-      <span className="cal-sync-dot" />
-      <span>
-        {error
-          ? "Sync failed"
-          : syncing && !syncedAt
-            ? "Syncing…"
-            : syncedAt
-              ? `Synced ${clock(syncedAt)}`
-              : "Google Calendar"}
-      </span>
+    <button
+      aria-label="Refresh Google Calendar"
+      className={`cal-sync ${error ? "error" : ""} ${syncing ? "spinning" : ""}`}
+      onClick={onRefresh}
+      title={label}
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        fill="none"
+        height="16"
+        viewBox="0 0 24 24"
+        width="16"
+      >
+        <path
+          d="M20 12a8 8 0 1 1-2.6-5.9M20 4v5h-5"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2"
+        />
+      </svg>
+    </button>
+  );
+}
+
+/** Small ‹ / › arrow for the previous and next buttons. */
+function Chevron({ direction }: { direction: "left" | "right" }) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="16"
+      viewBox="0 0 24 24"
+      width="16"
+    >
+      <path
+        d={direction === "left" ? "M15 5l-7 7 7 7" : "M9 5l7 7-7 7"}
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2.2"
+      />
+    </svg>
+  );
+}
+
+/** Month / Week / Day picker: a dropdown whose choice is remembered. */
+function ViewMenu({
+  onChange,
+  value,
+}: {
+  onChange: (view: View) => void;
+  value: View;
+}) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  // Close on an outside click or Escape.
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (event: globalThis.MouseEvent) => {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  // "week" -> "Week" for the menu labels.
+  const name = (view: View) => view[0].toUpperCase() + view.slice(1);
+  return (
+    <div className="cal-view-menu" ref={root}>
       <button
-        aria-label="Refresh Google Calendar"
-        className={syncing ? "spinning" : ""}
-        onClick={onRefresh}
-        title="Refresh"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        className="cal-view-trigger"
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen((current) => !current);
+        }}
         type="button"
       >
-        ↻
+        {name(value)}
+        <svg
+          aria-hidden="true"
+          fill="none"
+          height="14"
+          viewBox="0 0 24 24"
+          width="14"
+        >
+          <path
+            d="M6 9l6 6 6-6"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2.2"
+          />
+        </svg>
       </button>
+      {open && (
+        <ul aria-label="Calendar view" className="cal-view-list" role="listbox">
+          {VIEWS.map((option) => (
+            <li key={option}>
+              <button
+                aria-selected={option === value}
+                className={option === value ? "selected" : ""}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onChange(option);
+                  setOpen(false);
+                }}
+                role="option"
+                type="button"
+              >
+                <span>{name(option)}</span>
+                <kbd>{option[0].toUpperCase()}</kbd>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -711,6 +907,17 @@ function MonthView({
   const days = Array.from({ length: range.weeks * 7 }, (_, i) =>
     addDays(range.start, i),
   );
+  // Hovering (or focusing) a dot shows that event's name above it.
+  const [tip, setTip] = useState<{
+    item: CalendarItem;
+    x: number;
+    y: number;
+  } | null>(null);
+  /** Shows the event's tooltip centred above the event that was hovered. */
+  const showTip = (item: CalendarItem, target: HTMLElement) => {
+    const box = target.getBoundingClientRect();
+    setTip({ item, x: box.left + box.width / 2, y: box.top });
+  };
   return (
     <div
       className="cal-month"
@@ -725,16 +932,15 @@ function MonthView({
       ))}
       {days.map((day) => {
         const dayItems = itemsOnDay(items, day);
-        const overflow = dayItems.length - MONTH_CHIP_LIMIT;
+        const overflow = dayItems.length - MONTH_DOT_LIMIT;
         const shown = dayItems.slice(
           0,
-          overflow > 0 ? MONTH_CHIP_LIMIT - 1 : MONTH_CHIP_LIMIT,
+          overflow > 0 ? MONTH_DOT_LIMIT - 1 : MONTH_DOT_LIMIT,
         );
         const outside = day.getMonth() !== cursor.getMonth();
-        const weekend = day.getDay() === 0 || day.getDay() === 6;
         return (
           <div
-            className={`cal-day ${outside ? "outside" : ""} ${weekend ? "weekend" : ""} ${sameDay(day, now) ? "today" : ""}`}
+            className={`cal-day ${outside ? "outside" : ""} ${sameDay(day, now) ? "today" : ""}`}
             key={day.toISOString()}
             onDoubleClick={() =>
               onCreateAt(
@@ -776,12 +982,22 @@ function MonthView({
                 ＋
               </button>
             </header>
-            <div className="cal-chips">
+            <div className="cal-dots">
               {shown.map((item) => (
-                <EventChip
-                  item={item}
+                <button
+                  aria-label={`${item.title}, ${item.allDay ? "all day" : clock(item.start)}`}
+                  className={`cal-dot ${item.allDay ? "all-day" : ""}`}
                   key={`${item.id}-${day.getDate()}`}
-                  onSelect={onSelect}
+                  onBlur={() => setTip(null)}
+                  onClick={(event) => {
+                    setTip(null);
+                    onSelect(item, event);
+                  }}
+                  onFocus={(event) => showTip(item, event.currentTarget)}
+                  onMouseEnter={(event) => showTip(item, event.currentTarget)}
+                  onMouseLeave={() => setTip(null)}
+                  style={evStyle(item)}
+                  type="button"
                 />
               ))}
               {overflow > 0 && (
@@ -791,15 +1007,30 @@ function MonthView({
                     event.stopPropagation();
                     onOpenDay(day);
                   }}
+                  title="Open day"
                   type="button"
                 >
-                  {overflow + 1} more
+                  +{overflow + 1}
                 </button>
               )}
             </div>
           </div>
         );
       })}
+      {tip && (
+        <div
+          className="cal-tip"
+          role="tooltip"
+          style={{ left: tip.x, top: tip.y, ...evStyle(tip.item) }}
+        >
+          <strong>{tip.item.title}</strong>
+          <small>
+            {tip.item.allDay
+              ? "All day"
+              : `${clock(tip.item.start)} – ${clock(tip.item.end)}`}
+          </small>
+        </div>
+      )}
     </div>
   );
 }
@@ -813,6 +1044,7 @@ function TimeGrid({
   onOpenDay,
   onResize,
   onSelect,
+  scrollTick,
 }: {
   days: Date[];
   items: CalendarItem[];
@@ -821,6 +1053,7 @@ function TimeGrid({
   onOpenDay: (day: Date) => void;
   onResize: (item: CalendarItem, start: Date, end: Date) => void;
   onSelect: (item: CalendarItem, event: MouseEvent) => void;
+  scrollTick: number;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const firstDay = days[0].getTime();
@@ -900,13 +1133,21 @@ function TimeGrid({
   const resizable = (item: CalendarItem) =>
     !item.allDay && sameDay(item.start, new Date(item.end.getTime() - 1));
   // Open scrolled to the working day (or just above the current time).
+  const lastTick = useRef(scrollTick);
   useEffect(() => {
     const hour = days.some((day) => sameDay(day, new Date()))
       ? Math.max(new Date().getHours() - 2, 0)
       : 7;
-    scroller.current?.scrollTo({ top: hour * HOUR_HEIGHT });
-    // Only re-scroll when the visible days change, not on every minute tick.
-  }, [firstDay, days.length]);
+    // Pressing T glides there; changing the days just jumps.
+    const glide = lastTick.current !== scrollTick;
+    lastTick.current = scrollTick;
+    scroller.current?.scrollTo({
+      top: hour * HOUR_HEIGHT,
+      behavior: glide ? "smooth" : "auto",
+    });
+    // Re-scroll when the visible days change or T is pressed, not on
+    // every minute tick.
+  }, [firstDay, days.length, scrollTick]);
   const columns = { "--days": days.length } as React.CSSProperties;
   const allDay = days.map((day) =>
     itemsOnDay(items, day).filter((item) => item.allDay),

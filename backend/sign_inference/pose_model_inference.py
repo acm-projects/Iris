@@ -25,14 +25,15 @@ class PoseModelInference:
     """One instance per session; methods must be called serially."""
 
     def __init__(self, model_name: str = "meeting100", *, model_dir=MODEL_DIR,
-                 device: str | None = None, hand_assignment: str = "wrist", top_k: int = 5):
+                 device: str | None = None, hand_assignment: str = "wrist", top_k: int = 5,
+                 allow_paths: bool = True):
         model_dir = Path(model_dir)
         missing = [str(p) for p in (model_dir / "pose_landmarker.task", model_dir / "hand_landmarker.task")
                    if not p.is_file()]
         if missing:
             raise FileNotFoundError("Missing MediaPipe models:\n  - " + "\n  - ".join(missing)
                                     + "\nRun backend/sign_inference/setup_assets.py, then retry.")
-        self.model = PoseModel(model_name, device=device)
+        self.model = PoseModel(model_name, device=device, allow_paths=allow_paths)
         self.hand_assignment = hand_assignment
         self.top_k = top_k
         self._pose = self._hands = None

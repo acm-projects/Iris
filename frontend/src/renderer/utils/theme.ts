@@ -1,12 +1,11 @@
-// Appearance helpers: Light / Dark / System theme and the dock icon choice.
+// Appearance helpers: Light / Dark / System theme. The dock icon follows the
+// theme automatically (Electron picks it in main.ts).
 // The theme is stored in localStorage (a per-computer preference) and applied
 // as <html data-theme="light|dark">, which theme.css uses for dark colours.
 import { saveLocal } from "./storage";
 
 /** Theme options in Settings → Appearance. */
 export type ThemeChoice = "light" | "dark" | "system";
-/** Dock icon options ("auto" follows the theme). */
-export type AppIconChoice = "auto" | "light" | "dark" | "mono";
 
 const themeKey = "iris-theme";
 // Media query that reports whether the OS (or Electron's theme) is dark.
@@ -51,23 +50,4 @@ export function initTheme() {
   darkQuery().addEventListener("change", () => {
     if (loadTheme() === "system") applyTheme("system");
   });
-}
-
-/** The saved dock icon choice (stored by Electron). */
-export async function loadAppIcon(): Promise<AppIconChoice> {
-  try {
-    return (await window.iris.app.getIcon()) ?? "auto";
-  } catch {
-    return "auto";
-  }
-}
-
-/** Saves a dock icon choice; returns false if this copy of Iris can't yet. */
-export async function saveAppIcon(choice: AppIconChoice) {
-  try {
-    await window.iris.app.setIcon(choice);
-    return true;
-  } catch {
-    return false;
-  }
 }

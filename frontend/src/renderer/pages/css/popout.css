@@ -61,20 +61,6 @@
   background: #f2f4fb;
   font-size: 1rem;
 }
-.popout-phrases {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.popout-phrases button {
-  padding: 6px 12px;
-  border: 0;
-  border-radius: 999px;
-  color: #5d4ea6;
-  background: #ece9f8;
-  font-size: 0.82rem;
-  font-weight: 600;
-}
 .popout-speak {
   height: 40px;
   border: 0;

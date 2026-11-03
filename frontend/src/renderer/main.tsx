@@ -21,8 +21,6 @@ createRoot(document.getElementById("root")!).render(
   // StrictMode enables additional development-time warnings.
   <StrictMode>
     {/* Shows a friendly recovery screen if a screen ever crashes */}
-    <ErrorBoundary>
-      {isPopout ? <PopoutPage /> : <App />}
-    </ErrorBoundary>
+    <ErrorBoundary>{isPopout ? <PopoutPage /> : <App />}</ErrorBoundary>
   </StrictMode>,
 );

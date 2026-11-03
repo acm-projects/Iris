@@ -75,21 +75,116 @@
   padding: 34px;
   color: #fff;
   border-radius: var(--iris-calendar-radius);
-  background: linear-gradient(120deg, #6250a1, #526fba, #88b4cc);
+  /* Mesh gradient: each brand colour is its own soft patch, and the patches
+     drift in different directions so the colours swirl and blend. The last
+     layer is a diagonal base wash in the same colours. */
+  background:
+    radial-gradient(48% 85% at 10% 15%, #5c4a9c 0%, #5c4a9c 28%, #5c4a9c00 62%),
+    radial-gradient(42% 80% at 90% 10%, #5873bf 0%, #5873bf 25%, #5873bf00 60%),
+    radial-gradient(50% 90% at 78% 95%, #7eaec6 0%, #7eaec6 30%, #7eaec600 64%),
+    radial-gradient(40% 75% at 22% 92%, #5f9db2 0%, #5f9db2 25%, #5f9db200 60%),
+    linear-gradient(150deg, #5c4a9c 10%, #5873bf 50%, #5f9db2 85%);
+  background-size:
+    200% 200%,
+    210% 210%,
+    200% 200%,
+    220% 220%,
+    100% 100%;
+  background-position:
+    0% 0%,
+    100% 0%,
+    100% 100%,
+    0% 100%,
+    0 0;
+  animation: iris-hero-flow 20s ease-in-out infinite alternate;
   box-shadow: 0 14px 32px #5c4bab2e;
+}
+/* Two saturated glows (violet and aqua) floating across the banner. They
+   "screen" onto the gradient, so the colours get brighter, never grey. */
+.iris-hero::before,
+.iris-hero::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  width: 46%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  filter: blur(50px);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+.iris-hero::before {
+  top: -60%;
+  left: 40%;
+  background: #9b88e6;
+  opacity: 0.28;
+  animation: iris-hero-glow-a 13s ease-in-out infinite;
+}
+.iris-hero::after {
+  right: -5%;
+  bottom: -70%;
+  background: #72c9d2;
+  opacity: 0.2;
+  animation: iris-hero-glow-b 16s ease-in-out infinite;
+}
+@keyframes iris-hero-flow {
+  33% {
+    background-position:
+      55% 35%,
+      30% 60%,
+      80% 30%,
+      10% 55%,
+      0 0;
+  }
+  66% {
+    background-position:
+      90% 10%,
+      5% 25%,
+      30% 95%,
+      70% 40%,
+      0 0;
+  }
+  100% {
+    background-position:
+      100% 80%,
+      0% 90%,
+      0% 30%,
+      100% 10%,
+      0 0;
+  }
+}
+@keyframes iris-hero-glow-a {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(70%, 40%) scale(1.25);
+  }
+}
+@keyframes iris-hero-glow-b {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-60%, -35%) scale(1.2);
+  }
 }
 .iris-hero div {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   text-align: center;
   width: 100%;
 }
 .iris-hero strong,
 .iris-hero span {
   display: block;
+  text-shadow: 0 1px 10px #1b0f5c59;
 }
 .iris-hero strong {
   font-size: 46px;
+  text-shadow: 0 2px 14px #1b0f5c59;
 }
 .iris-hero button {
   position: absolute;
@@ -99,27 +194,12 @@
   color: #fff;
   background: none;
 }
-/* Decorative petals in the clock banner */
-.petal {
-  position: absolute;
-  bottom: -60px;
-  left: -15px;
-  width: 115px;
-  height: 180px;
-  border-radius: 100% 0;
-  background: #9baadd;
-  opacity: 0.55;
-  transform: rotate(28deg);
-}
-.p2 {
-  left: 45px;
-  transform: rotate(-4deg);
-  background: #8ac4d3;
-}
-.p3 {
-  left: 90px;
-  transform: rotate(40deg);
-  background: #5b9f95;
+@media (prefers-reduced-motion: reduce) {
+  .iris-hero,
+  .iris-hero::before,
+  .iris-hero::after {
+    animation: none;
+  }
 }
 /* Meeting cards in today's schedule */
 .iris-meeting {

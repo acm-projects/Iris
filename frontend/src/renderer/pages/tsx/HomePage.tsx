@@ -167,9 +167,6 @@ export default function HomePage(p: Props) {
         <section className="calendar-dashboard">
           {/* Clock banner across the top of the Home page */}
           <header className="iris-hero">
-            <span className="petal p1" />
-            <span className="petal p2" />
-            <span className="petal p3" />
             <div>
               <strong>
                 {new Intl.DateTimeFormat(undefined, {
@@ -295,9 +292,6 @@ export default function HomePage(p: Props) {
               {!upcoming.length && (
                 <div className="schedule-empty">
                   <p>No upcoming meetings</p>
-                  <button onClick={() => p.setShowCreate(true)} type="button">
-                    ＋ Create a meeting
-                  </button>
                 </div>
               )}
             </section>

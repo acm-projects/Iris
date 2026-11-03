@@ -9,11 +9,9 @@ from io import BytesIO
 from threading import Lock
 
 from fastapi import FastAPI, File, HTTPException, Response, UploadFile
-from google.api_core.exceptions import GoogleAPICallError, RetryError
-from google.auth.exceptions import GoogleAuthError
 from pydantic import BaseModel, Field, field_validator
 
-from server.tts import synthesize
+from server.tts import TTSConfigError, TTSProviderError, provider, synthesize
 from backend.engine.engine import play
 
 
@@ -27,9 +25,9 @@ app = FastAPI(
 
 @app.get("/health", tags=["Health"], summary="Check that the API is running")
 def health() -> dict[str, str]:
-    """Check the HTTP server only; does not contact Google or open devices."""
+    """Check the HTTP server only; does not contact the voice provider or open devices."""
     # FastAPI converts this Python dictionary into a JSON response.
-    return {"status": "ok", "service": "iris-api"}
+    return {"status": "ok", "service": "iris-api", "ttsProvider": provider()}
 
 
 class SpeechRequest(BaseModel):
@@ -47,7 +45,7 @@ class SpeechRequest(BaseModel):
     def validate_text(cls, text: str) -> str:
         if not text.strip():
             raise ValueError("Text must not be blank.")
-        # Google's limit is bytes, not characters; some characters use several bytes.
+        # Google's limit is bytes, not characters (ElevenLabs allows more); keep the stricter one.
         if len(text.encode("utf-8")) > 5000:
             raise ValueError("Text must not exceed 5,000 UTF-8 bytes.")
         return text
@@ -60,28 +58,30 @@ class SpeechRequest(BaseModel):
     response_class=Response,
     responses={
         200: {
-            "description": "MP3 audio using en-US-Standard-G.",
+            "description": "MP3 audio from the configured provider (ElevenLabs or Google).",
             "content": {"audio/mpeg": {"schema": {"type": "string", "format": "binary"}}},
         },
-        502: {"description": "Google could not complete the speech request."},
-        503: {"description": "Google credentials are missing or invalid."},
+        502: {"description": "The voice provider could not complete the speech request."},
+        503: {"description": "The voice provider's key is missing or invalid."},
     },
 )
 def text_to_speech(request: SpeechRequest) -> Response:
-    """Send text to Google and return audio. Does not play it through a device."""
-    # A regular def lets FastAPI run this blocking Google call in a worker thread.
+    """Send text to the voice provider and return audio. Does not play it through a device."""
+    # A regular def lets FastAPI run this blocking network call in a worker thread.
+    name = "ElevenLabs" if provider() != "google" else "Google"
     try:
         audio = synthesize(request.text)
-    except GoogleAuthError as exc:
+    except TTSConfigError as exc:
+        # A missing or wrong key is a setup problem, not an outage.
         raise HTTPException(
             status_code=503,
-            detail="Google credentials are unavailable. Check GOOGLE_APPLICATION_CREDENTIALS.",
+            detail=f"{exc} Check the {name} settings in Cue/.env, then restart the server.",
         ) from exc
-    except (GoogleAPICallError, RetryError) as exc:
+    except TTSProviderError as exc:
         # Keep provider error details out of the public response.
         raise HTTPException(
             status_code=502,
-            detail="Speech generation failed. Check Google API access, billing, and quota.",
+            detail=f"Speech generation failed. Check your {name} plan, quota and voice ID.",
         ) from exc
 
     # Send bytes directly instead of JSON; do not create a file on the server.
@@ -156,7 +156,7 @@ def push_audio_to_microphone(
     Requires VB-CABLE on Windows or BlackHole on macOS. Select the matching
     microphone in your meeting app. Run one API worker, and do not use the
     Electron engine's separate speak/test-tone controls during this playback.
-    This endpoint does not call Google or start the camera.
+    This endpoint does not call the voice provider or start the camera.
     """
     # Reject overlapping API playback instead of silently interrupting speech.
     if not _microphone_lock.acquire(blocking=False):

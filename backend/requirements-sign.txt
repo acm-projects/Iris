@@ -1,0 +1,11 @@
+# Extra packages for live sign recognition in the engine (backend/engine/engine.py).
+# Install on top of requirements.txt, in the same environment (backend/.venv):
+#
+#   pip uninstall -y opencv-python
+#   pip install -r backend/requirements.txt -r backend/requirements-sign.txt
+#
+# MediaPipe ships its own OpenCV build (opencv-contrib-python), which also
+# provides `cv2`; having both it and opencv-python installed breaks `cv2`, so
+# remove opencv-python first. Python 3.9-3.12 (MediaPipe has no 3.13+ wheels).
+mediapipe>=0.10.14,<0.11
+torch>=2.2,<3
