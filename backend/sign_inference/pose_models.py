@@ -20,6 +20,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from word_rules import load_word_rules, select_word_predictions
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TWO_WORD_DIR = REPO_ROOT / "ml" / "two_word"
@@ -119,3 +120,18 @@ class PoseModel:
         conf, idx = probs.topk(min(top_k, len(self.labels)))
         return [{"gloss": self.labels[i], "confidence": float(c)}
                 for i, c in zip(idx.cpu().tolist(), conf.cpu().tolist())]
+
+    def predict_with_word_rules(self, frames: np.ndarray, top_k: int = 5) -> list[dict]:
+        rules = load_word_rules()
+        original = self.predict(frames, top_k=len(self.labels))
+        mirrored = []
+        if any(rules.get(word, {}).get('invert', False) for word in self.labels):
+            # Same reflection and anatomical left/right swap as training augmentation.
+            # Normalization removes translation, so reflecting around x=0 is sufficient.
+            flipped = frames[:, _data.FLIP_PERM].copy()
+            flipped[..., 0] *= -1
+            mirrored = self.predict(flipped, top_k=len(self.labels))
+        predictions = select_word_predictions(original, mirrored, rules, top_k)
+        if not predictions:
+            raise ValueError('All model words are disabled.')
+        return predictions

@@ -9,6 +9,8 @@
 import argparse
 import json
 import time
+from pathlib import Path
+from display_confidence import scale_top_display
 
 try:
     import cv2
@@ -66,6 +68,9 @@ def main():
     parser.add_argument('--model', default=None,
                         help='one of our pose models by name or path (e.g. meeting100); '
                              'omit to use the legacy TGCN checkpoint')
+    parser.add_argument('--display-scale-words', type=Path,
+                        default=Path(__file__).with_name('display_scale_words.json'),
+                        help='JSON list of words eligible for cosmetic top-score scaling to 80%%.')
     parser.add_argument('--list-models', action='store_true', help='List available model names and exit.')
     parser.add_argument('--top-k', type=int, default=5, help='How many guesses to show (our models).')
     parser.add_argument('--hand-assignment', choices=['wrist', 'label'], default='wrist',
@@ -80,6 +85,10 @@ def main():
                         help='Flip each frame left-right before MediaPipe and the model see it '
                              '(by default only the on-screen preview is mirrored).')
     args = parser.parse_args()
+    selected_words = json.loads(args.display_scale_words.read_text(encoding='utf-8'))
+    if not isinstance(selected_words, list) or any(not isinstance(word, str) or not word.strip()
+                                                   for word in selected_words):
+        parser.error('--display-scale-words must contain a JSON list of nonempty word strings.')
     if args.list_models:
         from pose_models import list_models
         print('\n'.join(list_models()) or 'No models found.')
@@ -173,11 +182,12 @@ def main():
                         message = 'Recording: S finishes'
                     elif key in (ord('s'), ord('S')):
                         result = session.finish_and_predict()
-                        print(json.dumps(result, allow_nan=False))
                         if args.model:
+                            result['predictions'] = scale_top_display(result['predictions'], selected_words)
+                            result['display_score_type'] = 'cosmetic_adjustment_not_calibrated_confidence'
                             predictions = [
-                                f'{index}. {p["gloss"]:<12} {p["confidence"]:6.1%}  '
-                                + '|' * round(p['confidence'] * 30)
+                                f'{index}. {p["gloss"]:<12} display {p["display_confidence"]:6.1%} '
+                                f'(raw {p["confidence"]:.1%})'
                                 for index, p in enumerate(result['predictions'], 1)
                             ]
                             rate = result['detection_rate']
@@ -195,6 +205,7 @@ def main():
                                 f'Captured/prepared: {result["captured_frame_count"]}/'
                                 f'{result["prepared_frame_count"]}'
                             )
+                        print(json.dumps(result, allow_nan=False), flush=True)
                 except Exception as error:
                     predictions = []
                     message = str(error)

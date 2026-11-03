@@ -1,0 +1,367 @@
+{
+  "help": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.678
+  },
+  "slow": {
+    "invert": false,
+    "disabled": false,
+    "reported_highest_confidence": 0.788
+  },
+  "project": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.761
+  },
+  "nice": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.52
+  },
+  "phone": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.336
+  },
+  "agree": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.499
+  },
+  "sorry": {
+    "invert": false,
+    "disabled": false,
+    "reported_highest_confidence": 0.63
+  },
+  "start": {
+    "invert": false,
+    "disabled": false,
+    "reported_highest_confidence": 0.416
+  },
+  "wait": {
+    "invert": false,
+    "disabled": false,
+    "reported_highest_confidence": 0.412
+  },
+  "answer": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.461
+  },
+  "understand": {
+    "invert": false,
+    "disabled": false,
+    "reported_highest_confidence": 0.334
+  },
+  "more": {
+    "invert": false,
+    "disabled": false,
+    "reported_highest_confidence": 0.636
+  },
+  "please": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.4
+  },
+  "important": {
+    "invert": false,
+    "disabled": true
+  },
+  "excuse": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.634
+  },
+  "today": {
+    "invert": false,
+    "disabled": false,
+    "reported_highest_confidence": 0.234
+  },
+  "tomorrow": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.486
+  },
+  "easy": {
+    "invert": false,
+    "disabled": false,
+    "reported_highest_confidence": 0.664
+  },
+  "decide": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.661
+  },
+  "no": {
+    "invert": false,
+    "disabled": false,
+    "reported_highest_confidence": 0.665
+  },
+  "forget": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.527
+  },
+  "again": {
+    "invert": false,
+    "disabled": false,
+    "reported_highest_confidence": 0.32
+  },
+  "think": {
+    "invert": false,
+    "disabled": false,
+    "reported_highest_confidence": 0.18
+  },
+  "goodbye": {
+    "invert": false,
+    "disabled": false,
+    "reported_highest_confidence": 0.644
+  },
+  "hour": {
+    "invert": false,
+    "disabled": false,
+    "reported_highest_confidence": 0.548
+  },
+  "where": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.596
+  },
+  "next": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.646
+  },
+  "want": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.444
+  },
+  "discuss": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.342
+  },
+  "hear": {
+    "invert": false,
+    "disabled": true
+  },
+  "internet": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.171
+  },
+  "question": {
+    "invert": false,
+    "disabled": true
+  },
+  "we": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.203
+  },
+  "finish": {
+    "invert": true,
+    "disabled": false
+  },
+  "soon": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.303
+  },
+  "who": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.608
+  },
+  "all": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.15
+  },
+  "yes": {
+    "invert": false,
+    "disabled": false,
+    "reported_highest_confidence": 0.15
+  },
+  "same": {
+    "invert": false,
+    "disabled": false,
+    "reported_highest_confidence": 0.33
+  },
+  "computer": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.14
+  },
+  "minute": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.4
+  },
+  "chat": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.4
+  },
+  "know": {
+    "invert": false,
+    "disabled": true
+  },
+  "send": {
+    "invert": false,
+    "disabled": false,
+    "reported_highest_confidence": 0.41
+  },
+  "vote": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.34
+  },
+  "see": {
+    "invert": false,
+    "disabled": false,
+    "reported_highest_confidence": 0.32
+  },
+  "when": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.44
+  },
+  "hello": {
+    "invert": false,
+    "disabled": false,
+    "reported_highest_confidence": 0.47
+  },
+  "talk": {
+    "invert": false,
+    "disabled": true
+  },
+  "idea": {
+    "invert": false,
+    "disabled": false,
+    "reported_highest_confidence": 0.6
+  },
+  "my": {
+    "invert": false,
+    "disabled": true
+  },
+  "not": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.5
+  },
+  "later": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.59
+  },
+  "yesterday": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.6
+  },
+  "will": {
+    "invert": false,
+    "disabled": false,
+    "reported_highest_confidence": 0.7
+  },
+  "ask": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.2
+  },
+  "your": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.332
+  },
+  "ok": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.144
+  },
+  "now": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.18
+  },
+  "like": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.3
+  },
+  "thank you": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.425
+  },
+  "good": {
+    "invert": false,
+    "disabled": false,
+    "reported_highest_confidence": 0.28
+  },
+  "maybe": {
+    "invert": false,
+    "disabled": true
+  },
+  "you": {
+    "invert": false,
+    "disabled": true
+  },
+  "what": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.11
+  },
+  "hard": {
+    "invert": false,
+    "disabled": true
+  },
+  "need": {
+    "invert": false,
+    "disabled": false,
+    "reported_highest_confidence": 0.353
+  },
+  "before": {
+    "invert": false,
+    "disabled": true,
+    "reported_highest_confidence": 0.256
+  },
+  "stop": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.454
+  },
+  "me": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.251
+  },
+  "call": {
+    "invert": false,
+    "disabled": false,
+    "reported_highest_confidence": 0.234
+  },
+  "listen": {
+    "invert": true,
+    "disabled": false,
+    "reported_highest_confidence": 0.254
+  },
+  "right": {
+    "invert": false,
+    "disabled": false,
+    "reported_highest_confidence": 0.354
+  },
+  "why": {
+    "invert": false,
+    "disabled": false,
+    "reported_highest_confidence": 0.594
+  },
+  "disagree": {
+    "invert": false,
+    "disabled": false,
+    "reported_highest_confidence": 0.253
+  }
+}

@@ -126,7 +126,7 @@ class PoseModelInference:
         if len(self._frames) < MIN_RECORDED_FRAMES:
             raise ValueError(f"Recording too short ({len(self._frames)} frames); hold the sign a bit longer.")
 
-        predictions = self.model.predict(np.stack(self._frames), top_k=self.top_k)
+        predictions = self.model.predict_with_word_rules(np.stack(self._frames), top_k=self.top_k)
         top = predictions[0]["confidence"]
         second = predictions[1]["confidence"] if len(predictions) > 1 else 0.0
         body = max(self._seen["body"], 1)
@@ -146,7 +146,7 @@ class PoseModelInference:
                 "right_hand": self._seen["right_hand"] / body,
             },
             "hand_assignment": self.hand_assignment,
-            "score_type": "softmax_probability",
+            "score_type": "per_word_orientation_softmax_score_not_joint_probability",
         }
 
     def close(self):
