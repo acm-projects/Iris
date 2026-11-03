@@ -15,6 +15,7 @@ including the shared normalization in landmark_normalization.py.
 from __future__ import annotations
 
 import importlib.util
+import re
 import sys
 from pathlib import Path
 
@@ -42,16 +43,29 @@ _data = _load_module("two_word_data", TWO_WORD_DIR / "data.py")
 _model = _load_module("two_word_model", TWO_WORD_DIR / "model.py")
 
 
-def resolve_model(name: str) -> Path:
-    """Model name (or path) -> checkpoint file. Raises FileNotFoundError listing what's available."""
-    candidates = [
-        Path(name),
-        PRETRAINED_DIR / f"{name}.pt",
-        RUNS_DIR / name / "best.pt",
-    ]
+MODEL_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}")
+
+
+def resolve_model(name: str, allow_paths: bool = True) -> Path:
+    """Model name (or path) -> checkpoint file. Raises FileNotFoundError listing what's available.
+
+    allow_paths=False (used by the app's engine) accepts only a plain model
+    name and only returns files inside ml/two_word/pretrained or
+    ml/two_word/runs, so nothing outside those folders can be loaded.
+    """
+    if not allow_paths:
+        if not MODEL_NAME.fullmatch(name or ""):
+            raise ValueError("Model names may only contain letters, digits, '-' and '_'.")
+        candidates = [PRETRAINED_DIR / f"{name}.pt", RUNS_DIR / name / "best.pt"]
+    else:
+        candidates = [Path(name), PRETRAINED_DIR / f"{name}.pt", RUNS_DIR / name / "best.pt"]
     candidates += sorted((RUNS_DIR / name).glob("seed*/best.pt"))  # multi-seed run: first seed
     for path in candidates:
         if path.is_file():
+            if not allow_paths:
+                real = path.resolve()
+                if not any(real.is_relative_to(d.resolve()) for d in (PRETRAINED_DIR, RUNS_DIR)):
+                    continue  # e.g. a symlink pointing outside the model folders
             return path
     available = ", ".join(list_models()) or "none"
     raise FileNotFoundError(f"No model named {name!r}. Available: {available}")
@@ -71,8 +85,13 @@ def list_models() -> list[str]:
 class PoseModel:
     """One trained classifier, ready to score recorded MediaPipe keypoints."""
 
-    def __init__(self, name: str, device: str | None = None):
-        self.path = resolve_model(name)
+    def __init__(self, name: str, device: str | None = None, allow_paths: bool = True):
+        """Load a checkpoint by name (see resolve_model) and rebuild it exactly as trained.
+
+        allow_paths=False only accepts plain names from the model folders (used
+        by the app's engine); True also accepts a file path (camera demo, tests).
+        """
+        self.path = resolve_model(name, allow_paths=allow_paths)
         self.name = name
         ckpt = torch.load(self.path, map_location="cpu", weights_only=True)
         cfg = ckpt["config"]

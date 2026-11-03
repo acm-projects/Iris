@@ -1,24 +1,15 @@
 // Settings page: Appearance (theme + app icon), Account, Integrations
 // (Google Calendar) and Security (password), with an in-page section menu.
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import {
   PASSWORD_HINT,
   passwordProblem,
   type AuthNotice,
 } from "../../utils/auth";
-import {
-  loadAppIcon,
-  loadTheme,
-  saveAppIcon,
-  saveTheme,
-  type AppIconChoice,
-  type ThemeChoice,
-} from "../../utils/theme";
+import { loadTheme, saveTheme, type ThemeChoice } from "../../utils/theme";
 import { AuthMessage, Field, PasswordInput } from "./LoginPage";
 import "../css/auth.css";
 import "../css/settings.css";
-import { asset } from "../../utils/assets";
-import { useAutoDismiss } from "../../utils/useAutoDismiss";
 
 /** Account details and actions supplied by App (via HomePage). */
 type Props = {
@@ -58,12 +49,6 @@ const providerName = (provider: string) =>
 export default function SettingsPage(p: Props) {
   return (
     <section className="settings-page">
-      <header className="settings-hero">
-        <p>Settings</p>
-        <h1>Make Iris yours</h1>
-        <span>Appearance, your account, connected apps and security.</span>
-      </header>
-
       <div className="settings-layout">
         <div className="settings-sections">
           <Section
@@ -81,10 +66,7 @@ export default function SettingsPage(p: Props) {
             id="appearance"
             title="Appearance"
           >
-            <div className="appearance-split">
-              <ThemePicker />
-              <AppIconPicker />
-            </div>
+            <ThemePicker />
           </Section>
 
           <Section
@@ -203,66 +185,6 @@ function MiniWindow({ theme }: { theme: "light" | "dark" }) {
       <i className="tp-card" />
       <i className="tp-card short" />
     </span>
-  );
-}
-
-const APP_ICONS: { id: AppIconChoice; label: string; image: string | null }[] =
-  [
-    { id: "auto", label: "Auto", image: null },
-    { id: "light", label: "Light", image: asset("iris-dock-light.png") },
-    { id: "dark", label: "Dark", image: asset("iris-dock-dark.png") },
-    { id: "mono", label: "Monochrome", image: asset("iris-dock-mono.png") },
-  ];
-
-/** Dock icon choices; Auto switches between Light and Dark with the theme. */
-function AppIconPicker() {
-  const [icon, setIcon] = useState<AppIconChoice>("auto");
-  const [note, setNote] = useState("");
-  useAutoDismiss(note, () => setNote(""));
-  // Show the icon Electron has saved.
-  useEffect(() => {
-    void loadAppIcon().then(setIcon);
-  }, []);
-  return (
-    <div className="settings-group">
-      <h3>App icon</h3>
-      <p className="settings-help">Shown in your Dock while Iris is open.</p>
-      <div className="icon-grid" role="radiogroup" aria-label="App icon">
-        {APP_ICONS.map((option) => (
-          <button
-            aria-checked={icon === option.id}
-            className={`icon-choice ${icon === option.id ? "selected" : ""}`}
-            key={option.id}
-            onClick={async () => {
-              const previous = icon;
-              setIcon(option.id);
-              setNote("");
-              if (!(await saveAppIcon(option.id))) {
-                setIcon(previous);
-                setNote(
-                  "Restart Iris to finish updating, then pick your icon again.",
-                );
-              }
-            }}
-            role="radio"
-            type="button"
-          >
-            {option.image ? (
-              <img alt="" src={option.image} />
-            ) : (
-              // Auto: half light icon, half dark icon
-              <span className="icon-auto" aria-hidden="true">
-                <img alt="" src={asset("iris-dock-light.png")} />
-                <img alt="" src={asset("iris-dock-dark.png")} />
-              </span>
-            )}
-            <span>{option.label}</span>
-            <CheckMark />
-          </button>
-        ))}
-      </div>
-      {note && <p className="settings-note">{note}</p>}
-    </div>
   );
 }
 

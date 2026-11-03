@@ -19,6 +19,7 @@ import {
   saveSettings,
   type EngineCheck,
   type EngineEvent,
+  punctuate,
   type TranslationSettings,
 } from "../../utils/translation";
 import { asset } from "../../utils/assets";
@@ -54,13 +55,6 @@ const TABS = [
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 
-// Short phrases a signer can send with one click.
-const QUICK_PHRASES = [
-  "Hello everyone!",
-  "Could you repeat that?",
-  "One moment, please.",
-  "Thank you!",
-];
 // Commands that install the engine's Python packages into backend/.venv.
 // Windows uses the `py` launcher, a Scripts\ folder and `;` (PowerShell 5 has no &&).
 const INSTALL_COMMAND =
@@ -131,7 +125,6 @@ export default function TranslationPage() {
   const [engineProblem, setEngineProblem] = useState("");
   const [checking, setChecking] = useState(false);
   const [live, setLive] = useState<LiveState>("off");
-  const [liveDevice, setLiveDevice] = useState("");
   const [liveError, setLiveError] = useState("");
   // Error banner fades away after a few seconds (hover keeps it open).
   const liveErrorTimer = useAutoDismiss(liveError, () => setLiveError(""));
@@ -156,6 +149,9 @@ export default function TranslationPage() {
   }, [captionId]);
   // The camera stays off (shutter closed) until the user turns it on.
   const [cameraOn, setCameraOn] = useState(false);
+  // True once translation has gone live this visit, so after the camera or
+  // translation is turned off the button offers "Resume" instead of "Start".
+  const [hasStarted, setHasStarted] = useState(false);
   // "Start translation" pressed while the camera was off: start once it's on.
   const startWhenReady = useRef(false);
   // Which popup on top of the camera is open: ⓘ Meet guide or ☰ Setup/Settings.
@@ -368,8 +364,8 @@ export default function TranslationPage() {
     void runEngineCheck();
   }, [runEngineCheck]);
 
-  /** Speaks text into the meeting through the virtual microphone, with
-   *  Google's voice via the FastAPI server (server/api.py: /tts, /microphone). */
+  /** Speaks text into the meeting through the virtual microphone, using the
+   *  voice server (server/api.py: /tts, /microphone; ElevenLabs by default). */
   const speak = useCallback(
     async (text: string) => {
       showCaption(text);
@@ -410,10 +406,13 @@ export default function TranslationPage() {
       const message = raw as EngineEvent;
       if (message.event === "sign") {
         showCaption(message.text);
+        // Show why a sign couldn't be spoken (e.g. the voice server is down or
+        // has no Google credentials) instead of failing silently.
         if (settingsRef.current.speakSigns)
-          void speak(message.text).catch(() => undefined);
+          void speak(message.text).catch((error: unknown) =>
+            setLiveError(engineError(error, "Iris couldn't speak that sign.")),
+          );
       } else if (message.event === "status") {
-        if (message.camera === "running") setLiveDevice(message.device ?? "");
         if (message.camera === "error")
           setLiveError(message.error ?? "The virtual camera stopped.");
         if (message.camera === "stopped" || message.camera === "error") {
@@ -437,11 +436,7 @@ export default function TranslationPage() {
     setLiveError("");
     const size = RESOLUTIONS[settings.resolution];
     try {
-      const result = await window.iris.engine.request<{ device: string }>(
-        "start_virtual_camera",
-        size,
-      );
-      setLiveDevice(result.device);
+      await window.iris.engine.request("start_virtual_camera", size);
       pumpRef.current ??= new FramePump(videoRef.current, () => ({
         text: captionRef.current,
         size: settingsRef.current.captionSize,
@@ -454,6 +449,14 @@ export default function TranslationPage() {
         stream.getVideoTracks()[0],
       );
       setLive("live");
+      setHasStarted(true);
+      // Recognise signs from the frames being streamed. Translation keeps
+      // running without it if it can't start (e.g. the model isn't installed).
+      void window.iris.engine
+        .request("start_sign_recognition")
+        .catch((error: unknown) =>
+          setLiveError(engineError(error, "Sign recognition could not start.")),
+        );
     } catch (error) {
       setLive("off");
       setLiveError(engineError(error, "The virtual camera could not start."));
@@ -783,41 +786,6 @@ export default function TranslationPage() {
 
   return (
     <section className="translation-page">
-      {/* Banner: title, readiness and Start/Stop */}
-      <header className="tr-header">
-        <span aria-hidden="true" className="tr-leaf one" />
-        <span aria-hidden="true" className="tr-leaf two" />
-        <span aria-hidden="true" className="tr-leaf three" />
-        <div className="tr-header-text">
-          <p>Translation</p>
-          <h1>Live translation</h1>
-        </div>
-        <div className="tr-header-actions">
-          {live === "live" ? (
-            <button
-              className="tr-stop"
-              onClick={() => void stopLive()}
-              type="button"
-            >
-              Stop translation
-            </button>
-          ) : (
-            <button
-              className="tr-start"
-              disabled={!ready || live === "starting"}
-              onClick={() => void startLive()}
-              title={
-                ready
-                  ? "Send your captioned video to Google Meet"
-                  : "Finish the system check first"
-              }
-              type="button"
-            >
-              {live === "starting" ? "Starting…" : "Start translation"}
-            </button>
-          )}
-        </div>
-      </header>
       {liveError && (
         <p className="tr-error" {...liveErrorTimer}>
           {liveError}
@@ -825,36 +793,50 @@ export default function TranslationPage() {
       )}
 
       <div className="tr-center">
-        {/* Camera, with the ⓘ / ☰ buttons and their popups on top */}
-        <section className="tr-card tr-preview-card">
-          <div
-            className={`tr-preview ${settings.mirrorPreview ? "mirrored" : ""}`}
-          >
-            <video autoPlay muted playsInline ref={videoRef} />
-            {!stream && (
-              <Shutter
-                error={previewError}
-                onAllow={() => void allowAccess()}
-                onTurnOn={() => setCameraOn(true)}
-                starting={cameraOn && !previewError}
-              />
-            )}
-            {live === "live" ? (
-              <span className="tr-live-badge">
-                ● LIVE · {liveDevice || "Virtual camera"}
+        {/* Toolbar: title, status, and the Start / Stop, camera, ⓘ and ☰ buttons */}
+        <header className="tr-toolbar">
+          {live === "live" && (
+            <div className="tr-heading">
+              <span className="tr-status live">
+                <i aria-hidden="true" className="tr-live-pulse" />
+                Live
               </span>
-            ) : (
-              stream && <span className="tr-tag">Preview</span>
-            )}
-            {settings.showCaptions && caption && stream && (
-              <div className={`tr-caption ${settings.captionSize}`}>
-                {caption}
-              </div>
-            )}
-          </div>
-
+            </div>
+          )}
           {/* Top-right buttons; popups open below them */}
           <div className="tr-tools" ref={toolsRef}>
+            {/* Start / Stop sending your captioned video to Meet */}
+            {live === "live" ? (
+              <button
+                className="tr-go stop"
+                onClick={() => void stopLive()}
+                type="button"
+              >
+                Stop translation
+              </button>
+            ) : stream || live === "starting" ? (
+              <button
+                className="tr-go"
+                disabled={!ready || live === "starting"}
+                onClick={() => void startLive()}
+                title={
+                  ready
+                    ? hasStarted
+                      ? "Pick up where you left off in Google Meet"
+                      : "Send your captioned video to Google Meet"
+                    : "Finish the setup (☰) first"
+                }
+                type="button"
+              >
+                {live === "starting"
+                  ? hasStarted
+                    ? "Resuming…"
+                    : "Starting…"
+                  : hasStarted
+                    ? "Resume translation"
+                    : "Start translation"}
+              </button>
+            ) : null}
             {stream && (
               <button
                 aria-label="Turn camera off"
@@ -1218,78 +1200,167 @@ export default function TranslationPage() {
               </div>
             )}
           </div>
-        </section>
+        </header>
 
-        {poppedOut ? (
-          <section className="tr-card tr-popped">
-            <span className="tr-tile purple">
-              <Icon name="message" />
-            </span>
-            <strong>Type to speak is in its own window</strong>
-            <button
-              className="tr-ghost"
-              onClick={() => void window.iris.popout.close()}
-              type="button"
+        <div className="tr-body">
+          {/* The camera is the page; Type to speak opens from the corner icon */}
+          <section className="tr-stage">
+            <div
+              className={`tr-preview ${settings.mirrorPreview ? "mirrored" : ""}`}
             >
-              Bring back
-            </button>
+              <video autoPlay muted playsInline ref={videoRef} />
+              {!stream && (
+                <Shutter
+                  error={previewError}
+                  resume={hasStarted}
+                  onAllow={() => void allowAccess()}
+                  onStart={() => void startLive()}
+                  ready={ready}
+                  starting={cameraOn && !previewError}
+                />
+              )}
+              {settings.showCaptions && caption && stream && (
+                <div className={`tr-caption ${settings.captionSize}`}>
+                  {caption}
+                </div>
+              )}
+            </div>
+
+            {/* Type to speak only appears once translation is live */}
+            {live === "live" && (
+              <SpeakDock
+                disabled={
+                  !engineCheck ||
+                  engineCheck.missingPackages.length > 0 ||
+                  !hasVirtualMic
+                }
+                onSpeak={speak}
+                poppedOut={poppedOut}
+              />
+            )}
           </section>
-        ) : (
-          <TypeToSpeak
-            disabled={
-              !engineCheck ||
-              engineCheck.missingPackages.length > 0 ||
-              !hasVirtualMic
-            }
-            onSpeak={speak}
-          />
-        )}
+        </div>
       </div>
     </section>
   );
 }
 
 /**
- * Closed "shutter" shown while the camera is off. Iris never turns the camera
- * on by itself; the user opens it here (or by starting translation).
+ * Type to speak: a round message icon in the corner of the camera. It opens
+ * the typing box above it (or, while the box is in its own window, brings it
+ * back).
+ */
+function SpeakDock({
+  disabled,
+  onSpeak,
+  poppedOut,
+}: {
+  disabled: boolean;
+  onSpeak: (text: string) => Promise<void>;
+  poppedOut: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  // Close on an outside click or Escape.
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (event: globalThis.MouseEvent) => {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  const label = poppedOut ? "Bring Type to speak back" : "Type to speak";
+  return (
+    <div className="tr-dock" ref={root}>
+      {open && !poppedOut && (
+        <TypeToSpeak
+          disabled={disabled}
+          onClose={() => setOpen(false)}
+          onSpeak={onSpeak}
+        />
+      )}
+      <button
+        aria-expanded={open && !poppedOut}
+        aria-label={label}
+        className={`tr-dock-button ${open || poppedOut ? "open" : ""}`}
+        onClick={() =>
+          poppedOut ? void window.iris.popout.close() : setOpen(!open)
+        }
+        title={label}
+        type="button"
+      >
+        <Icon name="message" size={22} />
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Closed "shutter" shown while the camera is off. The camera opens when the
+ * user presses Start translation.
  */
 function Shutter({
   error,
   onAllow,
-  onTurnOn,
+  onStart,
+  ready,
+  resume,
   starting,
 }: {
   error: string;
   onAllow: () => void;
-  onTurnOn: () => void;
+  onStart: () => void;
+  ready: boolean;
+  resume: boolean;
   starting: boolean;
 }) {
   return (
     <div className="tr-shutter">
-      {/* Camera lens with the Iris flower inside; its aperture blades open
-          and the flower blooms while the camera starts */}
+      {/* Slowly drifting brand-colour glows behind everything */}
+      <div aria-hidden="true" className="tr-aurora">
+        <i />
+        <i />
+        <i />
+      </div>
+      {/* Round lens with the Iris flower slowly spinning and pulsing inside;
+          it speeds up while the camera starts */}
       <span
         aria-hidden="true"
         className={`tr-lens ${starting ? "opening" : ""}`}
       >
-        {Array.from({ length: 6 }, (_, i) => (
-          <i key={i} style={{ transform: `rotate(${i * 60}deg)` }} />
-        ))}
-        <img alt="" src={asset("iris-mark.png")} />
+        {/* Always the glowing flower: the lens is dark in both themes */}
+        <img alt="" src={asset("brand/iris-logo.png")} />
       </span>
-      <strong>
-        {error
-          ? "Camera unavailable"
-          : starting
-            ? "Starting your camera…"
-            : "Camera off"}
-      </strong>
-      {/* Only explain when something went wrong; otherwise the button says it */}
+      {(error || starting) && (
+        <strong>
+          {error ? "Camera unavailable" : "Starting your camera…"}
+        </strong>
+      )}
+      {/* Only explain when something went wrong */}
       {error && <span>{error}</span>}
-      {!starting && (
-        <button onClick={error ? onAllow : onTurnOn} type="button">
-          {error ? "Allow camera & microphone" : "Turn on camera"}
+      {error ? (
+        <button onClick={onAllow} type="button">
+          Allow camera & microphone
         </button>
+      ) : (
+        !starting && (
+          <>
+            <button disabled={!ready} onClick={onStart} type="button">
+              {resume ? "Resume translation" : "Start translation"}
+            </button>
+            {!ready && (
+              <span className="tr-shutter-hint">Finish setup in ☰ first.</span>
+            )}
+          </>
+        )
       )}
     </div>
   );
@@ -1298,9 +1369,11 @@ function Shutter({
 /** Type to speak: send typed text (or a quick phrase) as Iris's voice. */
 function TypeToSpeak({
   disabled,
+  onClose,
   onSpeak,
 }: {
   disabled: boolean;
+  onClose: () => void;
   onSpeak: (text: string) => Promise<void>;
 }) {
   const [text, setText] = useState("");
@@ -1313,7 +1386,7 @@ function TypeToSpeak({
     setBusy(true);
     setError("");
     try {
-      await onSpeak(value.trim());
+      await onSpeak(punctuate(value));
       setText("");
     } catch (problem) {
       setError(engineError(problem, "Iris couldn't speak that."));
@@ -1322,21 +1395,32 @@ function TypeToSpeak({
     }
   };
   return (
-    <section className="tr-card tr-speak-card">
+    <section className="tr-speak-card" role="dialog" aria-label="Type to speak">
       <header className="tr-card-head">
         <div className="tr-title">
           <span className="tr-tile purple">
             <Icon name="message" />
           </span>
-          <h2>Type to Speak</h2>
+          <h2>Type to speak</h2>
         </div>
         <div className="tr-head-actions">
           <button
             className="tr-ghost"
-            onClick={() => void window.iris.popout.open()}
+            onClick={() => {
+              void window.iris.popout.open();
+              onClose();
+            }}
             type="button"
           >
             Pop out
+          </button>
+          <button
+            aria-label="Close"
+            className="tr-ghost icon"
+            onClick={onClose}
+            type="button"
+          >
+            ×
           </button>
         </div>
       </header>
@@ -1348,6 +1432,7 @@ function TypeToSpeak({
         }}
       >
         <textarea
+          autoFocus
           disabled={disabled || busy}
           maxLength={500}
           onChange={(event) => setText(event.target.value)}
@@ -1367,18 +1452,6 @@ function TypeToSpeak({
           value={text}
         />
         <div className="tr-speak-row">
-          <div className="tr-phrases">
-            {QUICK_PHRASES.map((phrase) => (
-              <button
-                disabled={disabled || busy}
-                key={phrase}
-                onClick={() => void say(phrase)}
-                type="button"
-              >
-                {phrase}
-              </button>
-            ))}
-          </div>
           <button
             className="tr-start"
             disabled={disabled || busy || !text.trim()}

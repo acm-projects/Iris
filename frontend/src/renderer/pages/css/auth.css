@@ -55,11 +55,9 @@
   bottom: -70px;
   z-index: -1;
   width: min(520px, 70%);
-  opacity: 0.22;
+  opacity: 0.35;
   transform: rotate(-8deg);
   pointer-events: none;
-  /* Lift the dark navy petals so they read against the gradient. */
-  filter: brightness(1.6) saturate(1.1);
 }
 .brand-copy {
   max-width: 31rem;

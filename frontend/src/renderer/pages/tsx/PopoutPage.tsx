@@ -1,13 +1,6 @@
 import { useState } from "react";
-import { engineError } from "../../utils/translation";
+import { engineError, punctuate } from "../../utils/translation";
 import "../css/popout.css";
-
-const QUICK_PHRASES = [
-  "Hello everyone!",
-  "Could you repeat that?",
-  "One moment, please.",
-  "Thank you!",
-];
 
 /** The floating Type to speak window (no sign-in, no sidebar). */
 export default function PopoutPage() {
@@ -21,7 +14,7 @@ export default function PopoutPage() {
     setBusy(true);
     setError("");
     try {
-      await window.iris.popout.speak(value.trim());
+      await window.iris.popout.speak(punctuate(value));
       setText("");
     } catch (problem) {
       setError(engineError(problem, "Iris couldn't speak that."));
@@ -76,18 +69,6 @@ export default function PopoutPage() {
         placeholder="Type a message and press Enter…"
         value={text}
       />
-      <div className="popout-phrases">
-        {QUICK_PHRASES.map((phrase) => (
-          <button
-            disabled={busy}
-            key={phrase}
-            onClick={() => void say(phrase)}
-            type="button"
-          >
-            {phrase}
-          </button>
-        ))}
-      </div>
       <button
         className="popout-speak"
         disabled={busy || !text.trim()}

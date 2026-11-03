@@ -76,7 +76,13 @@ export type EngineCheck = {
   // On Linux `detail` explains why Iris Microphone isn't available yet.
   virtualMic: { ok: boolean; device?: string; error?: string; detail?: string };
   speech: { ok: boolean; engine: string };
-  signModel: { ok: boolean; status: string };
+  // status: "ready" | "running" | "missing-packages" | "model-not-found" | ...
+  signModel: {
+    ok: boolean;
+    status: string;
+    model?: string;
+    missing?: string[];
+  };
 };
 
 /** Engine events forwarded by Electron. */
@@ -89,7 +95,13 @@ export type EngineEvent =
       framesOut?: number;
       engine?: string;
     }
-  | { event: "sign"; text: string };
+  | {
+      event: "sign";
+      text: string;
+      // Our pose model's confidence in `text` (0..1) and its next best guesses.
+      confidence?: number;
+      alternatives?: { gloss: string; confidence: number }[];
+    };
 
 /** A user-friendly message for an error from the translation engine (see utils/errors.ts). */
 export function engineError(error: unknown, fallback: string) {
@@ -256,4 +268,30 @@ export function drawFrame(
   context.textAlign = "center";
   context.textBaseline = "middle";
   context.fillText(text, width / 2, y + boxHeight / 2, boxWidth - padX * 2);
+}
+
+/**
+ * Tidies a typed message before it is spoken and captioned: single spaces,
+ * a capital at the start of each sentence, "I" capitalised, spaces after
+ * commas and sentence ends, and a full stop if the message has no ending mark.
+ */
+export function punctuate(raw: string): string {
+  let text = raw.replace(/\s+/g, " ").trim();
+  if (!text) return text;
+  text = text
+    // No space before , . ! ? ; :
+    .replace(/\s+([,.!?;:])/g, "$1")
+    // A space after , ; : when a word follows (not in 3:30 or 1,000)
+    .replace(/([,;:])(?=[A-Za-z])/g, "$1 ")
+    // Standalone "i" and its contractions
+    .replace(/\bi\b(?=$|[\s,.!?;:']|')/g, "I")
+    // Capital at the very start and after . ! ?
+    .replace(/^[a-z]/, (letter) => letter.toUpperCase())
+    .replace(
+      /([.!?]\s+)([a-z])/g,
+      (_all, gap: string, letter: string) => gap + letter.toUpperCase(),
+    );
+  // End with a mark (a closing quote or bracket after one still counts).
+  if (!/[.!?…]["')\]]*$/.test(text)) text += ".";
+  return text;
 }

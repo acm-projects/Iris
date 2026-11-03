@@ -6,8 +6,6 @@ interface Window {
     /** Theme for native UI, and the dock icon style chosen in Settings. */
     app: {
       setTheme(theme: "light" | "dark" | "system"): Promise<void>;
-      getIcon(): Promise<"auto" | "light" | "dark" | "mono">;
-      setIcon(choice: "auto" | "light" | "dark" | "mono"): Promise<void>;
       flushStorage(): Promise<void>;
     };
     /** Type to speak pop-out window. */
@@ -51,8 +49,9 @@ interface Window {
     meetings: {
       openExternal(url: string): Promise<void>;
     };
-    /** Google text-to-speech into the virtual microphone, via the FastAPI
-     *  server (server/api.py). Resolves once the audio has finished playing. */
+    /** Text-to-speech into the virtual microphone, via the FastAPI voice
+     *  server (server/api.py, ElevenLabs by default). Resolves once the
+     *  audio has finished playing. */
     tts: {
       speak(text: string): Promise<void>;
     };
