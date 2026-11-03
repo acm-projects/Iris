@@ -368,25 +368,10 @@ export default function TranslationPage() {
     void runEngineCheck();
   }, [runEngineCheck]);
 
-  /** Speaks text into the meeting through the virtual microphone. */
-  const speak = useCallback(
-    async (text: string) => {
-      const label = devicesRef.current.outputs.find(
-        (d) => d.deviceId === settingsRef.current.virtualMicId,
-      )?.label;
-      showCaption(text);
-      await window.iris.engine.request("speak", { text, device: label });
-    },
-    [showCaption],
-  );
-
-  // True while Type to speak is in its own floating window (the box here
-  // is replaced by a "Bring back" card until it closes).
-  const [poppedOut, setPoppedOut] = useState(false);
-  useEffect(() => {
-    if (typeof window.iris.popout?.onStateChange !== "function") return;
-    void window.iris.popout.isOpen().then(setPoppedOut);
-    return window.iris.popout.onStateChange(setPoppedOut);
+    /** Speaks text into the meeting through the virtual microphone. */
+  const speak = useCallback(async (text: string) => {
+    setCaption(text);
+    await window.iris.tts.speak(text);
   }, []);
 
   // Speak requests from the floating Type to speak window.
