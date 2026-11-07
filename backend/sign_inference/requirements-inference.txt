@@ -6,3 +6,5 @@ numpy>=1.26,<3
 # Do not install opencv-python alongside it; the two wheels overwrite files.
 opencv-contrib-python>=4.9,<6
 torch>=2.2,<3
+google-genai>=1.56,<2
+python-dotenv>=1.0,<2

@@ -81,6 +81,64 @@ Record the complete sign between `R` and `S` with the upper body and both hands
 visible. The model receives unmirrored RGB frames; only the preview is mirrored.
 Scores are raw softmax model scores, not calibrated probabilities.
 
+## Gloss phrases to English
+
+Install `backend/requirements.txt` for the HTTP server, or
+`backend/sign_inference/requirements-inference.txt` for the camera runners.
+Create `backend/.env` locally using `backend/.env.example` as a template, then
+enter your Gemini Developer API key on the `GEMINI_API_KEY=` line. Do not overwrite
+existing keys. Set `GLOSS_LLM_MODEL=gemini-flash-latest`, replacing any old OpenAI
+model setting. OpenAI keys are no longer used by this service. Model access
+depends on your API account. Process environment variables override this file.
+The backend reads this explicit path regardless of the working directory.
+`.env` is ignored by Git; credentials never belong in frontend/Vite variables.
+
+Run `python backend/sign_inference/continuous_camera.py --model meeting100 --landmarks`
+for continuous recognition. By default a two-second pause without detected signing
+automatically submits the accepted phrase. Lower your hands out of view when done;
+keeping hands raised may keep signing active. Adjust with `--submit-pause 3`.
+Use `--manual-submit` to disable automatic submission. Enter also submits the phrase;
+C clears it. R/S in `camera_inference.py` instead manually delimits each sign,
+accepting its highest-scoring gloss, including intentionally recorded repeats.
+Enter submits that runner's accumulated phrase too.
+
+Continuous recognition uses a 60-frame landmark FIFO, separate from the ordered
+accepted-gloss list. Each window's winner is determined by confidence, then the
+three-window smoothing and two-window stability checks decide whether
+to commit it. Duplicate suppression rearms after rest, confidence release, or a
+different committed gloss. These are heuristics: there is no trained sign-boundary
+or blank detector. Hands disappearing can falsely signal rest; repeated signs
+without a detectable release may be missed. Manual R/S supplies explicit boundaries.
+
+The default acceptance confidence is 30% (previously 45%), with two consecutive
+winning predictions (previously three) and three smoothing windows (previously
+five). This accepts shorter, less confident signs sooner, at the cost of more
+false positives. Duplicate suppression still applies. Tune with `--min-conf`,
+`--stable`, and `--smooth`; restore the old settings with
+`--min-conf 0.45 --stable 3 --smooth 5`. The preview reports acceptance status,
+including insufficient confidence, unstable winners, and suppressed duplicates.
+
+The phrase now persists across pauses and is not silently truncated to 12 words.
+Automatic pause submission (or Enter) snapshots it and issues one Gemini request in a worker (SDK retries
+disabled), and leaves recognition running. Further submissions are blocked while
+pending. Success consumes only the snapshot; newly accepted words remain. Failure
+retains the words for explicit retry. C discards the active phrase but does not
+cancel an already submitted request. Translation status appears in the preview;
+the complete English result is also printed to the terminal.
+
+The existing FastAPI server also exposes `POST /gloss/translate` with
+`{"glosses":["i","want","help"]}`, returning `{"english":"..."}`. It uses the
+same backend service, with one provider request per HTTP invocation. The Electron
+engine's `recognize_sign` remains a placeholder; desktop recognition and submit
+controls are not wired to these camera runners. No LLM calls occur per frame.
+Automatic submission attempts each phrase revision once, including on failure;
+it does not retry continuously while you rest. Recognition of an additional word
+allows another automatic attempt, or use Enter for an explicit retry.
+
+Both model paths already use descending softmax `topk`; the manual selector uses
+the maximum numeric `confidence` (pose) or `score` (experimental legacy) explicitly.
+The legacy scores and label mapping retain their existing experimental caveats.
+
 ## Test
 
 Windows:

@@ -1,15 +1,15 @@
 """Continuous (rolling-window) sign recognition on top of PoseModelInference.
 
 camera_inference.py classifies one clip at a time (R ... S). This keeps the last
-50 frames of 55-joint keypoints in a rolling buffer instead and re-classifies
+60 frames of 55-joint keypoints in a rolling buffer instead and re-classifies
 that window every few frames, so signs are picked up as they happen and
 committed one after another into a running sentence.
 
 Nothing about the model or its inputs changes: each window is handed to
-PoseModel.predict as (50, 55, 2) pixel keypoints, exactly like a recording, and
+PoseModel.predict as (60, 55, 2) pixel keypoints, exactly like a recording, and
 the model samples its own frame count from it. What this file adds:
 
-  RollingBuffer    the last 50 frames (+ whether a hand was seen in each)
+  RollingBuffer    the last 60 frames (+ whether a hand was seen in each)
   SentenceBuilder  smooths the per-window word probabilities and decides when a
                    word is confident and stable enough to append to the sentence
   ContinuousInference  glues them to a PoseModelInference session
@@ -72,18 +72,23 @@ class SentenceBuilder:
     probability fell under `release_conf`, or another word was committed), so
     one slow sign that stays in the buffer for 50 frames isn't repeated.
     """
-    smooth: int = 5
-    stable: int = 3
-    min_conf: float = 0.45
+    smooth: int = 3
+    stable: int = 2
+    min_conf: float = 0.30
     release_conf: float = 0.15
-    max_words: int = 12
+    max_words: int | None = None  # no silent truncation of a manually submitted phrase
     words: list[str] = field(default_factory=list)
     sentences: list[list[str]] = field(default_factory=list)  # finished earlier sentences
 
     def __post_init__(self):
+        if not 1 <= self.stable <= self.smooth:
+            raise ValueError('Require 1 <= stable <= smooth.')
+        if not 0 <= self.release_conf < self.min_conf <= 1:
+            raise ValueError('Require 0 <= release_conf < min_conf <= 1.')
         self._history: deque[dict[str, float]] = deque(maxlen=self.smooth)
         self._last: str | None = None  # last committed word
         self._armed = True             # may `_last` be committed again?
+        self.status = 'Waiting for predictions'
 
     @property
     def text(self) -> str:
@@ -93,6 +98,7 @@ class SentenceBuilder:
         """No signing right now: forget the old window's votes and allow repeats."""
         self._history.clear()
         self._armed = True
+        self.status = 'Resting: waiting for signing'
 
     def end_sentence(self):
         """Close the current sentence (a long pause) and start a fresh one."""
@@ -104,6 +110,9 @@ class SentenceBuilder:
 
     def update(self, probs: dict[str, float]) -> str | None:
         """Feed one window's probabilities {gloss: p}; returns the word it committed, if any."""
+        if not probs:
+            self.status = 'No predictions'
+            return None
         self._history.append(probs)
         n = len(self._history)
         avg: dict[str, float] = {}
@@ -114,18 +123,26 @@ class SentenceBuilder:
 
         if self._last is not None and avg.get(self._last, 0.0) < self.release_conf:
             self._armed = True  # the committed sign has faded from the window
-        if n < self.stable or avg[top] < self.min_conf:
+        if n < self.stable:
+            self.status = f'{top}: collecting {n}/{self.stable} windows'
+            return None
+        if avg[top] < self.min_conf:
+            self.status = f'{top}: average {avg[top]:.0%} below {self.min_conf:.0%}'
             return None
         recent = list(self._history)[-self.stable:]
         if any(max(p, key=p.get) != top for p in recent):
+            self.status = f'{top}: waiting for {self.stable} consecutive wins'
             return None
         if top == self._last and not self._armed:
+            self.status = f'{top}: duplicate held until release or another sign'
             return None
 
         self.words.append(top)
-        del self.words[:-self.max_words]
+        if self.max_words is not None:
+            del self.words[:-self.max_words]
         self._last, self._armed = top, False
         self._history.clear()  # the next word must earn its votes from fresh windows
+        self.status = f'Accepted: {top}'
         return top
 
 
@@ -141,7 +158,7 @@ class Update:
 
 
 class ContinuousInference:
-    """Rolling 50-frame prediction over a PoseModelInference session.
+    """Rolling landmark-window prediction over a PoseModelInference session.
 
     Call process_frame() for every camera frame (same arguments as
     PoseModelInference.process_frame). A window is classified every
@@ -152,7 +169,7 @@ class ContinuousInference:
 
     def __init__(self, session: PoseModelInference, *, window: int = WINDOW_FRAMES,
                  predict_every: int = 3, min_hand_fraction: float = 0.3,
-                 recent_hand_frames: int = 10, sentence_gap_frames: int = 90,
+                 recent_hand_frames: int = 10, sentence_gap_frames: int | None = None,
                  builder: SentenceBuilder | None = None):
         self.session = session
         self.buffer = RollingBuffer(window)
@@ -160,7 +177,7 @@ class ContinuousInference:
         self.predict_every = predict_every
         self.min_hand_fraction = min_hand_fraction  # of the whole window
         self.recent_hand_frames = recent_hand_frames  # a hand must also be in the newest N frames
-        self.sentence_gap_frames = sentence_gap_frames  # idle frames that end a sentence (~3 s at 30 fps)
+        self.sentence_gap_frames = sentence_gap_frames  # optional archival; manual submit by default
         self._last_body: np.ndarray | None = None
         self._since_predict = 0
         self._idle = 0
@@ -207,7 +224,8 @@ class ContinuousInference:
     def _classify(self) -> str | None:
         model = self.session.model
         # Ask for the whole vocabulary: the builder averages probabilities across windows.
-        self.guesses = model.predict(self.buffer.window(), top_k=len(model.labels))
+        self.guesses = sorted(model.predict(self.buffer.window(), top_k=len(model.labels)),
+                              key=lambda g: g["confidence"], reverse=True)
         probs = {g["gloss"]: g["confidence"] for g in self.guesses}
         self.guesses = self.guesses[:self.session.top_k]
         return self.builder.update(probs)

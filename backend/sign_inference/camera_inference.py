@@ -9,6 +9,7 @@
 import argparse
 import json
 import time
+from gloss_translation import PhraseTranslator, chosen_prediction
 
 try:
     import cv2
@@ -90,6 +91,9 @@ def main():
             'to acknowledge and run the unverified TGCN checkpoint'
         )
     camera = None
+    translator = PhraseTranslator()
+    words = []
+    translation = 'Enter submits phrase | C clears phrase'
     try:
         if args.model is not None:
             from pose_model_inference import PoseModelInference
@@ -106,7 +110,7 @@ def main():
             print('EXPERIMENTAL: preprocessing and checkpoint label ordering unverified.')
             title = 'Experimental WLASL100'
         with session_cm as session:
-            print('R starts recording, S finishes and predicts, Q quits.')
+            print('R records one sign, S accepts its best gloss, Enter submits phrase, C clears, Q quits.')
             camera = cv2.VideoCapture(args.camera)
             if not camera.isOpened():
                 raise RuntimeError(
@@ -118,6 +122,10 @@ def main():
             message = 'R record | S predict | Q quit'
             predictions = []
             while True:
+                completed = translator.poll()
+                if completed:
+                    translation = completed
+                    print(completed)
                 success, frame = camera.read()
                 if not success:
                     raise RuntimeError('Could not read webcam frame.')
@@ -150,6 +158,8 @@ def main():
                         f'{session.captured_frame_count} frames'
                     ),
                     message,
+                    'Phrase: ' + ' '.join(words),
+                    translation,
                     *predictions,
                 ]
                 for index, line in enumerate(lines):
@@ -167,13 +177,19 @@ def main():
                 if key in (ord('q'), ord('Q')):
                     break
                 try:
-                    if key in (ord('r'), ord('R')):
+                    if key in (10, 13):
+                        translation = translator.submit(words)
+                    elif key in (ord('c'), ord('C')):
+                        words = []
+                    elif key in (ord('r'), ord('R')):
                         session.start_sequence()
                         predictions = []
                         message = 'Recording: S finishes'
                     elif key in (ord('s'), ord('S')):
                         result = session.finish_and_predict()
                         print(json.dumps(result, allow_nan=False))
+                        # R/S delimits one sign; separately recorded repeats are intentional.
+                        words.append(chosen_prediction(result)['gloss'])
                         if args.model:
                             predictions = [
                                 f'{index}. {p["gloss"]:<12} {p["confidence"]:6.1%}  '
@@ -202,6 +218,7 @@ def main():
     except Exception as error:
         parser.exit(1, f'Camera inference failed: {error}\n')
     finally:
+        translator.close()
         if camera is not None:
             camera.release()
         cv2.destroyAllWindows()
