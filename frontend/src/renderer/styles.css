@@ -30,8 +30,16 @@ button {
   font-size: 1.7rem;
   font-weight: 800;
 }
-.wordmark img {
+/* Iris logo (components/IrisLogo.tsx): the glowing flower, no background.
+   Light mode brightens it a little for the lighter blue sidebar. */
+.iris-logo {
   width: 2.8rem;
+  height: 2.8rem;
+  object-fit: contain;
+  filter: brightness(1.2) saturate(1.1);
+}
+:root[data-theme="dark"] .iris-logo {
+  filter: none;
 }
 /* ---- Shared form controls and buttons ---- */
 .field-group,

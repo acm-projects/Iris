@@ -217,6 +217,77 @@ Without `--model`, the script runs the original WLASL-100 TGCN demo instead
 | `Recording too short` | Hold the sign a little longer between R and S. |
 | Keys do nothing | Click the camera window first; it needs focus. |
 
+## In the Iris app (Start Translation)
+
+When translation goes live on the Translation page, the app turns sign
+recognition on automatically, and turns it off when translation stops. Each
+recognised word appears as a caption on the video Meet sees, and is spoken if
+"Speak recognised signs aloud" is on.
+
+**How it works:** the page already streams every frame to the Python engine
+(`backend/engine/engine.py`, about 24 frames a second). The engine runs
+MediaPipe and the model on a background thread (it never slows the video down):
+
+- nothing is recorded until your hands come up to chest height;
+- from that moment, the next **50 frames** (about 2 seconds) are scored as one
+  sign, and the top word is captioned and spoken;
+- for the next **6 frames** nothing new can start, so lowering your hands isn't
+  read as another sign; then it waits for your hands again (if you're still
+  signing, the next 50 frames start right away);
+- a recording where your hands were up for fewer than 5 frames is skipped;
+- otherwise the top word is reported, whatever the confidence.
+
+These are constants at the top of the sign recognition section in `engine.py`:
+`SIGN_WINDOW_FRAMES = 50`, `SIGN_BUFFER_FRAMES = 6`, and `SIGN_MIN_CONFIDENCE` / `SIGN_MIN_MARGIN`
+(both 0; raise them, e.g. to 0.45 / 0.10, to only report confident words).
+The engine also prints every word with its top guesses to the terminal running
+`npm run dev` (lines starting `[iris-engine] sign:`).
+
+**Where the speech goes:** the engine's `speak` method makes the audio with the
+computer's built-in voice (`say` on macOS, SAPI on Windows, espeak on Linux)
+and plays it into the virtual microphone chosen in the Translation settings
+(BlackHole 2ch on macOS, VB-CABLE on Windows), which Meet uses as its mic. It
+doesn't play through your own speakers.
+
+**Setup (once):** the engine runs in `backend/.venv`, which needs MediaPipe and
+PyTorch on top of its usual packages, plus the `meeting100` model file from the
+Drive at `ml/two_word/runs/meeting100/best.pt`:
+
+```bash
+backend/.venv/bin/pip uninstall -y opencv-python
+backend/.venv/bin/pip install -r backend/requirements.txt -r backend/requirements-sign.txt
+```
+
+(Windows: `backend\.venv\Scripts\pip.exe` instead of `backend/.venv/bin/pip`.)
+MediaPipe brings its own OpenCV, which clashes with `opencv-python`, hence the
+uninstall. The Translation page's system check reports the model's status
+(`signModel`): `ready`, `missing-packages`, or `model-not-found`.
+
+**Switching models:** change `DEFAULT_SIGN_MODEL` in `backend/engine/engine.py`,
+or set the `IRIS_SIGN_MODEL` environment variable before starting the app:
+
+```bash
+IRIS_SIGN_MODEL=visible63_e100 npm run dev
+```
+
+**Security.** Everything runs on the user's own computer, and the app talks to
+the engine over the engine's private stdin / stdout pipes, so there's no
+network port and nothing for an API key to protect. On top of that:
+
+- the web page can only start and stop recognition (both are on Electron's
+  allowlist of engine methods); it can't choose a model or a file;
+- model names must be plain names (letters, digits, `-`, `_`), and only files
+  inside `ml/two_word/pretrained/` or `ml/two_word/runs/` are loaded, even
+  through symlinks;
+- models load with `torch.load(weights_only=True)`, so a tampered `.pt` file
+  can't run code;
+- oversized frames are dropped before decoding.
+
+**Not yet:** installed (packaged) copies of Iris don't include sign
+recognition; it runs from the repo with `npm run dev`. The caption bar is drawn
+on the frames the model sees, near the bottom, so signs made very low can be
+partly covered.
+
 ## Training it yourself (optional)
 
 Only needed if you want to retrain or change the word list.
@@ -360,6 +431,7 @@ from its checkpoint automatically.
 | `pretrained/pretrain_asl2000_e100.pt` | the 2,000-word pretrained model (from the Drive) |
 | `runs/meeting100/best.pt` | the meeting100 model (from the Drive) |
 | `vocab/meeting100.txt` | the 100 meeting words |
+| `../../backend/sign_inference/live_recognizer.py` | live recognition in the app: 50-frame windows started by raised hands, with a buffer after each (or automatic start / end detection) |
 | `vocab/hand_visibility_asl2000.csv` | per-word hand visibility, one- vs two-handed, overlap (from `ml/hand_visibility.py`) |
 | `runs/` | your own training runs: checkpoints, history, per-word CSVs (gitignored) |
 

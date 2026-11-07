@@ -22,6 +22,8 @@ Protocol (one JSON object per line, same as server/main.py):
   stdout reply   : {"id": "1", "result": {...}}  or  {"id": "1", "error": "..."}
   stdin  frame   : {"method": "frame", "data": "<base64 JPEG>"}   (no reply)
   stdout event   : {"event": "status", ...}                         (unsolicited)
+  stdout event   : {"event": "sign", "text": "hello", "confidence": 0.83,
+                    "alternatives": [{"gloss": ..., "confidence": ...}]}
 Diagnostics go to stderr so they never mix with replies.
 
 Packaged copies of Iris ship this file as a standalone program built with
@@ -35,8 +37,12 @@ from __future__ import annotations
 
 import base64
 import importlib
+import importlib.util
 import json
+import os
 import platform
+import queue
+import re
 import shutil
 import subprocess
 import sys
@@ -94,19 +100,228 @@ def module_status() -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Sign recognition hook
+# Sign recognition
 # ---------------------------------------------------------------------------
+#
+# Runs our pose model (ml/two_word, via backend/sign_inference) on the frames
+# the app streams while translation is live. Security:
+#   - the model is chosen here, never by the app's web page: DEFAULT_SIGN_MODEL,
+#     or the IRIS_SIGN_MODEL environment variable, as a plain name only;
+#   - only files inside ml/two_word/pretrained or ml/two_word/runs are loaded,
+#     with torch.load(weights_only=True), so a model file can't run code;
+#   - everything stays on this computer: no network, no API keys.
+
+# The model the app uses. Change this (or set IRIS_SIGN_MODEL) to switch models.
+DEFAULT_SIGN_MODEL = "meeting100"
+SIGN_MODEL_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+SIGN_INFERENCE_DIR = REPO_ROOT / "backend" / "sign_inference"
+MODELS_DIRS = (REPO_ROOT / "ml" / "two_word" / "pretrained", REPO_ROOT / "ml" / "two_word" / "runs")
+# Frames are scored at this width (MediaPipe is faster on smaller images; the
+# model's features are scale-free, so accuracy is unaffected).
+SIGN_FRAME_WIDTH = 640
+# Largest frame accepted from the app (base64 characters); bigger ones are dropped.
+MAX_FRAME_B64 = 12_000_000
+# How signs are found in the video:
+#   "continuous" (default): a rolling buffer of the last 60 frames is re-scored
+#       every few frames while your hands are up; a word is added once it's
+#       confident and stable across several windows, so you can sign one word
+#       after another without pausing (backend/sign_inference/continuous_inference.py).
+#   "window": waits for your hands, scores the next SIGN_WINDOW_FRAMES frames as
+#       one sign, then pauses SIGN_BUFFER_FRAMES frames (live_recognizer.py).
+SIGN_MODE = "continuous"
+# --- "window" mode settings ---
+# Nothing is recorded until your hands come up to signing height. Then the
+# next SIGN_WINDOW_FRAMES frames (about 2 s at the app's 24 fps) are scored as
+# one sign, and the top word is captioned and spoken. For SIGN_BUFFER_FRAMES
+# frames after that nothing can start, so lowering your hands isn't read as a
+# new sign; then it waits for your hands again.
+SIGN_WINDOW_FRAMES = 50
+SIGN_BUFFER_FRAMES = 6
+# Minimum confidence (0-1) and lead over the second guess to report a word.
+# 0 = always report the top word; raise these to only report confident signs.
+SIGN_MIN_CONFIDENCE = 0.0
+SIGN_MIN_MARGIN = 0.0
 
 
-def recognize_sign(frame_rgb) -> str | None:
-    """Return the sign recognised in this frame, or None.
+def sign_model_name() -> str:
+    """The model to load: IRIS_SIGN_MODEL if set, else DEFAULT_SIGN_MODEL (a plain name only)."""
+    name = os.environ.get("IRIS_SIGN_MODEL", DEFAULT_SIGN_MODEL).strip()
+    if not SIGN_MODEL_NAME.fullmatch(name):
+        raise ValueError("IRIS_SIGN_MODEL must be a plain model name (letters, digits, '-', '_').")
+    return name
 
-    Placeholder until the MediaPipe + Pose-TGCN model is connected. Every frame
-    the app streams passes through here, so the model can keep its own
-    rolling buffer of keypoints and return a word/phrase when it is confident.
-    Returned text is sent to the app (event "sign") to show and speak.
-    """
+
+def sign_model_file(name: str) -> Path | None:
+    """The checkpoint for a model name, or None. Mirrors pose_models.resolve_model (no torch needed)."""
+    pretrained, runs = MODELS_DIRS
+    for path in [pretrained / f"{name}.pt", runs / name / "best.pt", *sorted((runs / name).glob("seed*/best.pt"))]:
+        if path.is_file():
+            return path
     return None
+
+
+class SignRecognition:
+    """Background worker: scores the newest frame, sends a "sign" event when a sign is recognised.
+
+    Frames that arrive while it's busy are dropped (it always works on the
+    newest one), so recognition never slows down the virtual camera.
+    """
+
+    def __init__(self) -> None:
+        # Holds at most one frame: the newest one waiting to be scored.
+        self._frames: queue.Queue = queue.Queue(maxsize=1)
+        self._thread: threading.Thread | None = None
+        self._stop = threading.Event()
+        self._lock = threading.Lock()
+        self.recognizer = None
+        self.model = None
+        self.last_error: str | None = None
+
+    @property
+    def running(self) -> bool:
+        return self._thread is not None and self._thread.is_alive()
+
+    def status(self) -> dict:
+        """For system_check: can recognition run, and with which model?"""
+        if self.running:
+            return {"ok": True, "status": "running", "model": self.model}
+        if BUNDLED:
+            return {"ok": False, "status": "not-in-installed-builds"}
+        try:
+            name = sign_model_name()
+        except ValueError as error:
+            return {"ok": False, "status": "invalid-model-name", "error": str(error)}
+        missing = [m for m in ("mediapipe", "torch") if importlib.util.find_spec(m) is None]
+        if missing:
+            return {"ok": False, "status": "missing-packages", "model": name, "missing": missing}
+        if sign_model_file(name) is None:
+            return {"ok": False, "status": "model-not-found", "model": name}
+        return {"ok": True, "status": "ready", "model": name}
+
+    def start(self) -> dict:
+        """Load MediaPipe and the model (first time only) and start the worker thread.
+
+        Returns the model name, vocabulary size and its validation accuracy.
+        Raises RuntimeError with a user-readable reason if it can't start.
+        """
+        with self._lock:
+            if self.running:
+                return self._info()
+            name = sign_model_name()
+            if BUNDLED:
+                raise RuntimeError("Sign recognition isn't included in installed copies of Iris yet.")
+            if sign_model_file(name) is None:
+                raise RuntimeError(
+                    f"Sign model '{name}' not found. Put it at ml/two_word/runs/{name}/best.pt "
+                    "(from the team Drive) or set IRIS_SIGN_MODEL.")
+            if str(SIGN_INFERENCE_DIR) not in sys.path:
+                sys.path.insert(0, str(SIGN_INFERENCE_DIR))
+            try:
+                from continuous_inference import ContinuousInference
+                from live_recognizer import LiveSignRecognizer
+            except ImportError as error:
+                raise RuntimeError(
+                    "Sign recognition needs MediaPipe and PyTorch: "
+                    "pip install -r backend/requirements-sign.txt "
+                    f"({error.name or error})") from error
+            # Both recognizers take a frame in process() and return a result
+            # dict when a word is recognised, so _run() works with either.
+            # allow_paths=False: plain names inside the model folders only.
+            if SIGN_MODE == "continuous":
+                self.recognizer = ContinuousInference.for_model(name, allow_paths=False)
+                how = "rolling 60-frame buffer, words added as you sign"
+            else:
+                self.recognizer = LiveSignRecognizer(
+                    name, allow_paths=False, window_frames=SIGN_WINDOW_FRAMES,
+                    buffer_frames=SIGN_BUFFER_FRAMES, min_confidence=SIGN_MIN_CONFIDENCE,
+                    min_margin=SIGN_MIN_MARGIN)
+                how = f"{SIGN_WINDOW_FRAMES} frames per sign once your hands are up"
+            self.model = name
+            self.last_error = None
+            self._stop.clear()
+            self._thread = threading.Thread(target=self._run, name="sign-recognition", daemon=True)
+            self._thread.start()
+            log(f"sign recognition started with {name} ({len(self.recognizer.model.labels)} words, {how})")
+            return self._info()
+
+    def _info(self) -> dict:
+        """What start() reports back to the app."""
+        model = self.recognizer.model
+        return {"model": self.model, "words": len(model.labels), "trainedValAcc": model.trained_val_acc}
+
+    def stop(self) -> None:
+        """Stop the worker thread and release MediaPipe (safe to call when not running)."""
+        with self._lock:
+            self._stop.set()
+            if self._thread:
+                self._thread.join(timeout=3)
+            self._thread = None
+            if self.recognizer is not None:
+                self.recognizer.close()
+            self.recognizer = None
+
+    def submit(self, frame_rgb) -> None:
+        """Hand the newest frame to the worker (replacing one it hasn't started on)."""
+        if not self.running:
+            return
+        try:
+            self._frames.get_nowait()
+        except queue.Empty:
+            pass
+        try:
+            self._frames.put_nowait(frame_rgb)
+        except queue.Full:
+            pass
+
+    def _run(self) -> None:
+        """Worker loop: score each newest frame; send a "sign" event when a word is recognised."""
+        import cv2
+
+        last_ms = -1
+        errors = 0
+        while not self._stop.is_set():
+            try:
+                frame = self._frames.get(timeout=0.2)
+            except queue.Empty:
+                continue
+            # MediaPipe needs strictly increasing timestamps.
+            now = max(last_ms + 1, int(time.monotonic() * 1000))
+            last_ms = now
+            try:
+                height, width = frame.shape[:2]
+                if width > SIGN_FRAME_WIDTH:
+                    frame = cv2.resize(frame, (SIGN_FRAME_WIDTH, round(height * SIGN_FRAME_WIDTH / width)))
+                result = self.recognizer.process(frame, now)
+                errors = 0
+            except Exception as error:  # noqa: BLE001 - keep recognising after a bad frame
+                errors += 1
+                self.last_error = str(error)
+                if errors <= 3:
+                    log(f"sign recognition frame error: {error}")
+                continue
+            if not result:
+                continue
+            words = ", ".join(f"{p['gloss']} {p['confidence']:.0%}" for p in result["predictions"])
+            if result["accepted"]:
+                log(f"sign: {result['text']} ({words})")
+                send({"event": "sign", "text": result["text"], "confidence": result["confidence"],
+                      "alternatives": result["predictions"][1:]})
+            else:
+                log(f"not confident enough, ignored ({words})")
+
+
+sign_recognition = SignRecognition()
+
+
+def recognize_sign(frame_rgb) -> None:
+    """Pass a frame to sign recognition (if it's running).
+
+    Every frame the app streams passes through here. Recognition runs on its
+    own thread and sends a "sign" event when it recognises a sign, which the
+    app shows as a caption and can speak.
+    """
+    sign_recognition.submit(frame_rgb)
 
 
 # ---------------------------------------------------------------------------
@@ -162,6 +377,8 @@ class VirtualCameraStream:
         import cv2
         import numpy as np
 
+        if len(data_b64) > MAX_FRAME_B64:
+            return  # far larger than any camera frame: drop it
         raw = np.frombuffer(base64.b64decode(data_b64), dtype=np.uint8)
         frame_bgr = cv2.imdecode(raw, cv2.IMREAD_COLOR)
         if frame_bgr is None:
@@ -172,9 +389,7 @@ class VirtualCameraStream:
         with self._lock:
             self._latest = frame_rgb
         self.frames_in += 1
-        sign = recognize_sign(frame_rgb)
-        if sign:
-            send({"event": "sign", "text": sign})
+        recognize_sign(frame_rgb)
 
     def _placeholder(self):
         """Deep-navy frame shown before the first real frame arrives."""
@@ -494,7 +709,7 @@ def system_check() -> dict:
         result["speech"] = {"ok": voice is not None,
                             "engine": Path(voice).name if voice else "espeak-ng"}
 
-    result["signModel"] = {"ok": False, "status": "not-connected"}
+    result["signModel"] = sign_recognition.status()
     return result
 
 
@@ -511,7 +726,13 @@ def handle(method: str, params: dict):
     if method == "start_virtual_camera":
         return camera.start(params.get("width", 1280), params.get("height", 720), params.get("fps", 24))
     if method == "stop_virtual_camera":
+        sign_recognition.stop()
         camera.stop()
+        return {"stopped": True}
+    if method == "start_sign_recognition":
+        return sign_recognition.start()
+    if method == "stop_sign_recognition":
+        sign_recognition.stop()
         return {"stopped": True}
     if method == "speak":
         text = str(params.get("text", "")).strip()[:500]
@@ -555,6 +776,7 @@ def main() -> None:
             send({"id": None, "error": "Request requires a string ID."})
             continue
         threading.Thread(target=respond, args=(request,), daemon=True).start()
+    sign_recognition.stop()
     camera.stop()
 
 

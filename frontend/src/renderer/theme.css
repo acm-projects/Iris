@@ -171,23 +171,20 @@
   --cal-text: var(--d-text);
   --cal-muted: var(--d-muted);
   --cal-hover: var(--d-surface-2);
-  background: var(--d-bg);
+  --cal-surface: var(--d-surface);
+  --cal-now: #8b7be0;
+  --cal-today-tint: #5c4bab26;
+  --cal-iris-soft: #2a2450;
 }
-:root[data-theme="dark"] .cal-button,
-:root[data-theme="dark"] .cal-nav button,
-:root[data-theme="dark"] .cal-connect,
+:root[data-theme="dark"] .cal-view-list button.selected {
+  color: #b8acf2;
+}
+:root[data-theme="dark"] .cal-shell {
+  box-shadow: 0 12px 40px #00000066;
+}
 :root[data-theme="dark"] .cal-popover,
 :root[data-theme="dark"] .cal-popover-actions button {
   background: var(--d-surface);
-}
-:root[data-theme="dark"] .cal-sync {
-  background: transparent;
-}
-:root[data-theme="dark"] .cal-views {
-  background: var(--d-surface-2);
-}
-:root[data-theme="dark"] .cal-views button.active {
-  background: var(--d-surface-3);
 }
 :root[data-theme="dark"] .cal-date:hover,
 :root[data-theme="dark"] .cal-add:hover {
@@ -197,7 +194,6 @@
   color: #4b5f7e;
 }
 :root[data-theme="dark"] .cal-day:hover,
-:root[data-theme="dark"] .cal-day.weekend,
 :root[data-theme="dark"] .cal-column:hover {
   background-color: #ffffff05;
 }
@@ -291,4 +287,9 @@
 :root[data-theme="dark"] .form-message.success {
   color: #8ee6b4;
   background: #123a2a;
+}
+/* Month-grid event tooltip */
+:root[data-theme="dark"] .cal-tip {
+  border: 1px solid var(--d-border-strong);
+  background: var(--d-surface-3);
 }

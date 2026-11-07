@@ -11,9 +11,6 @@ contextBridge.exposeInMainWorld("iris", {
   app: {
     setTheme: (theme: "light" | "dark" | "system") =>
       ipcRenderer.invoke("iris:app:set-theme", theme),
-    getIcon: () => ipcRenderer.invoke("iris:app:get-icon"),
-    setIcon: (choice: "auto" | "light" | "dark" | "mono") =>
-      ipcRenderer.invoke("iris:app:set-icon", choice),
     // Saves localStorage to disk immediately (see utils/storage.ts).
     flushStorage: () => ipcRenderer.invoke("iris:app:flush-storage"),
   },

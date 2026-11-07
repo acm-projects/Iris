@@ -2,6 +2,8 @@ pyvirtualcam>=0.11.1
 sounddevice>=0.4.6
 numpy>=1.24
 opencv-python>=4.8
+# Voice server (server/): ElevenLabs is called with requests; Google TTS is the fallback.
+requests>=2.31,<3
 google-cloud-texttospeech>=2.0,<3.0
 fastapi>=0.115,<1.0
 uvicorn>=0.30,<1.0

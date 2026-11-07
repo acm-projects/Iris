@@ -63,8 +63,7 @@
         "to": "brand",
         "filter": [
           "iris-dock-light.png",
-          "iris-dock-dark.png",
-          "iris-dock-mono.png"
+          "iris-dock-dark.png"
         ]
       },
       {

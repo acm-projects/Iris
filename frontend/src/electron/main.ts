@@ -49,53 +49,12 @@ function assetPath(filename: string) {
       : path.join(__dirname, "../dist", filename);
 }
 
-// ---------------------------------------------------------------------------
-// Preferences chosen in Settings → Appearance (stored unencrypted; not secret)
-// ---------------------------------------------------------------------------
-
-/** Dock icon styles; "auto" follows the app's light/dark appearance. */
-const appIconChoices = ["auto", "light", "dark", "mono"] as const;
-type AppIconChoice = (typeof appIconChoices)[number];
-/** Everything saved in iris-preferences.json. */
-type Preferences = { appIcon: AppIconChoice };
-
-/** Preferences file in the user's app-data folder. */
-function preferencesPath() {
-  return path.join(app.getPath("userData"), "iris-preferences.json");
-}
-
-/** Reads saved preferences, falling back to defaults for anything missing. */
-function readPreferences(): Preferences {
-  try {
-    const saved = JSON.parse(
-      readFileSync(preferencesPath(), "utf8"),
-    ) as Partial<Preferences>;
-    return {
-      appIcon: appIconChoices.includes(saved.appIcon as AppIconChoice)
-        ? (saved.appIcon as AppIconChoice)
-        : "auto",
-    };
-  } catch {
-    return { appIcon: "auto" };
-  }
-}
-
-/** Saves preferences (overwrites the whole file). */
-function writePreferences(preferences: Preferences) {
-  mkdirSync(path.dirname(preferencesPath()), { recursive: true });
-  writeFileSync(preferencesPath(), JSON.stringify(preferences), "utf8");
-}
-
-/** Picks the dock icon for the saved choice ("auto" matches light/dark mode). */
+/** The dock icon matches the theme: light icon in light mode, dark in dark
+ *  mode, and with "System" it follows the computer (nativeTheme). */
 function currentAppIcon() {
-  const choice = readPreferences().appIcon;
-  const style =
-    choice === "auto"
-      ? nativeTheme.shouldUseDarkColors
-        ? "dark"
-        : "light"
-      : choice;
-  return assetPath(`iris-dock-${style}.png`);
+  return assetPath(
+    `iris-dock-${nativeTheme.shouldUseDarkColors ? "dark" : "light"}.png`,
+  );
 }
 
 /** Applies the current icon to the macOS dock and every open window. */
@@ -251,8 +210,9 @@ if (!hasSingleInstanceLock) {
 /** Creates the desktop window and loads the appropriate renderer bundle. */
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1100,
-    height: 700,
+    // Default size: roomy enough to show the whole Home page at once.
+    width: 1220,
+    height: 780,
     minWidth: 800,
     minHeight: 600,
     title: "Iris",
@@ -427,6 +387,23 @@ ipcMain.handle("iris:meetings:open-external", async (_event, url: string) => {
 // --- Google Calendar API -------------------------------------------------
 // Errors prefixed with "GOOGLE_AUTH:" tell React the token is missing/expired
 // so it can ask the user to reconnect Google.
+
+/**
+ * Checks an event ID from React and returns the URL path for that event.
+ * Google IDs are usually letters, digits and "_", but an occurrence of a
+ * repeating event adds its date ("abc123_20261103T170000Z") and imported
+ * events can include "-", "." or "@". Anything else (slashes, "?", "..") is
+ * rejected so the ID can't change which URL is requested.
+ */
+function googleEventPath(eventId: unknown) {
+  if (
+    typeof eventId !== "string" ||
+    !/^[A-Za-z0-9_\-.@]{1,1024}$/.test(eventId) ||
+    /^\.+$/.test(eventId)
+  )
+    throw new Error("That Google Calendar event ID is not valid.");
+  return `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`;
+}
 
 /** Data React sends when creating a calendar event with a Meet link. */
 type MeetEventRequest = {
@@ -605,21 +582,17 @@ ipcMain.handle(
   async (_event, accessToken: string, eventId: string, colorId: string) => {
     if (typeof accessToken !== "string" || !accessToken)
       throw new Error("GOOGLE_AUTH: Connect Google to change event colours.");
-    if (typeof eventId !== "string" || !/^[a-v0-9_]{5,1024}$/i.test(eventId))
-      throw new Error("That Google Calendar event ID is not valid.");
+    const eventUrl = googleEventPath(eventId);
     if (!/^(?:[1-9]|1[01])$/.test(String(colorId)))
       throw new Error("That calendar colour is not valid.");
-    const response = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`,
-      {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ colorId: String(colorId) }),
+    const response = await fetch(eventUrl, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({ colorId: String(colorId) }),
+    });
     if (response.ok) return;
     if (response.status === 401)
       throw new Error("GOOGLE_AUTH: Reconnect Google to change event colours.");
@@ -646,26 +619,22 @@ ipcMain.handle(
   ) => {
     if (typeof accessToken !== "string" || !accessToken)
       throw new Error("GOOGLE_AUTH: Connect Google to change event times.");
-    if (typeof eventId !== "string" || !/^[a-v0-9_]{5,1024}$/i.test(eventId))
-      throw new Error("That Google Calendar event ID is not valid.");
+    const eventUrl = googleEventPath(eventId);
     const start = new Date(startsAt);
     const end = new Date(endsAt);
     if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start)
       throw new Error("The new meeting time is not valid.");
-    const response = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`,
-      {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          start: { dateTime: start.toISOString() },
-          end: { dateTime: end.toISOString() },
-        }),
+    const response = await fetch(eventUrl, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({
+        start: { dateTime: start.toISOString() },
+        end: { dateTime: end.toISOString() },
+      }),
+    });
     if (response.ok) return;
     if (response.status === 401)
       throw new Error("GOOGLE_AUTH: Reconnect Google to change event times.");
@@ -697,13 +666,11 @@ ipcMain.handle(
   async (_event, accessToken: string, eventId: string) => {
     if (typeof accessToken !== "string" || !accessToken)
       throw new Error("GOOGLE_AUTH: Connect Google to remove calendar events.");
-    // Google event IDs are base32hex; reject anything else before building the URL.
-    if (typeof eventId !== "string" || !/^[a-v0-9_]{5,1024}$/i.test(eventId))
-      throw new Error("That Google Calendar event ID is not valid.");
-    const response = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}?sendUpdates=all`,
-      { method: "DELETE", headers: { Authorization: `Bearer ${accessToken}` } },
-    );
+    const eventUrl = googleEventPath(eventId);
+    const response = await fetch(`${eventUrl}?sendUpdates=all`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
     // 404/410 mean the event is already gone, which is the outcome we want.
     if (response.ok || response.status === 404 || response.status === 410)
       return;
@@ -748,15 +715,6 @@ ipcMain.handle("iris:app:set-theme", (_event, theme: string) => {
   if (theme !== "light" && theme !== "dark" && theme !== "system")
     throw new Error("Unknown theme.");
   nativeTheme.themeSource = theme;
-  updateAppIcon();
-});
-/** Returns the saved dock icon choice. */
-ipcMain.handle("iris:app:get-icon", () => readPreferences().appIcon);
-/** Saves a dock icon choice and applies it immediately. */
-ipcMain.handle("iris:app:set-icon", (_event, choice: string) => {
-  if (!appIconChoices.includes(choice as AppIconChoice))
-    throw new Error("Unknown app icon.");
-  writePreferences({ ...readPreferences(), appIcon: choice as AppIconChoice });
   updateAppIcon();
 });
 
@@ -965,17 +923,24 @@ const engineMethods = new Set([
   "test_tone",
   // Linux only: creates Iris's own virtual microphone.
   "create_virtual_mic",
+  // Live sign recognition while translation is running. The engine picks the
+  // model itself; the page can only start and stop it.
+  "start_sign_recognition",
+  "stop_sign_recognition",
 ]);
 /** Runs an engine method requested by the Translation page. */
 ipcMain.handle(
   "iris:engine:request",
   async (_event, method: string, params: unknown) => {
     if (!engineMethods.has(method)) throw new Error("Unknown engine method.");
-    // Speech can take a while for long text; everything else should be quick.
+    // Speech can take a while for long text, and the first start of sign
+    // recognition loads MediaPipe and PyTorch; everything else should be quick.
     const result = await engineRequest(
       method,
       params,
-      method === "speak" ? 90_000 : 20_000,
+      method === "speak" || method === "start_sign_recognition"
+        ? 90_000
+        : 20_000,
     );
     // While streaming to the virtual camera, stop macOS from napping Iris.
     if (method === "start_virtual_camera") keepAwakeWhileLive(true);
@@ -984,7 +949,8 @@ ipcMain.handle(
   },
 );
 
-// Google text-to-speech through the FastAPI server (server/api.py)
+// Text-to-speech through the FastAPI server (server/api.py), which uses
+// ElevenLabs by default or Google (TTS_PROVIDER in Cue/.env).
 // Two steps: POST /tts turns text into an MP3, then POST /microphone plays
 // that MP3 into the virtual microphone and waits until it finishes.
 const ttsServer = "http://127.0.0.1:8000";
@@ -997,7 +963,7 @@ async function apiError(response: Response, fallback: string) {
   return typeof body.detail === "string" ? body.detail : fallback;
 }
 
-/** Speaks text into the meeting using Google's voice. */
+/** Speaks text into the meeting using the voice server's provider. */
 ipcMain.handle("iris:tts:speak", async (_event, text: string) => {
   if (typeof text !== "string" || !text.trim() || text.length > 500)
     throw new Error("Type something to speak first.");
@@ -1011,7 +977,9 @@ ipcMain.handle("iris:tts:speak", async (_event, text: string) => {
   }).catch(() => null);
   // null means the request never reached the server.
   if (!speech)
-    throw new Error("Iris's voice server isn't running. Start it and try again.");
+    throw new Error(
+      "Iris's voice server isn't running. Start it and try again.",
+    );
   if (!speech.ok)
     throw new Error(
       await apiError(speech, `Speech generation failed (${speech.status}).`),

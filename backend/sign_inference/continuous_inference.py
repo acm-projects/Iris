@@ -1,9 +1,9 @@
 """Continuous (rolling-window) sign recognition on top of PoseModelInference.
 
 camera_inference.py classifies one clip at a time (R ... S). This keeps the last
-60 frames of 55-joint keypoints in a rolling buffer instead and re-classifies
-that window every few frames, so signs are picked up as they happen and
-committed one after another into a running sentence.
+WINDOW_FRAMES (60) frames of 55-joint keypoints in a rolling buffer instead and
+re-classifies that window every few frames, so signs are picked up as they
+happen and committed one after another into a running sentence.
 
 Nothing about the model or its inputs changes: each window is handed to
 PoseModel.predict as (60, 55, 2) pixel keypoints, exactly like a recording, and
@@ -12,9 +12,9 @@ the model samples its own frame count from it. What this file adds:
   RollingBuffer    the last 60 frames (+ whether a hand was seen in each)
   SentenceBuilder  smooths the per-window word probabilities and decides when a
                    word is confident and stable enough to append to the sentence
-  ContinuousInference  glues them to a PoseModelInference session
-
-  python continuous_camera.py --model meeting100 --landmarks
+  ContinuousInference  glues them to a PoseModelInference session; its
+                   process() method is what the app's engine calls
+                   (backend/engine/engine.py, SIGN_MODE = "continuous")
 """
 from __future__ import annotations
 
@@ -70,7 +70,7 @@ class SentenceBuilder:
     guess in each of the last `stable` windows. After a word is added the same
     word is not added again until the sign has visibly ended (hands dropped, its
     probability fell under `release_conf`, or another word was committed), so
-    one slow sign that stays in the buffer for 50 frames isn't repeated.
+    one slow sign that stays in the buffer for a whole window isn't repeated.
     """
     smooth: int = 3
     stable: int = 2
@@ -158,7 +158,7 @@ class Update:
 
 
 class ContinuousInference:
-    """Rolling landmark-window prediction over a PoseModelInference session.
+    """Rolling-window prediction over a PoseModelInference session.
 
     Call process_frame() for every camera frame (same arguments as
     PoseModelInference.process_frame). A window is classified every
@@ -182,6 +182,47 @@ class ContinuousInference:
         self._since_predict = 0
         self._idle = 0
         self.guesses: list[dict] = []
+        self._probs: dict[str, float] = {}  # every word's probability for the latest window
+
+    @classmethod
+    def for_model(cls, model_name: str, *, top_k: int = 3, allow_paths: bool = False,
+                  **options) -> "ContinuousInference":
+        """Open a MediaPipe + model session by name and wrap it (used by the engine).
+
+        allow_paths=False only loads plain model names from the model folders.
+        """
+        session = PoseModelInference(model_name, top_k=top_k, allow_paths=allow_paths)
+        return cls(session, **options)
+
+    @property
+    def model(self):
+        """The loaded PoseModel (labels, accuracy), like LiveSignRecognizer.model."""
+        return self.session.model
+
+    def process(self, rgb_frame, timestamp_ms) -> dict | None:
+        """Engine interface (same result shape as LiveSignRecognizer.process).
+
+        Returns a dict only on frames where a new word was added to the
+        sentence: "accepted", "text", "confidence", "margin", "predictions"
+        (top guesses for that window) and "frames" (buffer length).
+        """
+        update = self.process_frame(rgb_frame, timestamp_ms)
+        if update.committed is None:
+            return None
+        confidence = self._probs.get(update.committed, 0.0)
+        others = [p for g, p in self._probs.items() if g != update.committed]
+        return {
+            "accepted": True,  # SentenceBuilder already required a confident, stable word
+            "text": update.committed,
+            "confidence": confidence,
+            "margin": confidence - max(others, default=0.0),
+            "predictions": update.guesses,
+            "frames": update.buffered,
+        }
+
+    def close(self):
+        """Release MediaPipe; this object can't be used afterwards."""
+        self.session.close()
 
     def reset(self):
         self.buffer.clear()
@@ -189,6 +230,7 @@ class ContinuousInference:
         self._last_body = None
         self._since_predict = self._idle = 0
         self.guesses = []
+        self._probs = {}
 
     def process_frame(self, rgb_frame, timestamp_ms) -> Update:
         points = self.session.process_frame(rgb_frame, timestamp_ms)
@@ -227,5 +269,6 @@ class ContinuousInference:
         self.guesses = sorted(model.predict(self.buffer.window(), top_k=len(model.labels)),
                               key=lambda g: g["confidence"], reverse=True)
         probs = {g["gloss"]: g["confidence"] for g in self.guesses}
+        self._probs = probs
         self.guesses = self.guesses[:self.session.top_k]
         return self.builder.update(probs)

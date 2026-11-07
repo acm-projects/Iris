@@ -20,102 +20,21 @@
   --t-fail: #c2412d;
   --t-fail-soft: #fff7f5;
   --t-fail-border: #f5d7d0;
+  --t-r-lg: 20px;
+  --t-r-md: 12px;
+  --t-r-sm: 8px;
+  display: flex;
   height: 100vh;
   margin-left: 240px;
   overflow-y: auto;
-  padding: 34px 40px 56px;
+  padding: 20px;
   color: var(--t-text);
   background-color: var(--page-base);
   background-image: var(--page-glow);
 }
 
-/* ---- Banner header (same look as the Home clock card) ---- */
-.tr-header {
-  position: relative;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  align-items: center;
-  justify-content: space-between;
-  max-width: 1240px;
-  margin: 0 auto 22px;
-  padding: 28px 32px;
-  overflow: hidden;
-  border-radius: 24px;
-  background: linear-gradient(110deg, #5d4ea6 0%, #5b70b3 55%, #88a9c6 100%);
-  box-shadow: 0 16px 36px #5d4ea63a;
-}
-/* Soft leaf shapes behind the text */
-.tr-leaf {
-  position: absolute;
-  border-radius: 0 100% 0 100%;
-  pointer-events: none;
-}
-.tr-leaf.one {
-  bottom: -90px;
-  left: -40px;
-  width: 190px;
-  height: 190px;
-  background: #b9b2ea;
-  opacity: 0.28;
-}
-.tr-leaf.two {
-  top: -60px;
-  right: 260px;
-  width: 150px;
-  height: 150px;
-  background: #8fb8c9;
-  opacity: 0.3;
-  transform: rotate(30deg);
-}
-.tr-leaf.three {
-  right: 50px;
-  bottom: -60px;
-  width: 120px;
-  height: 120px;
-  background: #6fa59f;
-  opacity: 0.35;
-}
-.tr-header-text,
-.tr-header-actions {
-  position: relative;
-}
-.tr-header-text p {
-  margin: 0 0 6px;
-  color: #dfe5ff;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-.tr-header-text h1 {
-  margin: 0;
-  color: #fff;
-  font-size: 2.1rem;
-  letter-spacing: -0.035em;
-}
-.tr-header-actions {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-/* Start / Stop in the banner */
-.tr-header .tr-start {
-  color: var(--t-purple);
-  background: #fff;
-  box-shadow: 0 8px 18px #14275a2e;
-}
-.tr-header .tr-start:disabled {
-  opacity: 0.7;
-}
-.tr-header .tr-stop {
-  color: #fff;
-  background: #d1493a;
-  box-shadow: 0 8px 18px #d1493a47;
-}
-/* Shared button shape. Purple by default (Speak); white inside the banner. */
-.tr-start,
-.tr-stop {
+/* Shared button shape (Speak). */
+.tr-start {
   height: 44px;
   padding: 0 20px;
   border: 0;
@@ -127,8 +46,7 @@
     transform 0.15s,
     opacity 0.15s;
 }
-.tr-start:hover:not(:disabled),
-.tr-stop:hover {
+.tr-start:hover:not(:disabled) {
   transform: translateY(-1px);
 }
 .tr-start:disabled {
@@ -145,14 +63,107 @@
   font-size: 0.9rem;
 }
 
-/* ---- Layout: the camera full width (lined up with the banner), Type to
-   speak underneath ---- */
+/* ---- Layout: one centred card (like the calendar) with a toolbar on top,
+   the camera on the left and Type to speak on the right ---- */
 .tr-center {
-  display: grid;
-  gap: 20px;
-  max-width: 1240px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 480px;
+  width: 100%;
+  max-width: 1600px;
   margin: 0 auto;
+  overflow: hidden;
+  border-radius: var(--t-r-lg);
+  background: #1c2a47;
+  box-shadow:
+    0 1px 2px #1d2b4410,
+    0 12px 40px #1d2b441a;
 }
+/* Toolbar floats over the top of the camera */
+.tr-toolbar {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 6;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 24px 48px;
+  background: linear-gradient(#0b163a8c, #0b163a00);
+  pointer-events: none;
+}
+.tr-toolbar > * {
+  pointer-events: auto;
+}
+/* Page title in the top-left of the camera view */
+.tr-heading {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.tr-heading h1 {
+  margin: 0;
+  font-size: 1.7rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+/* Small pill showing what the camera is doing */
+.tr-status {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  color: #fff;
+  background: #0b163a8c;
+  backdrop-filter: blur(6px);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+/* Red recording dot with a soft pulse, shown while translation is live */
+.tr-live-pulse {
+  position: relative;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+}
+.tr-live-pulse::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #ef4444;
+  animation: tr-live-pulse 1.6s ease-out infinite;
+}
+@keyframes tr-live-pulse {
+  to {
+    opacity: 0;
+    transform: scale(2.8);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tr-live-pulse::after {
+    animation: none;
+    opacity: 0;
+  }
+}
+.tr-status.on {
+  background: #2f8f5fcc;
+}
+.tr-status.live {
+  background: #5d4ea6e6;
+}
+/* Everything under the toolbar: the camera stage fills it */
+.tr-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+/* Side panel (Type to speak) */
 .tr-card {
   padding: 20px 22px;
   border: 1px solid var(--t-border);
@@ -259,22 +270,21 @@
 }
 
 /* ---- Preview ---- */
-.tr-preview-card {
-  /* Positioning context for the ⓘ / ☰ buttons and their popups */
+.tr-stage {
+  /* Positioning context for the Type to speak icon and its box */
   position: relative;
-  padding: 12px;
+  flex: 1;
+  min-width: 0;
 }
+
 .tr-preview {
   position: relative;
   overflow: hidden;
-  /* An explicit width keeps the preview full width; otherwise the height cap
-     below shrinks the width too, to keep 16:9 */
+  /* Fills the card (the video crops to fill, see object-fit below) */
   width: 100%;
-  aspect-ratio: 16 / 9;
-  /* At full width a 16:9 preview gets very tall; cap it so Type to speak
-     stays in view (the video crops to fill, see object-fit below) */
-  max-height: max(340px, calc(100vh - 440px));
-  border-radius: 16px;
+  height: 100%;
+  min-height: 340px;
+  border-radius: var(--t-r-md);
   background: #1c2a47;
 }
 .tr-preview video {
@@ -285,49 +295,7 @@
 .tr-preview.mirrored video {
   transform: scaleX(-1);
 }
-.tr-preview-empty {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  gap: 8px;
-  place-content: center;
-  justify-items: center;
-  padding: 20px;
-  color: #dce8f5;
-  text-align: center;
-  background: radial-gradient(circle at 50% 40%, #3a4f86, #1c2a47 70%);
-}
-.tr-preview-empty strong {
-  color: #fff;
-  font-size: 1.1rem;
-}
-.tr-preview-empty button {
-  margin-top: 6px;
-  padding: 9px 14px;
-  border: 0;
-  border-radius: 10px;
-  color: #00224e;
-  background: var(--t-gold);
-  font-weight: 800;
-}
-.tr-live-badge,
-.tr-tag {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  padding: 5px 11px;
-  border-radius: 999px;
-  color: #fff;
-  font-size: 0.76rem;
-  font-weight: 800;
-  letter-spacing: 0.03em;
-}
-.tr-live-badge {
-  background: #d1493acc;
-}
-.tr-tag {
-  background: #ffffff2e;
-}
+
 /* HTML copy of the caption bar drawn into the outgoing video */
 .tr-caption {
   position: absolute;
@@ -383,27 +351,6 @@
   gap: 12px;
   align-items: center;
   justify-content: space-between;
-}
-.tr-phrases {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.tr-phrases button {
-  padding: 6px 12px;
-  border: 0;
-  border-radius: 999px;
-  color: var(--t-purple);
-  background: var(--t-purple-soft);
-  font-size: 0.82rem;
-  font-weight: 600;
-}
-.tr-phrases button:hover:not(:disabled) {
-  filter: brightness(0.96);
-}
-.tr-phrases button:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
 }
 
 /* ---- Setup: progress ring + tiles ---- */
@@ -641,8 +588,6 @@
   background: var(--t-raised);
   font-size: 0.84rem;
 }
-/* Quiet note pinned to the bottom of the card */
-
 /* ---- Settings ---- */
 .tr-settings {
   display: grid;
@@ -793,10 +738,6 @@
   --t-fail-soft: #2a1616;
   --t-fail-border: #5a2a24;
 }
-:root[data-theme="dark"] .tr-header {
-  background: linear-gradient(110deg, #3b3180 0%, #34457f 55%, #3f6a7c 100%);
-  box-shadow: none;
-}
 :root[data-theme="dark"] .tr-card {
   box-shadow: none;
 }
@@ -806,15 +747,8 @@
 :root[data-theme="dark"] .tr-start {
   color: #14275a;
 }
-:root[data-theme="dark"] .tr-header .tr-start {
-  color: #14275a;
-}
 :root[data-theme="dark"] .tr-tabs b {
   color: #14275a;
-}
-:root[data-theme="dark"] .tr-phrases button {
-  color: #c9c1f5;
-  background: #2a2552;
 }
 :root[data-theme="dark"] .tr-meet-list li::before {
   color: #14275a;
@@ -825,19 +759,11 @@
 }
 
 /* ---- Narrow windows ---- */
-@media (max-width: 1100px) {
-  .tr-leaf.two {
-    right: 120px;
-  }
-}
 @media (max-width: 700px) {
   .translation-page {
     height: auto;
     margin-left: 0;
     padding: 22px 18px;
-  }
-  .tr-header {
-    padding: 22px 20px;
   }
   .tr-steps {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -849,7 +775,6 @@
   .tr-tabs button,
   .tr-step,
   .tr-start,
-  .tr-stop,
   .tr-ring .value {
     transition: none;
   }
@@ -857,44 +782,61 @@
 
 /* ---- ⓘ / ☰ buttons on top of the camera, and their popups ---- */
 .tr-tools {
-  position: absolute;
-  top: 24px;
-  right: 24px;
+  margin-left: auto;
+  position: relative;
   z-index: 5;
   display: flex;
-  gap: 8px;
+  gap: 10px;
+  align-items: center;
+}
+/* Start / Stop translation: a pill next to the round ⓘ / ☰ buttons */
+.tr-go {
+  height: 40px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--t-r-md);
+  color: #fff;
+  background: linear-gradient(135deg, #6a58bd, var(--t-purple));
+  box-shadow: 0 2px 8px #5c4bab4d;
+  font-size: 0.88rem;
+  font-weight: 700;
+  transition:
+    filter 0.12s,
+    opacity 0.12s;
+}
+.tr-go:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+.tr-go:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+/* Stopping is quieter than starting: an outlined button with red text */
+.tr-go.stop {
+  border: 0;
+  color: #fff;
+  background: #c2412de6;
+  box-shadow: none;
 }
 .tr-tool {
   position: relative;
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   border: 0;
-  border-radius: 50%;
+  border-radius: var(--t-r-md);
   color: #fff;
-  background: #14275acc;
-  box-shadow: 0 4px 12px #0000002e;
+  background: #0b163a99;
   backdrop-filter: blur(6px);
-  transition:
-    background 0.15s,
-    transform 0.15s;
+  transition: background 0.12s;
 }
 .tr-tool:hover,
 .tr-tool.open {
-  background: #14275a;
-  transform: translateY(-1px);
-}
-/* The ⓘ button is blue */
-.tr-tool.info {
-  background: #4376ab;
-}
-.tr-tool.info:hover,
-.tr-tool.info.open {
-  background: #2f5f94;
+  background: #0b163acc;
 }
 .tr-tool:focus-visible {
-  outline: 2px solid #fff;
+  outline: 2px solid var(--t-purple);
   outline-offset: 2px;
 }
 /* Red circle with the number of setup items that need fixing */
@@ -916,14 +858,14 @@
 }
 .tr-popover {
   position: absolute;
-  top: 48px;
+  top: 46px;
   right: 0;
   width: min(360px, calc(100vw - 48px));
   max-height: min(70vh, 620px);
   overflow-y: auto;
   padding: 18px;
   border: 1px solid var(--t-border);
-  border-radius: 18px;
+  border-radius: var(--t-r-md);
   color: var(--t-text);
   background: var(--t-card);
   box-shadow: 0 22px 50px #0b163a40;
@@ -948,86 +890,214 @@
   place-content: center;
   justify-items: center;
   padding: 24px;
+  overflow: hidden;
   color: #dce8f5;
   text-align: center;
-  background: radial-gradient(circle at 50% 40%, #2a3f73, #101a33 72%);
+  background: radial-gradient(circle at 50% 40%, #1b2a55, #0a1226 75%);
+}
+.tr-shutter > :not(.tr-aurora) {
+  position: relative;
+  z-index: 1;
+}
+/* Four blurred glows floating around the screen along different paths */
+.tr-aurora {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.tr-aurora i {
+  position: absolute;
+  width: 50vmax;
+  height: 50vmax;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.55;
+  will-change: transform;
+}
+.tr-aurora i:nth-child(1) {
+  top: -20%;
+  left: -10%;
+  background: #6b58d0;
+  animation: tr-float-1 14s ease-in-out infinite;
+}
+.tr-aurora i:nth-child(2) {
+  right: -15%;
+  bottom: -25%;
+  background: #0d9da4;
+  animation: tr-float-2 17s ease-in-out infinite;
+}
+.tr-aurora i:nth-child(3) {
+  top: 25%;
+  left: 35%;
+  width: 34vmax;
+  height: 34vmax;
+  background: #4376ab;
+  opacity: 0.45;
+  animation: tr-float-3 19s ease-in-out infinite;
+}
+.tr-aurora i:nth-child(4) {
+  bottom: -10%;
+  left: 10%;
+  width: 26vmax;
+  height: 26vmax;
+  background: #f6bf41;
+  opacity: 0.22;
+  animation: tr-float-4 21s ease-in-out infinite;
+}
+@keyframes tr-float-1 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(45%, 20%) scale(1.2);
+  }
+  66% {
+    transform: translate(20%, 55%) scale(0.9);
+  }
+}
+@keyframes tr-float-2 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(-40%, -30%) scale(1.15);
+  }
+  66% {
+    transform: translate(-70%, 5%) scale(0.95);
+  }
+}
+@keyframes tr-float-3 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(-60%, 30%) scale(1.25);
+  }
+  50% {
+    transform: translate(-20%, -50%) scale(0.85);
+  }
+  75% {
+    transform: translate(50%, -10%) scale(1.1);
+  }
+}
+@keyframes tr-float-4 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(140%, -60%) scale(1.3);
+  }
 }
 .tr-shutter strong {
   color: #fff;
-  font-size: 1.15rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 .tr-shutter span:not(.tr-lens) {
   max-width: 380px;
   font-size: 0.9rem;
   line-height: 1.45;
 }
-.tr-shutter button {
-  margin-top: 6px;
-  padding: 10px 18px;
-  border: 0;
-  border-radius: 12px;
-  color: #00224e;
-  background: #f6bf41;
-  font-weight: 800;
-  box-shadow: 0 8px 18px #f6bf4140;
+.tr-shutter .tr-shutter-hint {
+  color: #dce8f5b3;
+  font-size: 0.82rem;
 }
-/* A closed camera iris: six overlapping blades in the brand blues */
+.tr-shutter button {
+  margin-top: 8px;
+  padding: 12px 26px;
+  border: 0;
+  border-radius: var(--t-r-md);
+  color: #fff;
+  background: linear-gradient(135deg, #6a58bd, var(--t-purple));
+  box-shadow: 0 8px 22px #5d4ea680;
+  font-size: 0.95rem;
+  font-weight: 700;
+  transition:
+    filter 0.12s,
+    transform 0.15s;
+}
+.tr-shutter button:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+.tr-shutter button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tr-aurora i,
+  .tr-lens {
+    animation: none;
+  }
+}
+/* Round camera lens; the Iris flower bounces inside it */
 .tr-lens {
   position: relative;
   width: 108px;
   height: 108px;
-  margin-bottom: 6px;
+  margin-bottom: 22px;
   overflow: hidden;
   border: 4px solid #4376ab;
   border-radius: 50%;
   background: #0b1633;
   box-shadow:
     0 0 0 6px #ffffff14,
+    0 0 60px #5d4ea6a6,
     0 10px 24px #00000059;
+  transform: scale(1.35);
+  animation: tr-breathe 4s ease-in-out infinite;
 }
-.tr-lens i {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 70px;
-  height: 70px;
-  margin: -70px 0 0 -6px;
-  border-radius: 0 100% 0 0;
-  background: linear-gradient(135deg, #2a5c95, #0d9da4);
-  /* Soft blades so the Iris flower in the middle stands out */
-  opacity: 0.45;
-  transform-origin: 6px 70px;
-  transition: margin 0.6s ease;
-}
-/* Blades slide outward while the camera is starting */
-.tr-lens.opening i {
-  margin: -96px 0 0 -6px;
+/* The lens glow pulses between purple and teal */
+@keyframes tr-breathe {
+  50% {
+    box-shadow:
+      0 0 0 12px #ffffff0d,
+      0 0 90px #0d9da4a6,
+      0 10px 24px #00000059;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .tr-popover {
     animation: none;
   }
-  .tr-lens i,
   .tr-tool {
     transition: none;
   }
 }
 
-/* Iris flower inside the camera lens (shutter) */
+/* Iris flower inside the lens: spins slowly in place while gently growing
+   and shrinking. Separate rotate/scale properties let both run at once. */
 .tr-lens img {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  z-index: 1;
-  width: 54px;
-  height: 54px;
+  inset: 0;
+  margin: auto;
+  width: 64px;
+  height: 64px;
   object-fit: contain;
-  filter: drop-shadow(0 3px 8px #00000066);
-  transform: translate(-50%, -50%);
-  transition: transform 0.6s ease;
+  filter: drop-shadow(0 4px 8px #00000080);
+  animation:
+    tr-logo-spin 12s linear infinite,
+    tr-logo-pulse 3s ease-in-out infinite;
 }
+/* Spins faster while the camera starts */
 .tr-lens.opening img {
-  transform: translate(-50%, -50%) scale(1.15) rotate(12deg);
+  animation-duration: 3s, 1.5s;
+}
+@keyframes tr-logo-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+@keyframes tr-logo-pulse {
+  50% {
+    scale: 1.15;
+  }
 }
 /* Yellow badge on ☰: steps still waiting (e.g. the camera is off) */
 .tr-badge.waiting {
@@ -1071,46 +1141,99 @@
   transition: width 0.08s linear;
 }
 @media (prefers-reduced-motion: reduce) {
-  .tr-level em,
-  .tr-lens img {
+  .tr-level em {
     transition: none;
   }
+  .tr-lens img {
+    animation: none;
+  }
 }
-/* ---- Type to speak card: styled to match the floating pop-out ---- */
+/* ---- Type to speak: a round icon in the corner of the camera that opens
+   the typing box above it ---- */
+.tr-dock {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+/* Round corner button that opens and closes Type to speak */
+.tr-dock-button {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(135deg, #6a58bd, var(--t-purple));
+  box-shadow: 0 6px 18px #0b163a59;
+  transition:
+    transform 0.15s,
+    filter 0.15s;
+}
+.tr-dock-button:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+.tr-dock-button.open {
+  box-shadow:
+    0 0 0 4px #ffffff59,
+    0 6px 18px #0b163a59;
+}
+.tr-dock-button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+/* Type to speak panel that opens from the corner button */
 .tr-speak-card {
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(360px, calc(100vw - 120px));
+  padding: 16px;
+  border: 1px solid var(--t-border);
+  border-radius: var(--t-r-md);
+  color: var(--t-text);
+  background: var(--t-card);
+  box-shadow: 0 22px 50px #0b163a40;
+  animation: tr-pop 140ms ease-out;
 }
-/* Purple title bar across the top of the card */
 .tr-speak-card .tr-card-head {
-  margin: -20px -22px 16px;
-  padding: 14px 22px;
-  color: #fff;
-  background: #5d4ea6;
+  margin: 0;
 }
-.tr-speak-card .tr-card-head h2 {
-  color: #fff;
-}
-.tr-speak-card .tr-card-head p {
-  color: #e6e1fa;
+.tr-speak-card .tr-title {
+  gap: 10px;
 }
 .tr-speak-card .tr-tile.purple {
-  color: #fff;
-  background: #ffffff2e;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--t-r-sm);
+}
+.tr-speak-card .tr-card-head h2 {
+  font-size: 1rem;
 }
 .tr-speak-card .tr-ghost {
-  border-color: #ffffff80;
-  color: #fff;
-  background: transparent;
+  padding: 6px 12px;
+  border-width: 1px;
+  border-radius: var(--t-r-sm);
 }
-.tr-speak-card .tr-ghost:hover:not(:disabled) {
-  background: #ffffff26;
+.tr-speak-card .tr-ghost.icon {
+  padding: 4px 10px;
+  font-size: 1.1rem;
+  line-height: 1;
 }
-/* Textarea: fixed size like the pop-out */
 .tr-speak-card .tr-speak textarea {
+  min-height: 96px;
+  padding: 12px;
+  border: 1px solid var(--t-border-strong);
+  border-radius: var(--t-r-md);
+  background: var(--t-raised);
   resize: none;
-  padding: 10px;
 }
-/* Phrases on one row, full-width Speak button underneath */
 .tr-speak-card .tr-speak-row {
   flex-direction: column;
   align-items: stretch;
@@ -1118,21 +1241,13 @@
 .tr-speak-card .tr-speak-row .tr-start {
   width: 100%;
   height: 40px;
-  border-radius: 12px;
+  border-radius: var(--t-r-md);
+  background: linear-gradient(135deg, #6a58bd, var(--t-purple));
 }
-/* Keep white text on the purple bar in dark mode */
-:root[data-theme="dark"] .tr-speak-card .tr-tile.purple {
-  color: #fff;
-}
-
-/* Shown instead of Type to speak while it's popped out */
-.tr-popped {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  padding: 14px 18px;
-}
-.tr-popped strong {
-  flex: 1;
-  font-size: 0.95rem;
+@media (prefers-reduced-motion: reduce) {
+  .tr-speak-card,
+  .tr-dock-button {
+    animation: none;
+    transition: none;
+  }
 }
