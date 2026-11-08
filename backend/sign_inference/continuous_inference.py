@@ -74,18 +74,23 @@ class SentenceBuilder:
     probability fell under `release_conf`, or another word was committed), so
     one slow sign that stays in the buffer for a whole window isn't repeated.
     """
-    smooth: int = 5
-    stable: int = 3
-    min_conf: float = 0.45
+    smooth: int = 3
+    stable: int = 2
+    min_conf: float = 0.30
     release_conf: float = 0.15
-    max_words: int = 12
+    max_words: int | None = None  # no silent truncation of a manually submitted phrase
     words: list[str] = field(default_factory=list)
     sentences: list[list[str]] = field(default_factory=list)  # finished earlier sentences
 
     def __post_init__(self):
+        if not 1 <= self.stable <= self.smooth:
+            raise ValueError('Require 1 <= stable <= smooth.')
+        if not 0 <= self.release_conf < self.min_conf <= 1:
+            raise ValueError('Require 0 <= release_conf < min_conf <= 1.')
         self._history: deque[dict[str, float]] = deque(maxlen=self.smooth)
         self._last: str | None = None  # last committed word
         self._armed = True             # may `_last` be committed again?
+        self.status = 'Waiting for predictions'
 
     @property
     def text(self) -> str:
@@ -95,6 +100,7 @@ class SentenceBuilder:
         """No signing right now: forget the old window's votes and allow repeats."""
         self._history.clear()
         self._armed = True
+        self.status = 'Resting: waiting for signing'
 
     def end_sentence(self):
         """Close the current sentence (a long pause) and start a fresh one."""
@@ -106,6 +112,9 @@ class SentenceBuilder:
 
     def update(self, probs: dict[str, float]) -> str | None:
         """Feed one window's probabilities {gloss: p}; returns the word it committed, if any."""
+        if not probs:
+            self.status = 'No predictions'
+            return None
         self._history.append(probs)
         n = len(self._history)
         avg: dict[str, float] = {}
@@ -116,18 +125,26 @@ class SentenceBuilder:
 
         if self._last is not None and avg.get(self._last, 0.0) < self.release_conf:
             self._armed = True  # the committed sign has faded from the window
-        if n < self.stable or avg[top] < self.min_conf:
+        if n < self.stable:
+            self.status = f'{top}: collecting {n}/{self.stable} windows'
+            return None
+        if avg[top] < self.min_conf:
+            self.status = f'{top}: average {avg[top]:.0%} below {self.min_conf:.0%}'
             return None
         recent = list(self._history)[-self.stable:]
         if any(max(p, key=p.get) != top for p in recent):
+            self.status = f'{top}: waiting for {self.stable} consecutive wins'
             return None
         if top == self._last and not self._armed:
+            self.status = f'{top}: duplicate held until release or another sign'
             return None
 
         self.words.append(top)
-        del self.words[:-self.max_words]
+        if self.max_words is not None:
+            del self.words[:-self.max_words]
         self._last, self._armed = top, False
         self._history.clear()  # the next word must earn its votes from fresh windows
+        self.status = f'Accepted: {top}'
         return top
 
 
@@ -154,7 +171,7 @@ class ContinuousInference:
 
     def __init__(self, session: PoseModelInference, *, window: int = WINDOW_FRAMES,
                  predict_every: int = 3, min_hand_fraction: float = 0.3,
-                 recent_hand_frames: int = 10, sentence_gap_frames: int = 90,
+                 recent_hand_frames: int = 10, sentence_gap_frames: int | None = None,
                  builder: SentenceBuilder | None = None):
         self.session = session
         self.buffer = RollingBuffer(window)
@@ -162,7 +179,7 @@ class ContinuousInference:
         self.predict_every = predict_every
         self.min_hand_fraction = min_hand_fraction  # of the whole window
         self.recent_hand_frames = recent_hand_frames  # a hand must also be in the newest N frames
-        self.sentence_gap_frames = sentence_gap_frames  # idle frames that end a sentence (~3 s at 30 fps)
+        self.sentence_gap_frames = sentence_gap_frames  # optional archival; manual submit by default
         self._last_body: np.ndarray | None = None
         self._since_predict = 0
         self._idle = 0
@@ -258,7 +275,9 @@ class ContinuousInference:
         # Ask for the whole vocabulary: the builder averages probabilities across windows.
         # predict_with_word_rules applies word_rules.json (mirrored / disabled words).
         predict = getattr(model, "predict_with_word_rules", model.predict)
-        self.guesses = predict(self.buffer.window(), top_k=len(model.labels))
+        # Sorted by score so guesses[0] is always the best word.
+        self.guesses = sorted(predict(self.buffer.window(), top_k=len(model.labels)),
+                              key=lambda g: g["confidence"], reverse=True)
         probs = {g["gloss"]: g["confidence"] for g in self.guesses}
         self._probs = probs
         self.guesses = self.guesses[:self.session.top_k]

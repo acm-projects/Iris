@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from server.tts import TTSConfigError, TTSProviderError, provider, synthesize
 from backend.engine.engine import play
+from backend.sign_inference.gloss_translation import translate_phrase
 
 
 # FastAPI uses this metadata to label the automatically generated API docs.
@@ -28,6 +29,26 @@ def health() -> dict[str, str]:
     """Check the HTTP server only; does not contact the voice provider or open devices."""
     # FastAPI converts this Python dictionary into a JSON response.
     return {"status": "ok", "service": "iris-api", "ttsProvider": provider()}
+
+
+class GlossPhraseRequest(BaseModel):
+    glosses: list[str] = Field(min_length=1, max_length=512)
+
+    @field_validator("glosses")
+    @classmethod
+    def validate_glosses(cls, glosses: list[str]) -> list[str]:
+        if any(not gloss.strip() or len(gloss) > 100 for gloss in glosses):
+            raise ValueError("Glosses must be nonblank and at most 100 characters.")
+        return glosses
+
+
+@app.post("/gloss/translate", tags=["Translation"])
+def gloss_to_english(request: GlossPhraseRequest) -> dict[str, str]:
+    """One submitted phrase; FastAPI runs the blocking call in a worker thread."""
+    try:
+        return {"english": translate_phrase(request.glosses)}
+    except RuntimeError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from None
 
 
 class SpeechRequest(BaseModel):
