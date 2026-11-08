@@ -4,7 +4,6 @@ import { useEffect, useState, type FormEvent } from "react";
 import type { AuthNotice } from "../../utils/auth";
 import "../css/auth.css";
 import { asset } from "../../utils/assets";
-import IrisLogo from "../../components/IrisLogo";
 import { useAutoDismiss } from "../../utils/useAutoDismiss";
 /** Values and actions App passes to the sign-in screen. */
 type Props = {
@@ -106,10 +105,10 @@ export function AuthShell({
           alt=""
           aria-hidden="true"
           className="brand-flower"
-          src={asset("brand/iris-logo.png")}
+          src={asset("brand/iris-flower-solid.svg")}
         />
         <a className="wordmark" href="#sign-in">
-          <IrisLogo />
+          <img src={asset("iris-mark.png")} alt="" />
           <span>Iris</span>
         </a>
         <div className="brand-copy">

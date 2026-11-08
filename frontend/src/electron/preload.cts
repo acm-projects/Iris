@@ -61,6 +61,12 @@ contextBridge.exposeInMainWorld("iris", {
     speak: (text: string) => ipcRenderer.invoke("iris:tts:speak", text),
   },
 
+  // Signed words → English sentence (Gemini, via the voice server).
+  gloss: {
+    translate: (words: string[]) =>
+      ipcRenderer.invoke("iris:gloss:translate", words),
+  },
+
   // Type to speak pop-out.
   popout: {
     // Pop-out → main process.

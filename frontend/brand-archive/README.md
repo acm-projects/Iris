@@ -1,14 +1,17 @@
 # Brand archive
 
-Old Iris logos, kept for reference. Nothing here is used by the app or
-shipped in it (only `frontend/assets/` is bundled).
+Logos that aren't in use, kept for reference. Nothing here is used by the app
+or shipped in it (only `frontend/assets/` is bundled).
 
-| File | What it was |
+The app uses the leaf logo: `assets/iris-mark.png` (sidebar, sign-in, camera
+lens), `assets/brand/iris-flower-solid.svg` (sign-in decoration) and the leaf
+app icons `assets/iris-dock-light.png`, `assets/iris-dock-dark.png` and
+`assets/icon.png` (rebuilt at 1024 px from `iris-flower-solid.svg`).
+
+| File | What it is |
 |---|---|
-| `old-iris-mark.png` | Leaf logo in the sidebar, sign-in page and camera lens |
-| `old-iris-flower-solid.svg`, `old-iris-flower-mark.svg` | Large leaf flower decoration on the sign-in page |
-| `old-iris-dock-light.png`, `old-iris-dock-dark.png`, `old-iris-dock-mono.png` | Leaf app icons (light, dark, mono) |
-| `iris-flower-source.png` | Source art for the current glowing-flower logo and icons |
-| `iris-flower-cutout.png` | The flower cut out of its navy background (outline from Canva's background remover); the light Dock icon uses the same outline on the dark icon's glowing flower |
-
-The current logo files are in `frontend/assets/brand/` and `frontend/assets/iris-dock-*.png`.
+| `new-flower-logo.png` | Glowing flower logo (tried in Nov 2026, not used) |
+| `new-flower-dock-light.png`, `new-flower-dock-dark.png` | Glowing flower app icons (not used) |
+| `iris-flower-source.png` | Source art for the glowing flower |
+| `iris-flower-cutout.png` | The flower cut out of its navy background (outline from Canva's background remover) |
+| `old-iris-dock-light.png`, `old-iris-dock-dark.png`, `old-iris-dock-mono.png` | Earlier low-resolution leaf app icons (light, dark, mono) |

@@ -1006,6 +1006,40 @@ ipcMain.handle("iris:tts:speak", async (_event, text: string) => {
     );
 });
 
+/**
+ * Turns signed words ("i", "want", "help") into an English sentence with
+ * Gemini, via the voice server (POST /gloss/translate,
+ * backend/sign_inference/gloss_translation.py). The API key stays on the
+ * server; this only sends the words.
+ */
+ipcMain.handle("iris:gloss:translate", async (_event, words: unknown) => {
+  if (
+    !Array.isArray(words) ||
+    words.length === 0 ||
+    words.length > 512 ||
+    words.some((w) => typeof w !== "string" || !w.trim() || w.length > 100)
+  )
+    throw new Error("No signed words to translate.");
+  const response = await fetch(`${ttsServer}/gloss/translate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ glosses: words }),
+    signal: AbortSignal.timeout(40_000),
+  }).catch(() => null);
+  if (!response)
+    throw new Error(
+      "Iris's voice server isn't running, so the phrase wasn't translated.",
+    );
+  if (!response.ok)
+    throw new Error(
+      await apiError(response, `Translation failed (${response.status}).`),
+    );
+  const body = (await response.json()) as { english?: unknown };
+  if (typeof body.english !== "string" || !body.english.trim())
+    throw new Error("The translation came back empty.");
+  return body.english.trim();
+});
+
 // Id of the active power-save blocker while translation is live (-1 when off).
 let liveBlocker = -1;
 /** Prevents App Nap / suspension while video is being sent to Meet. */

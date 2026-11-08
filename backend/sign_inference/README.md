@@ -85,12 +85,13 @@ Scores are raw softmax model scores, not calibrated probabilities.
 
 Install `backend/requirements.txt` for the HTTP server, or
 `backend/sign_inference/requirements-inference.txt` for the camera runners.
-Create `backend/.env` locally using `backend/.env.example` as a template, then
-enter your Gemini Developer API key on the `GEMINI_API_KEY=` line. Do not overwrite
-existing keys. Set `GLOSS_LLM_MODEL=gemini-flash-latest`, replacing any old OpenAI
+Add your Gemini Developer API key (aistudio.google.com/apikey) to `Cue/.env` as
+`GEMINI_API_KEY=...`, next to the other keys (see "Running Iris locally" in the
+main README). `backend/.env` also works. Do not overwrite existing keys. The default model is `gemini-flash-lite-latest` (about 0.6 s per phrase;
+`gemini-flash-latest` often timed out with HTTP 504). Override with `GLOSS_LLM_MODEL`, replacing any old OpenAI
 model setting. OpenAI keys are no longer used by this service. Model access
 depends on your API account. Process environment variables override this file.
-The backend reads this explicit path regardless of the working directory.
+The backend reads both files by explicit path, regardless of the working directory.
 `.env` is ignored by Git; credentials never belong in frontend/Vite variables.
 
 Run `python backend/sign_inference/continuous_camera.py --model meeting100 --landmarks`

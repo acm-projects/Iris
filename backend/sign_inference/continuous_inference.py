@@ -185,6 +185,7 @@ class ContinuousInference:
         self._idle = 0
         self.guesses: list[dict] = []
         self._probs: dict[str, float] = {}  # every word's probability for the latest window
+        self.signing = False  # were hands active on the latest frame? (the engine's pause timer reads this)
 
     @classmethod
     def for_model(cls, model_name: str, *, top_k: int = 3, allow_paths: bool = False,
@@ -211,6 +212,7 @@ class ContinuousInference:
         Words are added based on real scores only, never the display score.
         """
         update = self.process_frame(rgb_frame, timestamp_ms)
+        self.signing = update.signing
         if update.committed is None:
             return None
         confidence = self._probs.get(update.committed, 0.0)
@@ -226,6 +228,17 @@ class ContinuousInference:
             "predictions": update.guesses,
             "frames": update.buffered,
         }
+
+    def take_phrase(self) -> list[str]:
+        """Hand over the words signed since the last phrase and start a new one.
+
+        The engine calls this after a pause, then sends the words to the app
+        for translation into English (gloss_translation.py via the voice server).
+        """
+        words = list(self.builder.words)
+        self.builder.end_sentence()   # also allows the last word to be signed again
+        self.builder.sentences.clear()  # the app keeps the history; don't grow forever
+        return words
 
     def close(self):
         """Release MediaPipe; this object can't be used afterwards."""

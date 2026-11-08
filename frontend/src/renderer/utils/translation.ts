@@ -103,6 +103,14 @@ export type EngineEvent =
       // Cosmetic score (some words shown as at least 80%); not for accuracy.
       displayConfidence?: number;
       alternatives?: { gloss: string; confidence: number }[];
+      // True in continuous mode: a "phrase" event follows after a pause, so
+      // this word is captioned but not spoken on its own.
+      phrase?: boolean;
+    }
+  | {
+      // The words signed since the last pause (continuous mode).
+      event: "phrase";
+      words: string[];
     };
 
 /** A user-friendly message for an error from the translation engine (see utils/errors.ts). */

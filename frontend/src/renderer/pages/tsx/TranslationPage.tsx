@@ -399,19 +399,55 @@ export default function TranslationPage() {
     });
   }, [speak]);
 
-  // Engine events: virtual camera status and recognised signs.
+  // Engine events: virtual camera status, recognised signs and finished phrases.
   useEffect(() => {
     if (typeof window.iris.engine?.onEvent !== "function") return;
+
+    /** A pause ended a phrase: translate the words into English (Gemini via
+     *  the voice server), then caption and speak the sentence. If that isn't
+     *  available, the plain words are used so nothing is lost. */
+    const finishPhrase = async (words: string[]) => {
+      if (!words.length) return;
+      let sentence = words.join(" ");
+      // One word is said exactly as signed (faster, and Gemini can't turn
+      // "help" into a sentence you didn't sign). Two or more become a sentence.
+      if (
+        words.length > 1 &&
+        typeof window.iris.gloss?.translate === "function"
+      ) {
+        // Show the signed words with "…" while Gemini works, so people in the
+        // meeting can see the sentence is on its way (usually under a second).
+        showCaption(`${sentence} …`);
+        try {
+          sentence = await window.iris.gloss.translate(words);
+        } catch (error) {
+          setLiveError(
+            engineError(error, "Couldn't translate that phrase into English."),
+          );
+        }
+      }
+      showCaption(sentence);
+      if (settingsRef.current.speakSigns)
+        await speak(sentence).catch((error: unknown) =>
+          setLiveError(engineError(error, "Iris couldn't speak that phrase.")),
+        );
+    };
+
     return window.iris.engine.onEvent((raw) => {
       const message = raw as EngineEvent;
       if (message.event === "sign") {
+        // Each word is captioned as soon as it's recognised.
         showCaption(message.text);
+        // In continuous mode the whole phrase is spoken after a pause (below),
+        // so single words are only spoken in the older one-sign-at-a-time mode.
         // Show why a sign couldn't be spoken (e.g. the voice server is down or
         // its ElevenLabs key is missing) instead of failing silently.
-        if (settingsRef.current.speakSigns)
+        if (settingsRef.current.speakSigns && !message.phrase)
           void speak(message.text).catch((error: unknown) =>
             setLiveError(engineError(error, "Iris couldn't speak that sign.")),
           );
+      } else if (message.event === "phrase") {
+        void finishPhrase(message.words);
       } else if (message.event === "status") {
         if (message.camera === "error")
           setLiveError(message.error ?? "The virtual camera stopped.");
@@ -1330,14 +1366,13 @@ function Shutter({
         <i />
         <i />
       </div>
-      {/* Round lens with the Iris flower slowly spinning and pulsing inside;
-          it speeds up while the camera starts */}
+      {/* Round lens with the Iris logo gently pulsing inside (no spinning);
+          it pulses faster while the camera starts */}
       <span
         aria-hidden="true"
         className={`tr-lens ${starting ? "opening" : ""}`}
       >
-        {/* Always the glowing flower: the lens is dark in both themes */}
-        <img alt="" src={asset("brand/iris-logo.png")} />
+        <img alt="" src={asset("iris-mark.png")} />
       </span>
       {(error || starting) && (
         <strong>

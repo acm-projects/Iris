@@ -122,6 +122,62 @@ Tutorial: [FastAPI Quickstart](https://fastapi.tiangolo.com/tutorial/)
 
 ---
 
+## Running Iris locally 🛠️
+
+Commands are for macOS, run from the `Cue` folder. Sign recognition only works
+when running from the code (not in an installed copy of Iris).
+
+**1. Python environment** (Python 3.11 or 3.12; MediaPipe has no 3.13+ build)
+```bash
+python3.12 -m venv backend/.venv
+backend/.venv/bin/pip uninstall -y opencv-python
+backend/.venv/bin/pip install -r backend/requirements.txt -r backend/requirements-sign.txt
+```
+
+**2. The sign model** (not in git): download the `meeting100` folder from the
+team Drive and put it at `ml/two_word/runs/meeting100/best.pt`.
+
+**3. Keys**: put them all in `Cue/.env` (gitignored, never commit it):
+```
+ELEVENLABS_API_KEY=...     # elevenlabs.io → Developers → API Keys (Text to Speech access)
+ELEVENLABS_VOICE_ID=...    # optional; free plans need a built-in voice (default: Sarah)
+GEMINI_API_KEY=...         # aistudio.google.com/apikey (turns signed words into sentences)
+```
+Also fill in `frontend/.env` from `frontend/.env.example` (Supabase settings).
+
+**4. Virtual camera and mic** (so Google Meet sees Iris): install
+[OBS](https://obsproject.com) (for its virtual camera) and
+[BlackHole 2ch](https://existential.audio/blackhole/). In Meet, pick
+**OBS Virtual Camera** as the camera and **BlackHole 2ch** as the microphone.
+
+**5. Run** (two terminals, leave both running)
+```bash
+backend/.venv/bin/python -m uvicorn server.api:app --host 127.0.0.1 --port 8000
+```
+```bash
+cd frontend && npm install && npm run dev
+```
+The first command is the voice server (speech and sentence translation); the
+second opens the Iris app. Restart the voice server after changing `.env`.
+
+**6. Use it**: Translation → Start translation. Sign with your hands at chest
+height; each word is captioned. Lower your hands for 2 seconds to finish: one
+word is spoken as-is, several words become one English sentence (Gemini) that
+is captioned and spoken. Words that tested badly are switched off in
+`backend/sign_inference/word_rules.json`.
+
+**Tests**
+```bash
+cd backend/sign_inference && ../.venv/bin/python -m unittest test_continuous_inference test_live_recognizer test_word_rules test_display_confidence
+```
+
+**Watch recognition without the app** (camera 0 is usually the built-in camera):
+```bash
+cd backend/sign_inference && ../.venv/bin/python continuous_camera.py --camera 0 --landmarks --manual-submit
+```
+
+---
+
 ## Roadmap 📅
 
 <table>

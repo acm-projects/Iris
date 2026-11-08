@@ -1036,7 +1036,7 @@
     animation: none;
   }
 }
-/* Round camera lens; the Iris flower bounces inside it */
+/* Round camera lens; the Iris logo pulses gently inside it */
 .tr-lens {
   position: relative;
   width: 108px;
@@ -1071,8 +1071,7 @@
   }
 }
 
-/* Iris flower inside the lens: spins slowly in place while gently growing
-   and shrinking. Separate rotate/scale properties let both run at once. */
+/* Iris logo inside the lens: gently grows and shrinks (no spinning) */
 .tr-lens img {
   position: absolute;
   inset: 0;
@@ -1081,18 +1080,11 @@
   height: 64px;
   object-fit: contain;
   filter: drop-shadow(0 4px 8px #00000080);
-  animation:
-    tr-logo-spin 12s linear infinite,
-    tr-logo-pulse 3s ease-in-out infinite;
+  animation: tr-logo-pulse 3s ease-in-out infinite;
 }
-/* Spins faster while the camera starts */
+/* Pulses faster while the camera starts */
 .tr-lens.opening img {
-  animation-duration: 3s, 1.5s;
-}
-@keyframes tr-logo-spin {
-  to {
-    rotate: 360deg;
-  }
+  animation-duration: 1.5s;
 }
 @keyframes tr-logo-pulse {
   50% {

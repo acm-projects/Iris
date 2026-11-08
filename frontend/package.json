@@ -70,7 +70,8 @@
         "from": "../backend/engine",
         "to": "backend/engine",
         "filter": [
-          "*.py"
+          "*.py",
+          "!test_*.py"
         ]
       },
       {

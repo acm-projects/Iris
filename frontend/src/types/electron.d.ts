@@ -55,6 +55,11 @@ interface Window {
     tts: {
       speak(text: string): Promise<void>;
     };
+    /** Signed words → an English sentence (Gemini via the voice server,
+     *  POST /gloss/translate). Rejects if the server or key isn't set up. */
+    gloss: {
+      translate(words: string[]): Promise<string>;
+    };
     /** Google Calendar actions; each takes the user's Google access token. */
     google: {
       /** Creates a calendar event with a new Google Meet link. */

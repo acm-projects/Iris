@@ -15,7 +15,7 @@ A long-running helper process that Electron starts (see frontend/src/electron
 
 The Iris app owns the real camera. It draws the preview and caption overlay
 and streams JPEG frames here; this process forwards them to the virtual
-camera and is where sign recognition will run (see `recognize_sign`).
+camera and runs sign recognition on them (see `recognize_sign`).
 
 Protocol (one JSON object per line, same as server/main.py):
   stdin  request : {"id": "1", "method": "health", "params": {...}}
@@ -23,7 +23,10 @@ Protocol (one JSON object per line, same as server/main.py):
   stdin  frame   : {"method": "frame", "data": "<base64 JPEG>"}   (no reply)
   stdout event   : {"event": "status", ...}                         (unsolicited)
   stdout event   : {"event": "sign", "text": "hello", "confidence": 0.83,
+                    "displayConfidence": 0.83, "phrase": true,
                     "alternatives": [{"gloss": ..., "confidence": ...}]}
+  stdout event   : {"event": "phrase", "words": ["i", "want", "help"]}
+                   (continuous mode: the words since the last pause)
 Diagnostics go to stderr so they never mix with replies.
 
 Packaged copies of Iris ship this file as a standalone program built with
@@ -130,6 +133,10 @@ MAX_FRAME_B64 = 12_000_000
 #   "window": waits for your hands, scores the next SIGN_WINDOW_FRAMES frames as
 #       one sign, then pauses SIGN_BUFFER_FRAMES frames (live_recognizer.py).
 SIGN_MODE = "continuous"
+# Continuous mode: after this many seconds with your hands down, the words
+# signed so far are sent to the app as one phrase ("phrase" event). The app
+# translates it into English (Gemini, via the voice server) and captions/speaks it.
+PHRASE_PAUSE_SECONDS = 2.0
 # --- "window" mode settings ---
 # Nothing is recorded until your hands come up to signing height. Then the
 # next SIGN_WINDOW_FRAMES frames (about 2 s at the app's 24 fps) are scored as
@@ -280,10 +287,13 @@ class SignRecognition:
 
         last_ms = -1
         errors = 0
+        rest_since: float | None = None  # when the hands went down (continuous mode)
         while not self._stop.is_set():
             try:
                 frame = self._frames.get(timeout=0.2)
             except queue.Empty:
+                # No new frames (camera paused): still finish a phrase after the pause.
+                rest_since = self._maybe_send_phrase(rest_since, signing=False)
                 continue
             # MediaPipe needs strictly increasing timestamps.
             now = max(last_ms + 1, int(time.monotonic() * 1000))
@@ -300,6 +310,7 @@ class SignRecognition:
                 if errors <= 3:
                     log(f"sign recognition frame error: {error}")
                 continue
+            rest_since = self._maybe_send_phrase(rest_since, getattr(self.recognizer, "signing", True))
             if not result:
                 continue
             words = ", ".join(f"{p['gloss']} {p['confidence']:.0%}" for p in result["predictions"])
@@ -308,11 +319,30 @@ class SignRecognition:
                 log(f"sign: {result['text']} (real {result['confidence']:.0%}, display {display:.0%}; {words})")
                 # "confidence" is the model's real score; "displayConfidence" is the
                 # cosmetic score from display_confidence.py (never use it for accuracy).
+                # phrase=True: a "phrase" event will follow after a pause, so the app
+                # captions this word but speaks the translated phrase instead.
                 send({"event": "sign", "text": result["text"], "confidence": result["confidence"],
-                      "displayConfidence": display, "alternatives": result["predictions"][1:]})
+                      "displayConfidence": display, "alternatives": result["predictions"][1:],
+                      "phrase": hasattr(self.recognizer, "take_phrase")})
             else:
                 log(f"not confident enough, ignored ({words})")
 
+
+    def _maybe_send_phrase(self, rest_since: float | None, signing: bool) -> float | None:
+        """Send the phrase once the hands have rested PHRASE_PAUSE_SECONDS; returns the new rest start."""
+        recognizer = self.recognizer
+        if recognizer is None or not hasattr(recognizer, "take_phrase"):
+            return None  # "window" mode: one word at a time, no phrases
+        if signing:
+            return None
+        now = time.monotonic()
+        if rest_since is None:
+            return now
+        if now - rest_since >= PHRASE_PAUSE_SECONDS and recognizer.builder.words:
+            words = recognizer.take_phrase()
+            log(f"phrase: {' '.join(words)}")
+            send({"event": "phrase", "words": words})
+        return rest_since
 
     @staticmethod
     def _display_confidence(result: dict) -> float:

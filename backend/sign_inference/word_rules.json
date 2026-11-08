@@ -216,7 +216,7 @@
   },
   "vote": {
     "invert": true,
-    "disabled": false,
+    "disabled": true,
     "reported_highest_confidence": 0.34
   },
   "see": {
@@ -363,5 +363,61 @@
     "invert": false,
     "disabled": false,
     "reported_highest_confidence": 0.253
+  },
+  "time": {
+    "invert": false,
+    "disabled": true
+  },
+  "tell": {
+    "invert": false,
+    "disabled": true
+  },
+  "late": {
+    "invert": false,
+    "disabled": true
+  },
+  "how": {
+    "invert": false,
+    "disabled": true
+  },
+  "meet": {
+    "invert": false,
+    "disabled": true
+  },
+  "meeting": {
+    "invert": false,
+    "disabled": true
+  },
+  "share": {
+    "invert": false,
+    "disabled": true
+  },
+  "wrong": {
+    "invert": false,
+    "disabled": true
+  },
+  "plan": {
+    "invert": false,
+    "disabled": true
+  },
+  "email": {
+    "invert": false,
+    "disabled": true
+  },
+  "try": {
+    "invert": false,
+    "disabled": true
+  },
+  "different": {
+    "invert": false,
+    "disabled": true
+  },
+  "week": {
+    "invert": false,
+    "disabled": true
+  },
+  "work": {
+    "invert": false,
+    "disabled": true
   }
 }

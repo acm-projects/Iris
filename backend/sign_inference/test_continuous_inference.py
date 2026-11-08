@@ -151,6 +151,17 @@ class ContinuousInferenceTests(unittest.TestCase):
         self.assertTrue(calls)
         self.assertEqual(calls[0], 3)  # whole vocabulary
 
+    def test_take_phrase_hands_over_words_and_starts_fresh(self):
+        ci, session = self.make()
+        feed(ci, 20)
+        self.assertTrue(ci.signing)
+        self.assertEqual(ci.take_phrase(), ["hello"])
+        self.assertEqual(ci.builder.words, [])
+        self.assertEqual(ci.builder.sentences, [])  # history isn't kept forever
+        session.hands = False
+        feed(ci, 15, start=20)
+        self.assertFalse(ci.signing)
+
     def test_model_and_close_pass_through(self):
         ci, session = self.make()
         self.assertEqual(ci.model.labels, ["hello", "yes", "no"])
@@ -387,7 +398,7 @@ class PhraseTranslationTests(unittest.TestCase):
         ):
             self.assertEqual(translate_phrase(["i", "want", "help"]), "I want help.")
         constructor.assert_called_once_with(api_key='placeholder-for-offline-test', vertexai=False,
-                                            http_options={'timeout': 30_000, 'retry_options': {'attempts': 1}})
+                                            http_options={'timeout': 15_000, 'retry_options': {'attempts': 1}})
         client.models.generate_content.assert_called_once()
         kwargs = client.models.generate_content.call_args.kwargs
         self.assertEqual(kwargs['model'], 'gemini-flash-latest')
