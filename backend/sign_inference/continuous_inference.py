@@ -12,7 +12,8 @@ the model samples its own frame count from it. What this file adds:
   RollingBuffer    the last 60 frames (+ whether a hand was seen in each)
   SentenceBuilder  smooths the per-window word probabilities and decides when a
                    word is confident and stable enough to append to the sentence
-  ContinuousInference  glues them to a PoseModelInference session; its
+  ContinuousInference  glues them to a PoseModelInference session (watch it
+                   live with continuous_camera.py); its
                    process() method is what the app's engine calls
                    (backend/engine/engine.py, SIGN_MODE = "continuous")
 """
@@ -23,6 +24,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from display_confidence import load_display_scale_words, scale_top_display
 from pose_model_inference import PoseModelInference
 
 WINDOW_FRAMES = 60  # rolling buffer length
@@ -186,18 +188,23 @@ class ContinuousInference:
         """Engine interface (same result shape as LiveSignRecognizer.process).
 
         Returns a dict only on frames where a new word was added to the
-        sentence: "accepted", "text", "confidence", "margin", "predictions"
-        (top guesses for that window) and "frames" (buffer length).
+        sentence: "accepted", "text", "confidence" (the model's real score),
+        "display_confidence" (cosmetic, see display_confidence.py), "margin",
+        "predictions" (top guesses for that window) and "frames" (buffer length).
+        Words are added based on real scores only, never the display score.
         """
         update = self.process_frame(rgb_frame, timestamp_ms)
         if update.committed is None:
             return None
         confidence = self._probs.get(update.committed, 0.0)
         others = [p for g, p in self._probs.items() if g != update.committed]
+        display = scale_top_display([{"gloss": update.committed, "confidence": confidence}],
+                                    load_display_scale_words())[0]["display_confidence"]
         return {
             "accepted": True,  # SentenceBuilder already required a confident, stable word
             "text": update.committed,
             "confidence": confidence,
+            "display_confidence": display,
             "margin": confidence - max(others, default=0.0),
             "predictions": update.guesses,
             "frames": update.buffered,
@@ -249,7 +256,9 @@ class ContinuousInference:
     def _classify(self) -> str | None:
         model = self.session.model
         # Ask for the whole vocabulary: the builder averages probabilities across windows.
-        self.guesses = model.predict(self.buffer.window(), top_k=len(model.labels))
+        # predict_with_word_rules applies word_rules.json (mirrored / disabled words).
+        predict = getattr(model, "predict_with_word_rules", model.predict)
+        self.guesses = predict(self.buffer.window(), top_k=len(model.labels))
         probs = {g["gloss"]: g["confidence"] for g in self.guesses}
         self._probs = probs
         self.guesses = self.guesses[:self.session.top_k]

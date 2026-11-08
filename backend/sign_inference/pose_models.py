@@ -141,6 +141,9 @@ class PoseModel:
                 for i, c in zip(idx.cpu().tolist(), conf.cpu().tolist())]
 
     def predict_with_word_rules(self, frames: np.ndarray, top_k: int = 5) -> list[dict]:
+        """Like predict(), but applies word_rules.json: some words are scored on
+        mirrored keypoints, disabled words are removed. Used by the app and the demo.
+        """
         rules = load_word_rules()
         original = self.predict(frames, top_k=len(self.labels))
         mirrored = []

@@ -304,11 +304,24 @@ class SignRecognition:
                 continue
             words = ", ".join(f"{p['gloss']} {p['confidence']:.0%}" for p in result["predictions"])
             if result["accepted"]:
-                log(f"sign: {result['text']} ({words})")
+                display = self._display_confidence(result)
+                log(f"sign: {result['text']} (real {result['confidence']:.0%}, display {display:.0%}; {words})")
+                # "confidence" is the model's real score; "displayConfidence" is the
+                # cosmetic score from display_confidence.py (never use it for accuracy).
                 send({"event": "sign", "text": result["text"], "confidence": result["confidence"],
-                      "alternatives": result["predictions"][1:]})
+                      "displayConfidence": display, "alternatives": result["predictions"][1:]})
             else:
                 log(f"not confident enough, ignored ({words})")
+
+
+    @staticmethod
+    def _display_confidence(result: dict) -> float:
+        """The cosmetic display score for a recognised word (both modes)."""
+        if "display_confidence" in result:  # continuous mode already adds it
+            return result["display_confidence"]
+        from display_confidence import load_display_scale_words, scale_top_display
+        top = {"gloss": result["text"], "confidence": result["confidence"]}
+        return scale_top_display([top], load_display_scale_words())[0]["display_confidence"]
 
 
 sign_recognition = SignRecognition()

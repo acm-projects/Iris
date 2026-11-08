@@ -100,6 +100,8 @@ export type EngineEvent =
       text: string;
       // Our pose model's confidence in `text` (0..1) and its next best guesses.
       confidence?: number;
+      // Cosmetic score (some words shown as at least 80%); not for accuracy.
+      displayConfidence?: number;
       alternatives?: { gloss: string; confidence: number }[];
     };
 

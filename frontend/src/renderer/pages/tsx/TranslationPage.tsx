@@ -407,7 +407,7 @@ export default function TranslationPage() {
       if (message.event === "sign") {
         showCaption(message.text);
         // Show why a sign couldn't be spoken (e.g. the voice server is down or
-        // has no Google credentials) instead of failing silently.
+        // its ElevenLabs key is missing) instead of failing silently.
         if (settingsRef.current.speakSigns)
           void speak(message.text).catch((error: unknown) =>
             setLiveError(engineError(error, "Iris couldn't speak that sign.")),

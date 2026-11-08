@@ -118,6 +118,7 @@ class ContinuousInferenceTests(unittest.TestCase):
         self.assertEqual(r["text"], "hello")
         self.assertAlmostEqual(r["confidence"], 0.9)
         self.assertAlmostEqual(r["margin"], 0.9 - 0.07)
+        self.assertAlmostEqual(r["display_confidence"], 0.9)  # already above 80%: unchanged
         self.assertEqual([p["gloss"] for p in r["predictions"]], ["hello", "yes", "no"])
 
     def test_resting_hands_never_run_the_model(self):
@@ -132,6 +133,23 @@ class ContinuousInferenceTests(unittest.TestCase):
         session.model.probs = {"yes": 0.85, "hello": 0.1, "no": 0.05}
         second = feed(ci, 20, start=20)
         self.assertEqual([r["text"] for r in first + second], ["hello", "yes"])
+
+    def test_display_score_raised_but_real_score_kept(self):
+        # "hello" is in display_scale_words.json: a 60% real score displays as 80%.
+        ci, session = self.make()
+        session.model.probs = {"hello": 0.6, "yes": 0.25, "no": 0.15}
+        r = feed(ci, 30)[0]
+        self.assertAlmostEqual(r["confidence"], 0.6)
+        self.assertEqual(r["display_confidence"], 0.8)
+
+    def test_word_rules_are_used_when_the_model_has_them(self):
+        ci, session = self.make()
+        calls = []
+        session.model.predict_with_word_rules = lambda frames, top_k: calls.append(top_k) or \
+            session.model.predict(frames, top_k)
+        feed(ci, 20)
+        self.assertTrue(calls)
+        self.assertEqual(calls[0], 3)  # whole vocabulary
 
     def test_model_and_close_pass_through(self):
         ci, session = self.make()
