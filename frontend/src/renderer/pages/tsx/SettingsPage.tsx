@@ -50,6 +50,7 @@ export default function SettingsPage(p: Props) {
   return (
     <section className="settings-page">
       <div className="settings-layout">
+        <h1 className="page-title">Settings</h1>
         <div className="settings-sections">
           <Section
             description="Your profile and the ways you can sign in."

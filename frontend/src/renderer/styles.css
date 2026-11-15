@@ -84,6 +84,18 @@ textarea {
     radial-gradient(40% 38% at 64% 100%, #daf0f2 0%, #daf0f200 72%),
     linear-gradient(160deg, #f8fbfe 0%, #f3f7fb 55%, #f7f6f1 100%);
 }
+/* ---- Page title (Calendar, Translation, Settings) ----
+   Sits above each page's main card and lines up with its left edge. Colour
+   comes from the page, so dark mode needs no extra rule. */
+.page-title {
+  flex: none;
+  width: 100%;
+  margin: 0 auto 18px;
+  font-size: 1.9rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: inherit;
+}
 /* ---- Signed-in app shell ---- */
 .dashboard-shell {
   min-height: 100vh;

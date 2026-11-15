@@ -519,6 +519,7 @@ export default function CalendarPage(p: Props) {
 
   return (
     <section className="calendar-page" onClick={() => setSelected(null)}>
+      <h1 className="page-title">Calendar</h1>
       <div className="cal-shell">
         {/* Toolbar: title, sync, ‹ ›, view menu, + New */}
         <header className="cal-toolbar">

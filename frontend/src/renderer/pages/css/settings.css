@@ -31,6 +31,10 @@
   max-width: 1080px;
   margin: 0 auto;
 }
+/* The layout's grid gap already spaces the title from the cards */
+.settings-layout > .page-title {
+  margin: 0;
+}
 /* Cards sit in a two-column grid */
 .settings-sections {
   display: grid;

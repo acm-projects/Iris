@@ -23,7 +23,9 @@
   --t-r-lg: 20px;
   --t-r-md: 12px;
   --t-r-sm: 8px;
+  /* Title on top, then the stage filling the rest of the height */
   display: flex;
+  flex-direction: column;
   height: 100vh;
   margin-left: 240px;
   overflow-y: auto;
@@ -65,9 +67,13 @@
 
 /* ---- Layout: one centred card (like the calendar) with a toolbar on top,
    the camera on the left and Type to speak on the right ---- */
+.translation-page > .page-title {
+  max-width: 1600px;
+}
 .tr-center {
   position: relative;
   display: flex;
+  flex: 1;
   flex-direction: column;
   min-height: 480px;
   width: 100%;

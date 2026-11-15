@@ -822,6 +822,7 @@ export default function TranslationPage() {
 
   return (
     <section className="translation-page">
+      <h1 className="page-title">Translation</h1>
       {liveError && (
         <p className="tr-error" {...liveErrorTimer}>
           {liveError}
