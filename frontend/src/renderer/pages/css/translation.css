@@ -29,7 +29,8 @@
   height: 100vh;
   margin-left: 240px;
   overflow-y: auto;
-  padding: 20px;
+  /* Same top and side spacing as Calendar, so titles line up */
+  padding: 28px 32px;
   color: var(--t-text);
   background-color: var(--page-base);
   background-image: var(--page-glow);
@@ -67,8 +68,34 @@
 
 /* ---- Layout: one centred card (like the calendar) with a toolbar on top,
    the camera on the left and Type to speak on the right ---- */
-.translation-page > .page-title {
+/* Page header above the card: "Translation" on the left, ⓘ and ☰ on the right.
+   Raised above the card so the popups aren't covered by the video toolbar. */
+.tr-page-header {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex: none;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
   max-width: 1600px;
+  margin: 0 auto 18px;
+}
+.tr-page-header .page-title {
+  width: auto;
+  margin: 0;
+}
+/* Here the buttons sit on the page, not the video, so they use card colours */
+.tr-page-header .tr-tool {
+  border: 1px solid var(--t-border);
+  color: var(--t-text);
+  background: var(--t-card);
+  backdrop-filter: none;
+}
+.tr-page-header .tr-tool:hover,
+.tr-page-header .tr-tool.open {
+  background: var(--t-border);
 }
 .tr-center {
   position: relative;
@@ -764,6 +791,12 @@
   background: #3a1d1d;
 }
 
+/* Same smaller spacing as Calendar below 1000px, so titles stay lined up */
+@media (max-width: 1000px) {
+  .translation-page {
+    padding: 16px;
+  }
+}
 /* ---- Narrow windows ---- */
 @media (max-width: 700px) {
   .translation-page {

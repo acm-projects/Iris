@@ -96,6 +96,27 @@ textarea {
   letter-spacing: -0.03em;
   color: inherit;
 }
+/* ---- Page switch: each page fades and rises in when it opens ---- */
+.calendar-dashboard,
+.calendar-page,
+.translation-page,
+.settings-page {
+  animation: page-enter 0.24s ease-out;
+}
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .calendar-dashboard,
+  .calendar-page,
+  .translation-page,
+  .settings-page {
+    animation: none;
+  }
+}
 /* ---- Signed-in app shell ---- */
 .dashboard-shell {
   min-height: 100vh;

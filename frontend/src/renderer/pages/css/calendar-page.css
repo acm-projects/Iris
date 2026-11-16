@@ -37,8 +37,21 @@
   cursor: pointer;
 }
 /* The calendar sits in one centred card with a readable maximum width. */
-.calendar-page > .page-title {
+/* Page header above the card: "Calendar" on the left, sync and + New on the right */
+.cal-page-header {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
   max-width: 1320px;
+  margin-bottom: 18px;
+}
+.cal-page-header .page-title {
+  width: auto;
+  margin: 0;
 }
 .cal-shell {
   display: flex;

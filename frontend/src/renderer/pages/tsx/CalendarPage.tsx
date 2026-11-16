@@ -519,9 +519,43 @@ export default function CalendarPage(p: Props) {
 
   return (
     <section className="calendar-page" onClick={() => setSelected(null)}>
-      <h1 className="page-title">Calendar</h1>
+      {/* Page header: title, Google sync, and + New */}
+      <header className="cal-page-header">
+        <h1 className="page-title">Calendar</h1>
+        <div className="cal-controls">
+          <SyncStatus
+            connected={p.googleConnected}
+            connecting={p.googleConnecting}
+            error={syncError}
+            onConnect={p.onConnectGoogle}
+            onRefresh={refresh}
+            syncedAt={syncedAt}
+            syncing={syncing}
+          />
+          <button
+            className="cal-new"
+            onClick={() => {
+              const start = new Date(p.now);
+              start.setMinutes(start.getMinutes() < 30 ? 30 : 60, 0, 0);
+              p.onCreateAt(
+                view === "month" || sameDay(cursor, p.now)
+                  ? start
+                  : new Date(
+                      cursor.getFullYear(),
+                      cursor.getMonth(),
+                      cursor.getDate(),
+                      9,
+                    ),
+              );
+            }}
+            type="button"
+          >
+            <span aria-hidden="true">+</span> New
+          </button>
+        </div>
+      </header>
       <div className="cal-shell">
-        {/* Toolbar: title, sync, ‹ ›, view menu, + New */}
+        {/* Toolbar: month title, ‹ ›, view menu */}
         <header className="cal-toolbar">
           <h1>
             {view === "month" ? (
@@ -534,15 +568,6 @@ export default function CalendarPage(p: Props) {
             )}
           </h1>
           <div className="cal-controls">
-            <SyncStatus
-              connected={p.googleConnected}
-              connecting={p.googleConnecting}
-              error={syncError}
-              onConnect={p.onConnectGoogle}
-              onRefresh={refresh}
-              syncedAt={syncedAt}
-              syncing={syncing}
-            />
             <div className="cal-nav">
               <button
                 aria-label="Previous"
@@ -562,26 +587,6 @@ export default function CalendarPage(p: Props) {
               </button>
             </div>
             <ViewMenu onChange={setView} value={view} />
-            <button
-              className="cal-new"
-              onClick={() => {
-                const start = new Date(p.now);
-                start.setMinutes(start.getMinutes() < 30 ? 30 : 60, 0, 0);
-                p.onCreateAt(
-                  view === "month" || sameDay(cursor, p.now)
-                    ? start
-                    : new Date(
-                        cursor.getFullYear(),
-                        cursor.getMonth(),
-                        cursor.getDate(),
-                        9,
-                      ),
-                );
-              }}
-              type="button"
-            >
-              <span aria-hidden="true">+</span> New
-            </button>
           </div>
         </header>
 
