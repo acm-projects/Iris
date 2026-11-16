@@ -2,7 +2,7 @@
    and the toast. Imported by HomePage.tsx. */
 /* ---- Home page layout ---- */
 .calendar-dashboard {
-  /* Clock banner on top, then the launcher and meetings side by side */
+  /* Clock banner on top, then the launcher row, then the meetings */
   /* Exactly the window's height: banner, then the two columns share the rest
      (the meeting list scrolls inside its card instead of growing the page) */
   height: 100vh;
@@ -19,12 +19,13 @@
   --iris-card-radius: 20px;
   --iris-calendar-radius: 24px;
 }
-/* Two columns under the banner: launcher on the left, meetings on the right
-   (no panel behind the icons; they sit directly on the page background) */
+/* Under the banner: the launcher in one row, then the meetings card filling
+   the rest (no panel behind the icons; they sit directly on the page) */
 .iris-control-center {
   display: grid;
-  grid-template-columns: minmax(320px, 40fr) minmax(440px, 60fr);
-  gap: var(--iris-section-gap);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 32px;
   align-items: stretch;
   min-height: 0;
   background: transparent;
@@ -34,7 +35,6 @@
   display: none;
 }
 .iris-schedule {
-  grid-column: 2;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -244,25 +244,6 @@
   }
   .iris-schedule {
     min-height: 320px;
-  }
-}
-@media (max-width: 900px) {
-  .iris-control-center {
-    grid-template-columns: 1fr;
-  }
-  .iris-control-center:before {
-    display: none;
-  }
-  /* Narrow windows: launcher on top, meetings below */
-  .iris-actions,
-  .iris-schedule {
-    grid-column: 1;
-  }
-  .iris-actions {
-    grid-row: 1;
-  }
-  .iris-schedule {
-    grid-row: 2;
   }
 }
 /* ---- Dialogs (Join, Create, Delete, Google prompt) ---- */
@@ -606,50 +587,48 @@
   }
 }
 
-/* Zoom-style launcher: a bold coloured icon tile with a centred label beneath,
-   no card behind it. Start meeting uses the app purple; the rest use Iris Blue. */
+/* Launcher: four rounded rectangles in a row, each with its icon and label
+   inside. Start meeting uses the app purple; the rest use Iris Blue. */
 .iris-actions {
-  grid-column: 1;
   position: relative;
-  padding-top: 24px;
   display: grid;
-  grid-template-columns: repeat(2, 170px);
-  gap: 48px 64px;
-  place-content: center;
+  /* Four tiles left to right, sharing the row's width evenly */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
 }
 .iris-action {
-  display: grid;
-  justify-items: center;
-  gap: 16px;
-  width: 170px;
-  padding: 0;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 96px;
+  padding: 18px 20px;
   border: 0;
-  color: #00224e;
-  background: none;
-  font-size: 1.08rem;
-  font-weight: 600;
-}
-.iris-action b {
-  display: grid;
-  place-items: center;
-  width: 136px;
-  height: 136px;
-  border-radius: 36px;
+  border-radius: 20px;
   color: #fff;
   background: #4376ab;
   box-shadow: 0 8px 18px #4376ab38;
+  font-size: 1.08rem;
+  font-weight: 600;
   transition:
     transform 0.16s ease,
     box-shadow 0.16s ease,
     filter 0.16s ease;
 }
-.iris-action.start b {
+.iris-action.start {
   background: #5c4bab;
   box-shadow: 0 8px 18px #5c4bab47;
 }
+/* Icon holder (no tile of its own any more; the rectangle is the tile) */
+.iris-action b {
+  display: grid;
+  flex: none;
+  place-items: center;
+}
 .action-icon {
-  width: 60px;
-  height: 60px;
+  width: 34px;
+  height: 34px;
   background: currentColor;
   -webkit-mask: var(--icon) center / contain no-repeat;
   mask: var(--icon) center / contain no-repeat;
@@ -660,23 +639,21 @@
   align-items: center;
   white-space: nowrap;
 }
+/* The ⌄ on Start Meeting */
 .iris-action > span small {
-  color: #4376ab;
+  color: #ffffffb3;
   font-size: 0.85rem;
   line-height: 1;
 }
-.iris-action:hover b {
+.iris-action:hover {
   transform: translateY(-2px);
   filter: brightness(1.05);
   box-shadow: 0 12px 24px #00224e2e;
 }
-.iris-action:active b {
-  transform: translateY(0) scale(0.97);
+.iris-action:active {
+  transform: translateY(0) scale(0.98);
 }
 .iris-action:focus-visible {
-  outline: none;
-}
-.iris-action:focus-visible b {
   outline: 3px solid #00224e;
   outline-offset: 3px;
 }
@@ -689,8 +666,24 @@
   width: 260px;
 }
 @media (prefers-reduced-motion: reduce) {
-  .iris-action b {
+  .iris-action {
     transition: none;
+  }
+}
+/* Medium windows: too narrow for icon and label side by side in each
+   rectangle, so the icon sits above the label */
+@media (max-width: 1320px) {
+  .iris-action {
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px 12px;
+    font-size: 1rem;
+  }
+}
+/* Narrow windows: the four tiles don't fit in one row, so use two rows */
+@media (max-width: 1000px) {
+  .iris-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

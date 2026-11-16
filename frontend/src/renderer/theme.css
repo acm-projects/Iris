@@ -71,12 +71,6 @@
   color: var(--d-accent);
   background: var(--d-surface-3);
 }
-:root[data-theme="dark"] .iris-action {
-  color: var(--d-text);
-}
-:root[data-theme="dark"] .iris-action > span small {
-  color: var(--d-accent);
-}
 :root[data-theme="dark"] .iris-schedule,
 :root[data-theme="dark"] .start-menu,
 :root[data-theme="dark"] .meeting-modal {
