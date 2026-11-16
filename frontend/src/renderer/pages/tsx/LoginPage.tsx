@@ -1,6 +1,7 @@
 // Sign-in screen plus the building blocks shared by every auth screen
 // (layout, fields, messages, password input).
 import { useEffect, useState, type FormEvent } from "react";
+import Corner from "../../components/Corner";
 import type { AuthNotice } from "../../utils/auth";
 import "../css/auth.css";
 import { asset } from "../../utils/assets";
@@ -177,19 +178,30 @@ export function AuthMessage({ notice }: { notice: AuthNotice | null }) {
   useEffect(() => setShown(notice), [notice]);
   const timer = useAutoDismiss(shown, () => setShown(null));
   if (!shown) return null;
+  // Shown in the bottom-right corner like every other Iris message.
   return (
-    <div className={`form-message ${shown.tone}`} role="status" {...timer}>
-      <span>{shown.text}</span>
-      {shown.action && (
+    <Corner>
+      <div
+        className={`iris-toast tone-${shown.tone}`}
+        role={shown.tone === "error" ? "alert" : "status"}
+        {...timer}
+      >
+        <span>{shown.text}</span>
+        {shown.action && (
+          <button onClick={shown.action.run} type="button">
+            {shown.action.label}
+          </button>
+        )}
         <button
-          className="text-button"
-          onClick={shown.action.run}
+          aria-label="Dismiss"
+          className="toast-close"
+          onClick={() => setShown(null)}
           type="button"
         >
-          {shown.action.label}
+          ×
         </button>
-      )}
-    </div>
+      </div>
+    </Corner>
   );
 }
 /** Password field with a show/hide toggle, shared by sign-in and sign-up. */

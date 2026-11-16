@@ -903,32 +903,6 @@
   cursor: ns-resize;
 }
 
-/* Message shown when a new event time could not be saved */
-.cal-error {
-  position: fixed;
-  right: 24px;
-  bottom: 24px;
-  z-index: 950;
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  max-width: min(440px, calc(100vw - 48px));
-  margin: 0;
-  padding: 12px 12px 12px 16px;
-  border-radius: var(--cal-r-md);
-  color: #fff;
-  background: #c2412d;
-  box-shadow: 0 12px 28px #1d2b4440;
-  font-size: 0.9rem;
-}
-.cal-error button {
-  border: 0;
-  color: #fff;
-  background: none;
-  font-size: 1.3rem;
-  line-height: 1;
-}
-
 /* ---- Reschedule form inside the event details card ---- */
 .cal-reschedule {
   display: grid;

@@ -35,6 +35,7 @@ import LoginPage from "./pages/tsx/LoginPage";
 import CreateAccountPage from "./pages/tsx/CreateAccountPage";
 import ForgotPasswordPage from "./pages/tsx/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/tsx/ResetPasswordPage";
+import { ASL_WITH_CAPTIONS } from "./utils/meetingModes";
 
 // ---------------------------------------------------------------------------
 // Shared types and small helpers
@@ -78,6 +79,8 @@ export type MeetingDraft = {
   meetingUrl: string;
   generateMeetLink: boolean;
   accessibility: string;
+  /** Event colour; meetings drafted on the Home timeline are gold. */
+  color?: EventColorKey;
 };
 
 /**
@@ -662,6 +665,7 @@ export default function App() {
     meetingUrl: string | null,
     accessibility: string,
     googleEventId: string | null = null,
+    color: EventColorKey = DEFAULT_IRIS_COLOR,
   ) {
     if (!session) return null;
     const { data, error } = await getSupabase()
@@ -673,7 +677,7 @@ export default function App() {
         ends_at: endsAt.toISOString(),
         meeting_url: meetingUrl,
         accessibility_mode: accessibility,
-        color: DEFAULT_IRIS_COLOR,
+        color,
         google_event_id: googleEventId,
       })
       .select(meetingColumns)
@@ -716,8 +720,12 @@ export default function App() {
         meetingUrl,
         draft.accessibility,
         created?.eventId ?? null,
+        draft.color,
       );
       if (!saved) return false;
+      // Match the colour in Google Calendar too (best effort, in the background).
+      if (created?.eventId && draft.color && draft.color !== DEFAULT_IRIS_COLOR)
+        void setEventColor({ googleEventId: created.eventId }, draft.color);
       setNotice(
         meetingUrl
           ? `“${saved.title}” is scheduled with a Google Meet link.`
@@ -947,7 +955,7 @@ export default function App() {
         startsAt,
         endsAt,
         meetUrl,
-        "Captions + Sign translation",
+        ASL_WITH_CAPTIONS,
         eventId,
       );
       await openMeeting(meetUrl);

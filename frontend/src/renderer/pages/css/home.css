@@ -1,0 +1,1103 @@
+/* Home page below the clock banner (HomePage.tsx): Start Meeting, join box,
+   shortcut cards and device status on the left; today's timeline (with the
+   inline meeting composer) on the right. The banner, start menu, dialogs and toast are in calendar.css. */
+
+/* ---- Left column ---- */
+.home-launch {
+  grid-column: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  justify-content: center;
+  width: min(100%, 400px);
+  margin: 0 auto;
+}
+
+/* Start Meeting: main button + arrow for more options */
+/* One gradient behind both halves so they read as a single button */
+.start-split {
+  display: flex;
+  border-radius: 14px;
+  background: linear-gradient(100deg, #5c4bab, #4c5fd0);
+  box-shadow: 0 10px 22px #5c4bab40;
+}
+.start-split > button {
+  border: 0;
+  color: #fff;
+  background: transparent;
+}
+.start-split-main {
+  display: flex;
+  flex: 1;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  padding: 15px 18px;
+  border-radius: 14px 0 0 14px;
+  font-size: 1.08rem;
+  font-weight: 700;
+}
+.start-split-main span {
+  font-size: 1.4rem;
+  font-weight: 400;
+  line-height: 1;
+}
+.start-split-more {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  border-left: 1px solid #ffffff40 !important;
+  border-radius: 0 14px 14px 0;
+}
+.start-split-more svg {
+  width: 20px;
+  height: 20px;
+}
+.start-split > button:hover {
+  background: #ffffff14;
+}
+.start-split > button:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+/* The options menu, full width under the button */
+.start-split .start-menu {
+  left: 0;
+  width: 100%;
+}
+.start-split .start-menu button {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-weight: 600;
+}
+.line-icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: #5f7896;
+}
+
+/* Join with a code or link */
+.join-inline {
+  display: grid;
+  gap: 10px;
+}
+.join-inline label {
+  color: #00224e;
+  font-weight: 600;
+}
+.join-inline div {
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border: 1px solid #d5deeb;
+  border-radius: 999px;
+  background: #fff;
+}
+.join-inline input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 14px;
+  border: 0;
+  background: transparent;
+  outline: none;
+}
+.join-inline div:focus-within {
+  border-color: #5c4bab;
+  box-shadow: 0 0 0 3px #5c4bab26;
+}
+.join-inline button {
+  padding: 9px 20px;
+  border: 0;
+  border-radius: 999px;
+  color: #2a5c95;
+  background: #eef3fa;
+  font-weight: 700;
+  transition:
+    color 0.25s ease,
+    background 0.25s ease,
+    box-shadow 0.25s ease;
+}
+/* A Meet link or code was entered: Join turns purple like Start Meeting */
+:root .join-inline.ready button:not(:disabled) {
+  color: #fff;
+  background: #5754c0; /* solid, so the colour change can fade smoothly */
+  box-shadow: 0 6px 16px #5c4bab4d;
+}
+:root .join-inline.ready button:not(:disabled):hover {
+  background: #625fcd;
+}
+.join-inline button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+/* Schedule / Translation shortcut cards */
+.home-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+/* Iris blue, like the app's brand colour */
+.home-card {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: 28px 10px 24px;
+  border: 0;
+  border-radius: 20px;
+  color: #fff;
+  background: linear-gradient(150deg, #4f84bb, #3a6aa0);
+  box-shadow: 0 10px 22px #4376ab40;
+  font-size: 1.02rem;
+  font-weight: 600;
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
+}
+.home-card .action-icon {
+  width: 52px;
+  height: 52px;
+  color: #fff;
+}
+.home-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 28px #4376ab59;
+  filter: brightness(1.05);
+}
+.home-card:focus-visible {
+  outline: 3px solid #5c4bab;
+  outline-offset: 2px;
+}
+
+/* Microphone / camera status */
+.device-status {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+.device-icons {
+  display: flex;
+  gap: 12px;
+  color: #8a9bb3;
+}
+.device-icons svg {
+  width: 20px;
+  height: 20px;
+}
+.device-pill {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 14px;
+  border: 1px solid #e3e9f3;
+  border-radius: 999px;
+  color: #33415c;
+  background: #ffffffcc;
+  font-size: 0.85rem;
+}
+.device-pill i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+.device-pill.blocked i {
+  background: #f59e0b;
+}
+.device-pill.missing i {
+  background: #9aa9bd;
+}
+
+/* ---- Right column: today's timeline ---- */
+.today-timeline {
+  position: relative;
+  grid-column: 2;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid #dce4f0;
+  border-radius: 24px;
+  background: #fff;
+  overflow: hidden;
+}
+.today-timeline h2 {
+  margin: 22px 24px 10px;
+  color: #33415c;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+.timeline-scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 10px 24px 20px 8px;
+  overflow-y: auto;
+}
+.timeline-day {
+  position: relative;
+}
+/* Hour lines, with a label every two hours */
+.timeline-hour {
+  position: absolute;
+  right: 0;
+  left: 78px;
+  border-top: 1px solid #f1f4f9;
+}
+.timeline-hour.labeled {
+  border-top-color: #e6ebf3;
+}
+.timeline-hour span {
+  position: absolute;
+  top: -9px;
+  left: -78px;
+  width: 66px;
+  color: #6b7d96;
+  font-size: 0.8rem;
+  text-align: right;
+}
+/* Current time: a violet line with a dot and "Now" */
+.timeline-now {
+  position: absolute;
+  z-index: 0; /* behind the meeting cards */
+  right: 0;
+  left: 78px;
+  border-top: 2px solid #5c4bab;
+  pointer-events: none;
+}
+.timeline-now::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: -5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #5c4bab;
+}
+.timeline-now span {
+  position: absolute;
+  top: -9px;
+  left: -78px;
+  width: 66px;
+  color: #5c4bab;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-align: right;
+}
+/* A meeting: tinted with its calendar colour */
+.timeline-event {
+  position: absolute;
+  z-index: 1;
+  right: 4px;
+  left: 90px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 8px 10px 8px 12px;
+  border-left: 4px solid var(--accent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 13%, #fff);
+  overflow: hidden;
+}
+.timeline-event.short {
+  align-items: center;
+}
+.timeline-event.live {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.timeline-event-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.timeline-event-text strong {
+  overflow: hidden;
+  color: #00224e;
+  font-size: 0.92rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.timeline-event-text small {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: #5f7896;
+  font-size: 0.8rem;
+}
+.timeline-event-text em {
+  padding: 1px 8px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--accent);
+  font-size: 0.7rem;
+  font-style: normal;
+  font-weight: 700;
+}
+.timeline-event-actions {
+  display: flex;
+  flex: none;
+  gap: 4px;
+  align-items: center;
+}
+.timeline-event-actions button {
+  border: 0;
+  border-radius: 8px;
+}
+.timeline-event-actions .join {
+  padding: 6px 12px;
+  color: #fff;
+  background: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.timeline-event-actions .icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: #5f7896;
+  background: transparent;
+  font-weight: 800;
+}
+.timeline-event-actions .icon svg {
+  width: 16px;
+  height: 16px;
+}
+.timeline-event-actions .icon:hover {
+  background: #ffffffaa;
+}
+.timeline-event-actions .delete:hover {
+  color: #c2412d;
+  background: #fdecea;
+}
+/* Empty day: a calm message over the timeline */
+.timeline-empty {
+  position: absolute;
+  inset: 56px 0 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  color: #6b7d96;
+  pointer-events: none;
+}
+.timeline-empty svg {
+  width: 56px;
+  height: 56px;
+  color: #9aa9bd;
+}
+.timeline-empty p {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+.timeline-empty small {
+  color: #8aa0bb;
+}
+
+/* ---- Inline composer: drafting a meeting right on the timeline ---- */
+/* Clicking an empty time opens the composer there */
+.timeline-day {
+  cursor: pointer;
+}
+.timeline-event {
+  cursor: default;
+}
+.timeline-compose {
+  position: absolute;
+  z-index: 5;
+  right: 4px;
+  left: 90px;
+  cursor: default;
+}
+/* The exact time range, glowing, with a handle to drag the end time */
+/* Gold glow (the Iris accent); drag it up or down to move the meeting */
+.compose-range {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  border: 1.5px solid #f6bf41;
+  border-radius: 12px;
+  background: #f6bf4126;
+  box-shadow:
+    0 0 0 4px #f6bf411f,
+    0 0 26px #f6bf4166;
+  cursor: grab;
+  touch-action: none;
+  animation: compose-glow 2.4s ease-in-out infinite;
+}
+@keyframes compose-glow {
+  50% {
+    box-shadow:
+      0 0 0 4px #f6bf412e,
+      0 0 36px #f6bf418c;
+  }
+}
+.compose-range:active,
+.compose-card:active {
+  cursor: grabbing;
+}
+/* Bottom edge: drag it to set any length (the whole edge is grabbable; the
+   gold pill shows where) */
+.compose-resize {
+  position: absolute;
+  right: 0;
+  bottom: -10px;
+  left: 0;
+  height: 22px;
+  cursor: ns-resize;
+  touch-action: none;
+}
+.compose-resize::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  width: 38px;
+  height: 9px;
+  margin-left: -19px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #f6bf41;
+}
+/* The frosted-glass card at the top of the range (below it for short ones) */
+.compose-card {
+  position: relative;
+  cursor: grab;
+  touch-action: none;
+  margin: 6px 10px 0 12px;
+  padding: 12px 12px 12px 16px;
+  border: 1px solid #ffffff;
+  border-radius: 16px;
+  /* Nearly solid so a meeting underneath doesn't show through the text */
+  background: #fffffff2;
+  box-shadow: 0 18px 40px #00224e26;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  animation: iris-pop 160ms ease-out;
+}
+.compose-title {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.compose-title input {
+  cursor: text;
+  flex: 1;
+  min-width: 0;
+  padding: 4px 2px;
+  border: 0;
+  color: #00224e;
+  background: transparent;
+  font-size: 1.12rem;
+  font-weight: 600;
+  outline: none;
+}
+.compose-create {
+  padding: 7px 15px;
+  border: 0;
+  border-radius: 9px;
+  color: #fff;
+  background: #00224e;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+.compose-create:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+.compose-close {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  color: #6b7d96;
+  background: transparent;
+  font-size: 1.3rem;
+  line-height: 1;
+}
+.compose-close:hover {
+  background: #eef2f8;
+}
+.compose-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 8px;
+}
+.compose-pill {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 5px 11px;
+  border: 1px solid #dfe5ef;
+  border-radius: 999px;
+  color: #33415c;
+  background: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.compose-pill.on {
+  border-color: #cfc6f3;
+  color: #5c4bab;
+  background: #efecfb;
+}
+.compose-pill small {
+  opacity: 0.6;
+}
+/* Start–end time; changes as the block is dragged */
+.compose-time {
+  border-color: #f3dc9b;
+  color: #6b4a00;
+  background: #fff8e5;
+  font-variant-numeric: tabular-nums;
+}
+.compose-time span {
+  color: #c9930f;
+}
+.compose-google {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  color: #6b4a00;
+  background: #fff6dc;
+  font-size: 0.8rem;
+}
+.compose-google button {
+  padding: 4px 10px;
+  border: 1px solid #e8d9a8;
+  border-radius: 8px;
+  color: #00224e;
+  background: #fff;
+  font-weight: 700;
+}
+
+/* ---- Dark theme ---- */
+:root[data-theme="dark"] .join-inline label,
+:root[data-theme="dark"] .timeline-event-text strong {
+  color: var(--d-text);
+}
+:root[data-theme="dark"] .join-inline div,
+:root[data-theme="dark"] .device-pill,
+:root[data-theme="dark"] .today-timeline {
+  border-color: var(--d-border);
+  background: var(--d-surface);
+}
+:root[data-theme="dark"] .join-inline input {
+  color: var(--d-text);
+}
+:root[data-theme="dark"] .join-inline button {
+  color: var(--d-accent);
+  background: var(--d-surface-3);
+}
+:root[data-theme="dark"] .today-timeline h2,
+:root[data-theme="dark"] .device-pill {
+  color: var(--d-text);
+}
+:root[data-theme="dark"] .line-icon,
+:root[data-theme="dark"] .timeline-hour span,
+:root[data-theme="dark"] .timeline-event-text small,
+:root[data-theme="dark"] .timeline-event-actions .icon,
+:root[data-theme="dark"] .timeline-empty {
+  color: var(--d-muted);
+}
+:root[data-theme="dark"] .timeline-hour {
+  border-top-color: #16253d;
+}
+:root[data-theme="dark"] .timeline-hour.labeled {
+  border-top-color: var(--d-border);
+}
+:root[data-theme="dark"] .timeline-now,
+:root[data-theme="dark"] .timeline-now::before {
+  border-top-color: #8b7be0;
+  background-color: #8b7be0;
+}
+:root[data-theme="dark"] .timeline-now {
+  background-color: transparent;
+}
+:root[data-theme="dark"] .timeline-now span {
+  color: #b8acf2;
+}
+:root[data-theme="dark"] .timeline-event {
+  background: color-mix(in srgb, var(--accent) 22%, var(--d-surface));
+}
+:root[data-theme="dark"] .timeline-event-actions .delete:hover {
+  background: #3a1d1d;
+}
+
+/* Lighter gold fill on navy so the draft doesn't look olive */
+:root[data-theme="dark"] .compose-range {
+  background: #f6bf4112;
+}
+:root[data-theme="dark"] .compose-card {
+  border-color: var(--d-border);
+  background: #0f1b2ef7;
+}
+:root[data-theme="dark"] .compose-title input,
+:root[data-theme="dark"] .compose-pill {
+  color: var(--d-text);
+}
+:root[data-theme="dark"] .compose-pill {
+  border-color: var(--d-border);
+  background: var(--d-surface-2);
+}
+:root[data-theme="dark"] .compose-pill.on {
+  border-color: #4a3f8f;
+  color: #c9c0ff;
+  background: #2a2554;
+}
+:root[data-theme="dark"] .compose-create {
+  color: #00224e;
+  background: var(--d-text);
+}
+:root[data-theme="dark"] .compose-close {
+  color: var(--d-muted);
+}
+:root[data-theme="dark"] .compose-close:hover {
+  background: var(--d-surface-2);
+}
+:root[data-theme="dark"] .compose-time {
+  border-color: #6b5520;
+  color: #f6d98a;
+  background: #2e2611;
+}
+
+/* ---- Smaller windows: one column, timeline below ---- */
+@media (max-width: 900px) {
+  .home-launch,
+  .today-timeline {
+    grid-column: 1;
+  }
+  .today-timeline {
+    min-height: 420px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-card {
+    transition: none;
+  }
+  .compose-range,
+  .compose-card {
+    animation: none;
+  }
+}
+
+/* ---- Moving background (HomeAurora) ----
+   Five soft glows in the brand colours. The whole set slowly turns like an
+   iris, each glow breathes along its own path, and the layer leans gently
+   toward the mouse (--mx / --my are set from HomePage.tsx). */
+.calendar-dashboard {
+  position: relative;
+  isolation: isolate;
+}
+.home-aurora {
+  --mx: 0;
+  --my: 0;
+  position: fixed;
+  inset: 0 0 0 240px;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.home-aurora-swirl {
+  position: absolute;
+  inset: -30%;
+  translate: calc(var(--mx) * -28px) calc(var(--my) * -22px);
+  transition: translate 1.2s cubic-bezier(0.2, 0.7, 0.2, 1);
+  animation: home-swirl 40s linear infinite;
+}
+.home-aurora i {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  will-change: transform;
+}
+.home-aurora i:nth-child(1) {
+  top: 18%;
+  left: 20%;
+  width: 34vmax;
+  height: 34vmax;
+  background: #b7a6f2;
+  opacity: 0.5;
+  animation: home-petal-1 11s ease-in-out infinite;
+}
+.home-aurora i:nth-child(2) {
+  top: 22%;
+  right: 18%;
+  width: 30vmax;
+  height: 30vmax;
+  background: #8db9ec;
+  opacity: 0.5;
+  animation: home-petal-2 13s ease-in-out infinite;
+}
+.home-aurora i:nth-child(3) {
+  right: 22%;
+  bottom: 18%;
+  width: 32vmax;
+  height: 32vmax;
+  background: #84d4d3;
+  opacity: 0.45;
+  animation: home-petal-3 15s ease-in-out infinite;
+}
+.home-aurora i:nth-child(4) {
+  bottom: 20%;
+  left: 24%;
+  width: 22vmax;
+  height: 22vmax;
+  background: #f8cf6c;
+  opacity: 0.35;
+  animation: home-petal-4 9s ease-in-out infinite;
+}
+.home-aurora i:nth-child(5) {
+  top: 40%;
+  left: 42%;
+  width: 18vmax;
+  height: 18vmax;
+  background: #9d8ae0;
+  opacity: 0.3;
+  animation: home-petal-5 7s ease-in-out infinite;
+}
+@keyframes home-swirl {
+  to {
+    rotate: 360deg;
+  }
+}
+@keyframes home-petal-1 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(18%, 28%) scale(1.18);
+  }
+}
+@keyframes home-petal-2 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1.05);
+  }
+  40% {
+    transform: translate(-26%, 14%) scale(0.88);
+  }
+  75% {
+    transform: translate(-8%, 30%) scale(1.15);
+  }
+}
+@keyframes home-petal-3 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-20%, -24%) scale(1.22);
+  }
+}
+@keyframes home-petal-4 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(0.9);
+  }
+  33% {
+    transform: translate(40%, -20%) scale(1.15);
+  }
+  66% {
+    transform: translate(70%, 10%) scale(1);
+  }
+}
+@keyframes home-petal-5 {
+  0%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0.18;
+  }
+  50% {
+    transform: scale(1.35);
+    opacity: 0.38;
+  }
+}
+:root[data-theme="dark"] .home-aurora i {
+  opacity: 0.32;
+}
+:root[data-theme="dark"] .home-aurora i:nth-child(1) {
+  background: #5a46c4;
+}
+:root[data-theme="dark"] .home-aurora i:nth-child(2) {
+  background: #1f68b4;
+}
+:root[data-theme="dark"] .home-aurora i:nth-child(3) {
+  background: #0d9da4;
+}
+:root[data-theme="dark"] .home-aurora i:nth-child(4) {
+  background: #f6bf41;
+  opacity: 0.14;
+}
+@media (max-width: 700px) {
+  .home-aurora {
+    left: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-aurora-swirl,
+  .home-aurora i {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* ---- Overlap warning: the draft shakes and a toast explains ---- */
+.timeline-compose.is-shaking {
+  animation: compose-shake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+.timeline-compose.is-shaking .compose-range {
+  border-color: #e5484d;
+  box-shadow: 0 0 0 4px #e5484d33;
+}
+@keyframes compose-shake {
+  10%,
+  90% {
+    translate: -2px 0;
+  }
+  20%,
+  80% {
+    translate: 4px 0;
+  }
+  30%,
+  50%,
+  70% {
+    translate: -7px 0;
+  }
+  40%,
+  60% {
+    translate: 7px 0;
+  }
+}
+.iris-toast-warn {
+  border-left: 4px solid #f6bf41;
+}
+.iris-toast-warn > b {
+  display: grid;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 50%;
+  color: #00224e;
+  background: #f6bf41;
+  font-size: 0.9rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .timeline-compose.is-shaking {
+    animation: none;
+  }
+}
+
+/* ---- Home timeline: meetings made with the gold draft stay gold ----
+   A clean card with a gold edge and a soft gold halo. The fill is only a
+   faint warm tint: mixing more yellow into navy turns it olive in dark mode. */
+.timeline-event.gold {
+  border-left-color: #f6bf41;
+  background: color-mix(in srgb, #f6bf41 12%, #fff);
+  box-shadow:
+    0 0 0 1px #f6bf4159,
+    0 0 14px #f6bf4133;
+}
+/* Gold is light, so its Join button needs dark text to stay readable */
+.timeline-event.gold .timeline-event-actions .join {
+  color: #3a2a00;
+}
+:root[data-theme="dark"] .timeline-event.gold {
+  background: linear-gradient(90deg, #f6bf411a, #f6bf4108 60%), #142238;
+  box-shadow:
+    0 0 0 1px #f6bf4140,
+    0 0 18px #f6bf4126;
+}
+
+/* ---- "Delete meeting?" in the bottom-right corner ----
+   Same navy as the other messages; Delete sits underneath the text. */
+.delete-toast {
+  display: grid;
+  gap: 8px;
+  width: min(280px, calc(100vw - 48px));
+  padding: 14px;
+  border-radius: 14px;
+  color: #fff;
+  background: #00224e;
+  box-shadow: 0 16px 36px #00224e40;
+  font-size: 0.9rem;
+  animation: iris-toast-in 200ms ease-out;
+}
+.delete-toast p {
+  display: grid;
+  gap: 2px;
+  margin: 0 0 4px;
+  line-height: 1.35;
+}
+.delete-toast strong {
+  font-weight: 700;
+}
+.delete-toast small {
+  color: #a9bdd6;
+  font-size: 0.8rem;
+}
+.delete-toast button {
+  border: 0;
+  border-radius: 9px;
+  font-weight: 700;
+}
+.delete-toast-confirm {
+  padding: 9px;
+  color: #fff;
+  background: #e5484d;
+}
+.delete-toast-confirm:hover:not(:disabled) {
+  background: #d63c41;
+}
+.delete-toast-row {
+  display: flex;
+  gap: 6px;
+}
+.delete-toast-row button {
+  flex: 1;
+  padding: 7px;
+  color: #c9d7ea;
+  background: #ffffff14;
+}
+.delete-toast-row button:hover:not(:disabled) {
+  color: #fff;
+  background: #ffffff24;
+}
+.delete-toast-link {
+  justify-self: start;
+  padding: 0;
+  color: #f6bf41;
+  background: none;
+  font-size: 0.8rem;
+  text-decoration: underline;
+}
+.delete-toast button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+@media (prefers-reduced-motion: reduce) {
+  .delete-toast {
+    animation: none;
+  }
+}
+
+/* ---- Draft card in gold: Create and the option pills match the block ---- */
+.compose-create {
+  color: #3a2a00;
+  background: #f6bf41;
+}
+.compose-create:hover:not(:disabled) {
+  background: #f8ca5e;
+}
+.compose-pill.on,
+.compose-pill.gold {
+  border-color: #f3dc9b;
+  color: #6b4a00;
+  background: #fff8e5;
+}
+.compose-pill.gold:hover,
+.compose-pill.on:hover {
+  border-color: #eac76a;
+}
+:root[data-theme="dark"] .compose-create {
+  color: #2b1f00;
+  background: #f6bf41;
+}
+:root[data-theme="dark"] .compose-pill.on,
+:root[data-theme="dark"] .compose-pill.gold {
+  border-color: #6b5520;
+  color: #f6d98a;
+  background: #2e2611;
+}
+/* Typed start / end times inside the time pill */
+.compose-time-input {
+  width: auto;
+  min-width: 0;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 5px;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  cursor: text;
+}
+.compose-time-input:hover {
+  background: #f6bf4126;
+}
+.compose-time-input:focus {
+  outline: 1.5px solid #f6bf41;
+  background: #fff;
+}
+:root[data-theme="dark"] .compose-time-input:focus {
+  background: #1a2235;
+}
+
+/* ---- Fits any window ----
+   The Home page always fills exactly the window: banner on top, Start
+   Meeting on the left, and the timeline scrolling inside its own card. On
+   smaller windows everything gets more compact instead of pushing the
+   buttons below the fold. */
+.calendar-dashboard {
+  gap: clamp(14px, 3vh, 28px);
+  padding: clamp(16px, 3.5vh, 34px) clamp(16px, 3.5vw, 48px);
+}
+.iris-control-center {
+  grid-template-columns: minmax(250px, 40fr) minmax(320px, 60fr);
+  gap: clamp(18px, 3vw, 48px);
+}
+.iris-hero {
+  min-height: clamp(96px, 20vh, 190px);
+  padding: clamp(14px, 3vh, 34px);
+}
+.iris-hero strong {
+  font-size: clamp(32px, 5.5vh, 46px);
+}
+.home-launch {
+  gap: clamp(10px, 2vh, 16px);
+}
+/* Short windows: smaller shortcut cards */
+@media (max-height: 760px) {
+  .home-card {
+    gap: 8px;
+    padding: 16px 10px 14px;
+  }
+}
+/* Very short windows: let the page scroll, with the timeline a fixed size */
+@media (max-height: 520px) {
+  .calendar-dashboard {
+    height: auto;
+    min-height: 100vh;
+  }
+  .today-timeline {
+    height: 420px;
+  }
+}
+/* Narrow windows: one column, timeline under the buttons (page scrolls) */
+@media (max-width: 900px) {
+  .calendar-dashboard {
+    height: auto;
+    min-height: 100vh;
+  }
+  .iris-control-center {
+    grid-template-columns: 1fr;
+  }
+  .today-timeline {
+    height: 460px;
+    min-height: 0;
+  }
+}

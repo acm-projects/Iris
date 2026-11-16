@@ -46,7 +46,14 @@ function run(command, args) {
     cwd: projectRoot,
     env: process.env,
     stdio: "inherit",
+    // Windows: npm.cmd / electron-builder.cmd are batch files, which Node
+    // (since 18.20.2 / 20.12.2) refuses to run without a shell (EINVAL).
+    // Safe here: the commands and arguments are fixed, not user input.
+    shell: process.platform === "win32",
   });
+  if (result.error) {
+    console.error(`Could not run ${command}: ${result.error.message}`);
+  }
   if (result.status !== 0) {
     process.exit(result.status ?? 1);
   }
@@ -56,7 +63,14 @@ function run(command, args) {
 // the real app name, icon and iris:// link handling), 3) launch it. The React
 // UI still loads live from Vite because VITE_DEV_SERVER_URL is set.
 run(npmCommand, ["run", "build"]);
-run(builderCommand, [platform, "--dir", "--publish", "never"]);
+// Quoted on Windows (it runs through the shell there) so a project folder
+// with spaces in its path still works.
+run(process.platform === "win32" ? `"${builderCommand}"` : builderCommand, [
+  platform,
+  "--dir",
+  "--publish",
+  "never",
+]);
 
 const iris = spawn(executable, ["."], {
   cwd: projectRoot,

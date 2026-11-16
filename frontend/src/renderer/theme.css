@@ -64,54 +64,17 @@
 :root[data-theme="dark"] .iris-control-center {
   background: transparent;
 }
-:root[data-theme="dark"] .iris-schedule-title {
-  color: var(--d-text);
-}
-:root[data-theme="dark"] .iris-schedule-title small {
-  color: var(--d-accent);
-  background: var(--d-surface-3);
-}
-:root[data-theme="dark"] .iris-action {
-  color: var(--d-text);
-}
-:root[data-theme="dark"] .iris-action > span small {
-  color: var(--d-accent);
-}
-:root[data-theme="dark"] .iris-schedule,
 :root[data-theme="dark"] .start-menu,
 :root[data-theme="dark"] .meeting-modal {
   border-color: var(--d-border);
   color: var(--d-text);
   background: var(--d-surface);
 }
-:root[data-theme="dark"] .iris-meeting {
-  border-color: var(--d-border);
-  background: var(--d-surface);
-  border-left-color: #7fa8d8;
-}
-:root[data-theme="dark"] .iris-meeting.live {
-  background: #12243d;
-}
-:root[data-theme="dark"] .iris-meeting small,
-:root[data-theme="dark"] .iris-meeting .meeting-code,
-:root[data-theme="dark"] .schedule-empty,
 :root[data-theme="dark"] .start-menu small,
 :root[data-theme="dark"] .modal-copy,
 :root[data-theme="dark"] .meeting-modal header button,
 :root[data-theme="dark"] .google-prompt-remember {
   color: var(--d-muted);
-}
-:root[data-theme="dark"] .meeting-code code {
-  color: var(--d-text);
-  background: var(--d-surface-3);
-}
-:root[data-theme="dark"] .iris-meeting button.secondary {
-  color: #c9c0ff;
-  background: #2a2554;
-}
-:root[data-theme="dark"] .iris-meeting strong em {
-  color: #b9d3f2;
-  background: #18304f;
 }
 :root[data-theme="dark"] .start-menu button {
   color: var(--d-text);
@@ -119,9 +82,6 @@
 :root[data-theme="dark"] .start-menu button:hover,
 :root[data-theme="dark"] .start-menu button:focus-visible {
   background: var(--d-surface-2);
-}
-:root[data-theme="dark"] .iris-meeting .meeting-delete:hover {
-  background: #3a1d1d;
 }
 
 /* ---- Dialogs and toast ---- */

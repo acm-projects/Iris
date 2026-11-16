@@ -124,14 +124,21 @@ Tutorial: [FastAPI Quickstart](https://fastapi.tiangolo.com/tutorial/)
 
 ## Running Iris locally 🛠️
 
-Commands are for macOS, run from the `Cue` folder. Sign recognition only works
-when running from the code (not in an installed copy of Iris).
+Commands are for macOS, run from the `Cue` folder; **Windows** versions are
+under each step. Sign recognition only works when running from the code (not
+in an installed copy of Iris).
 
 **1. Python environment** (Python 3.11 or 3.12; MediaPipe has no 3.13+ build)
 ```bash
 python3.12 -m venv backend/.venv
 backend/.venv/bin/pip uninstall -y opencv-python
 backend/.venv/bin/pip install -r backend/requirements.txt -r backend/requirements-sign.txt
+```
+Windows (PowerShell, with Python 3.12 from python.org; use `py -3.11` if that's what you have):
+```powershell
+py -3.12 -m venv backend\.venv
+backend\.venv\Scripts\pip uninstall -y opencv-python
+backend\.venv\Scripts\pip install -r backend\requirements.txt -r backend\requirements-sign.txt
 ```
 
 **2. The sign model** (not in git): download the `meeting100` folder from the
@@ -149,6 +156,9 @@ Also fill in `frontend/.env` from `frontend/.env.example` (Supabase settings).
 [OBS](https://obsproject.com) (for its virtual camera) and
 [BlackHole 2ch](https://existential.audio/blackhole/). In Meet, pick
 **OBS Virtual Camera** as the camera and **BlackHole 2ch** as the microphone.
+Windows: install OBS and [VB-CABLE](https://vb-audio.com/Cable/) instead of
+BlackHole (restart after installing); in Meet pick **OBS Virtual Camera** and
+**CABLE Output** as the microphone.
 
 **5. Run** (two terminals, leave both running)
 ```bash
@@ -156,6 +166,13 @@ backend/.venv/bin/python -m uvicorn server.api:app --host 127.0.0.1 --port 8000
 ```
 ```bash
 cd frontend && npm install && npm run dev
+```
+Windows (PowerShell, two terminals):
+```powershell
+backend\.venv\Scripts\python -m uvicorn server.api:app --host 127.0.0.1 --port 8000
+```
+```powershell
+cd frontend; npm install; npm run dev
 ```
 The first command is the voice server (speech and sentence translation); the
 second opens the Iris app. Restart the voice server after changing `.env`.

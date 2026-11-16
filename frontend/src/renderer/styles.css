@@ -252,3 +252,74 @@ textarea {
   background: #00224e;
   font-weight: 800;
 }
+
+/* ---- Messages from Iris ----
+   Every message appears in the bottom-right corner of the window: a navy
+   toast for notices (coloured edge for errors / success / warnings), and a
+   white card for questions such as "Delete meeting?" (.corner-card). */
+#iris-messages {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-end;
+  max-height: calc(100vh - 48px);
+  pointer-events: none;
+}
+#iris-messages > * {
+  pointer-events: auto;
+}
+.iris-toast {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  max-width: min(460px, calc(100vw - 48px));
+  margin: 0;
+  padding: 14px 14px 14px 18px;
+  border-radius: 14px;
+  color: #fff;
+  background: #00224e;
+  box-shadow: 0 16px 36px #00224e40;
+  font-size: 0.92rem;
+  animation: iris-toast-in 200ms ease-out;
+}
+.iris-toast span {
+  flex: 1;
+  line-height: 1.4;
+}
+.iris-toast button:not(.toast-close) {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border: 1px solid #dce4f0;
+  border-radius: 9px;
+  color: #00224e;
+  background: #fff;
+  font-weight: 700;
+}
+.iris-toast.tone-error {
+  border-left: 4px solid #e5484d;
+}
+.iris-toast.tone-success {
+  border-left: 4px solid #3ccf8e;
+}
+.toast-close {
+  border: 0;
+  color: #c9d7ea;
+  background: none;
+  font-size: 1.4rem;
+  line-height: 1;
+}
+@keyframes iris-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .iris-toast {
+    animation: none;
+  }
+}

@@ -33,7 +33,9 @@ import {
 } from "../../utils/setupGuide";
 import { readLocal, saveLocal } from "../../utils/storage";
 import "../css/translation.css";
+import Corner from "../../components/Corner";
 import { useAutoDismiss } from "../../utils/useAutoDismiss";
+import { modeLabel, showsCaptions } from "../../utils/meetingModes";
 
 /** Whether video is currently being sent to the virtual camera. */
 type LiveState = "off" | "starting" | "live";
@@ -105,7 +107,14 @@ const stepLabel = (state: CheckState) =>
  * Python engine (via Electron) for the virtual camera, virtual microphone and
  * text-to-speech, and shows a system check of everything Meet needs.
  */
-export default function TranslationPage() {
+/** The meeting happening now (or just joined from Iris), whose mode applies here. */
+export type ActiveMeeting = { id: string; title: string; mode: string } | null;
+
+export default function TranslationPage({
+  meeting = null,
+}: {
+  meeting?: ActiveMeeting;
+}) {
   const [settings, setSettings] = useState<TranslationSettings>(loadSettings);
   const [devices, setDevices] = useState<Devices>({
     cameras: [],
@@ -180,6 +189,15 @@ export default function TranslationPage() {
       saveSettings(next);
       return next;
     });
+
+  // When a meeting is on, use the mode chosen for it: "ASL + Captions" shows
+  // captions on the video, "ASL only" doesn't; both speak the signs. Applied
+  // once per meeting, so a manual change during the meeting is kept.
+  useEffect(() => {
+    if (!meeting) return;
+    update({ showCaptions: showsCaptions(meeting.mode), speakSigns: true });
+    // Only when a different meeting starts (update is stable in effect).
+  }, [meeting?.id]);
 
   // --- Devices and permission ---------------------------------------------
 
@@ -823,14 +841,30 @@ export default function TranslationPage() {
   return (
     <section className="translation-page">
       {liveError && (
-        <p className="tr-error" {...liveErrorTimer}>
-          {liveError}
-        </p>
+        <Corner>
+          <div
+            className="iris-toast tone-error"
+            role="alert"
+            {...liveErrorTimer}
+          >
+            <span>{liveError}</span>
+          </div>
+        </Corner>
       )}
 
       <div className="tr-center">
         {/* Toolbar: title, status, and the Start / Stop, camera, ⓘ and ☰ buttons */}
         <header className="tr-toolbar">
+          {/* The meeting whose settings are in use, e.g. "Team sync · ASL only" */}
+          {meeting && (
+            <div
+              className="tr-meeting"
+              title="Captions follow the mode chosen for this meeting"
+            >
+              <strong>{meeting.title}</strong>
+              <span>{modeLabel(meeting.mode)}</span>
+            </div>
+          )}
           {live === "live" && (
             <div className="tr-heading">
               <span className="tr-status live">

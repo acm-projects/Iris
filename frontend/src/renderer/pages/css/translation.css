@@ -81,6 +81,36 @@
     0 12px 40px #1d2b441a;
 }
 /* Toolbar floats over the top of the camera */
+/* The meeting whose settings are in use (top-left of the camera area) */
+.tr-meeting {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  max-width: 50%;
+  padding: 7px 14px;
+  border: 1px solid #ffffff33;
+  border-radius: 999px;
+  color: #fff;
+  background: #0b163a99;
+  font-size: 0.86rem;
+  pointer-events: auto;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.tr-meeting strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tr-meeting span {
+  flex: none;
+  padding: 2px 9px;
+  border-radius: 999px;
+  color: #00224e;
+  background: #f6bf41;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
 .tr-toolbar {
   position: absolute;
   inset: 0 0 auto;

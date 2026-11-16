@@ -15,7 +15,9 @@ import {
 import { friendlyError } from "../../utils/errors";
 import { readLocal, saveLocal } from "../../utils/storage";
 import "../css/calendar-page.css";
+import Corner from "../../components/Corner";
 import { useAutoDismiss } from "../../utils/useAutoDismiss";
+import { modeLabel } from "../../utils/meetingModes";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -368,7 +370,7 @@ export default function CalendarPage(p: Props) {
         meetUrl: event.meetUrl ?? meeting?.meeting_url ?? null,
         htmlLink: event.htmlLink,
         location: event.location,
-        note: meeting?.accessibility_mode ?? null,
+        note: meeting ? modeLabel(meeting.accessibility_mode) : null,
         color:
           colorOverrides[id] ??
           saved ??
@@ -390,7 +392,7 @@ export default function CalendarPage(p: Props) {
         meetUrl: m.meeting_url,
         htmlLink: null,
         location: null,
-        note: m.accessibility_mode,
+        note: modeLabel(m.accessibility_mode),
         color:
           colorOverrides[`iris-${m.id}`] ??
           (isEventColor(m.color) ? m.color : DEFAULT_IRIS_COLOR),
@@ -629,12 +631,23 @@ export default function CalendarPage(p: Props) {
         )}
       </div>
       {timeError && (
-        <p className="cal-error" role="alert" {...timeErrorTimer}>
-          {timeError}
-          <button onClick={() => setTimeError("")} type="button">
-            ×
-          </button>
-        </p>
+        <Corner>
+          <div
+            className="iris-toast tone-error"
+            role="alert"
+            {...timeErrorTimer}
+          >
+            <span>{timeError}</span>
+            <button
+              aria-label="Dismiss"
+              className="toast-close"
+              onClick={() => setTimeError("")}
+              type="button"
+            >
+              ×
+            </button>
+          </div>
+        </Corner>
       )}
 
       {/* Details card for the clicked event */}
