@@ -102,7 +102,12 @@ export default function HomePage(p: Props) {
   const [joinedId, setJoinedId] = useState<string | null>(null);
   /** Opens a meeting link; remembers which Iris meeting it was, if any. */
   const joinMeeting = (url: string) => {
-    const meeting = p.meetings.find((m) => m.meeting_url === url);
+    // Match by Meet code, so a pasted code or a link written differently
+    // still finds the scheduled meeting (and its ASL / captions mode).
+    const code = meetCode(url);
+    const meeting = code
+      ? p.meetings.find((m) => meetCode(m.meeting_url ?? "") === code)
+      : undefined;
     if (meeting) setJoinedId(meeting.id);
     return p.onJoin(url);
   };
@@ -160,7 +165,7 @@ export default function HomePage(p: Props) {
             setCreateAt(start);
             p.setShowCreate(true);
           }}
-          onJoin={p.onJoin}
+          onJoin={joinMeeting}
           onLoadGoogleEvents={p.onLoadGoogleEvents}
           onOpenInGoogle={p.onOpenInGoogle}
           onSetEventColor={p.onSetEventColor}
@@ -432,6 +437,13 @@ function LineIcon({ type }: { type: "camera" | "calendar" }) {
       />
     </svg>
   );
+}
+/** The Meet code in a link or typed code ("abcdefghij"), or "" if none. */
+function meetCode(text: string) {
+  const match = text
+    .toLowerCase()
+    .match(/(?:^|\/|\s)([a-z]{3})-?([a-z]{4})-?([a-z]{3})(?:$|[/?#\s])/);
+  return match ? match[1] + match[2] + match[3] : "";
 }
 /** True for a Google Meet link or a bare meeting code like "abc-defg-hij". */
 function isMeetLink(text: string) {

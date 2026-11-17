@@ -72,6 +72,8 @@ const PRIVACY_SETTINGS =
       : "your system's privacy settings";
 // Remembers that the setup guide opened by itself once (first visit).
 const SETUP_SHOWN_KEY = "iris-translation-setup-shown";
+// The "Show captions" setting from before a meeting changed it (restored after).
+const BEFORE_MEETING_KEY = "iris-captions-before-meeting";
 
 /** Names of the small line icons used on this page. */
 type IconName =
@@ -191,12 +193,28 @@ export default function TranslationPage({
     });
 
   // When a meeting is on, use the mode chosen for it: "ASL + Captions" shows
-  // captions on the video, "ASL only" doesn't; both speak the signs. Applied
-  // once per meeting, so a manual change during the meeting is kept.
+  // captions on the video in Meet, "ASL only" doesn't; both speak the signs.
+  // Applied once per meeting, so a manual change during the meeting is kept.
+  // When the meeting ends, the caption setting from before it comes back
+  // (an "ASL only" meeting mustn't leave captions off for the next session).
+  const beforeMeeting = useRef<boolean | null>(
+    readLocal(BEFORE_MEETING_KEY) === null
+      ? null
+      : readLocal(BEFORE_MEETING_KEY) === "true",
+  );
   useEffect(() => {
-    if (!meeting) return;
-    update({ showCaptions: showsCaptions(meeting.mode), speakSigns: true });
-    // Only when a different meeting starts (update is stable in effect).
+    if (meeting) {
+      if (beforeMeeting.current === null) {
+        beforeMeeting.current = settingsRef.current.showCaptions;
+        saveLocal(BEFORE_MEETING_KEY, String(beforeMeeting.current));
+      }
+      update({ showCaptions: showsCaptions(meeting.mode), speakSigns: true });
+    } else if (beforeMeeting.current !== null) {
+      update({ showCaptions: beforeMeeting.current });
+      beforeMeeting.current = null;
+      saveLocal(BEFORE_MEETING_KEY, null);
+    }
+    // Only when a different meeting starts or the meeting ends.
   }, [meeting?.id]);
 
   // --- Devices and permission ---------------------------------------------
@@ -387,10 +405,25 @@ export default function TranslationPage({
   const speak = useCallback(
     async (text: string) => {
       showCaption(text);
-      await window.iris.tts.speak(text);
+      await window.iris.tts.speak(text, settingsRef.current.playOnSpeakers);
     },
     [showCaption],
   );
+  // Plays the same ElevenLabs voice through this computer's speakers (the
+  // meeting still hears it through the virtual microphone).
+  useEffect(() => {
+    if (typeof window.iris.tts.onAudio !== "function") return;
+    return window.iris.tts.onAudio((mp3) => {
+      const url = URL.createObjectURL(
+        new Blob([mp3 as BlobPart], { type: "audio/mpeg" }),
+      );
+      const player = new Audio(url);
+      const done = () => URL.revokeObjectURL(url);
+      player.addEventListener("ended", done);
+      player.addEventListener("error", done);
+      player.play().catch(done);
+    });
+  }, []);
 
   // True while Type to speak is in its own floating window (the box here
   // is replaced by a "Bring back" card until it closes).
@@ -1257,6 +1290,12 @@ export default function TranslationPage({
                         description="Iris speaks each recognised sign."
                         label="Speak recognised signs aloud"
                         onChange={(value) => update({ speakSigns: value })}
+                      />
+                      <Toggle
+                        checked={settings.playOnSpeakers}
+                        description="Hear the same voice the meeting hears."
+                        label="Also play on this computer's speakers"
+                        onChange={(value) => update({ playOnSpeakers: value })}
                       />
                       <Toggle
                         checked={settings.mirrorPreview}

@@ -53,7 +53,12 @@ interface Window {
      *  server (server/api.py, ElevenLabs by default). Resolves once the
      *  audio has finished playing. */
     tts: {
-      speak(text: string): Promise<void>;
+      /** `onSpeakers`: also send the same ElevenLabs audio back to this
+       *  window (see onAudio) so it plays through the computer's speakers. */
+      speak(text: string, onSpeakers?: boolean): Promise<void>;
+      /** Receives each spoken MP3 when speak() was asked to play it locally;
+       *  returns an unsubscribe function. */
+      onAudio(callback: (mp3: Uint8Array) => void): () => void;
     };
     /** Signed words → an English sentence (Gemini via the voice server,
      *  POST /gloss/translate). Rejects if the server or key isn't set up. */

@@ -58,7 +58,15 @@ contextBridge.exposeInMainWorld("iris", {
   },
 
   tts: {
-    speak: (text: string) => ipcRenderer.invoke("iris:tts:speak", text),
+    speak: (text: string, onSpeakers?: boolean) =>
+      ipcRenderer.invoke("iris:tts:speak", text, onSpeakers === true),
+    onAudio: (callback: (mp3: Uint8Array) => void) => {
+      const listener = (_event: unknown, mp3: Uint8Array) => callback(mp3);
+      ipcRenderer.on("iris:tts:audio", listener);
+      return () => {
+        ipcRenderer.removeListener("iris:tts:audio", listener);
+      };
+    },
   },
 
   // Signed words → English sentence (Gemini, via the voice server).

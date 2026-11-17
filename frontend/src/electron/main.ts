@@ -964,47 +964,59 @@ async function apiError(response: Response, fallback: string) {
 }
 
 /** Speaks text into the meeting using the voice server's provider. */
-ipcMain.handle("iris:tts:speak", async (_event, text: string) => {
-  if (typeof text !== "string" || !text.trim() || text.length > 500)
-    throw new Error("Type something to speak first.");
+ipcMain.handle(
+  "iris:tts:speak",
+  async (event, text: string, onSpeakers?: boolean) => {
+    if (typeof text !== "string" || !text.trim() || text.length > 500)
+      throw new Error("Type something to speak first.");
 
-  // Step 1: ask the server for an MP3 of the text.
-  const speech = await fetch(`${ttsServer}/tts`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text: text.trim() }),
-    signal: AbortSignal.timeout(30_000),
-  }).catch(() => null);
-  // null means the request never reached the server.
-  if (!speech)
-    throw new Error(
-      "Iris's voice server isn't running. Start it and try again.",
-    );
-  if (!speech.ok)
-    throw new Error(
-      await apiError(speech, `Speech generation failed (${speech.status}).`),
-    );
-  const audio = await speech.arrayBuffer();
+    // Step 1: ask the server for an MP3 of the text.
+    const speech = await fetch(`${ttsServer}/tts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: text.trim() }),
+      signal: AbortSignal.timeout(30_000),
+    }).catch(() => null);
+    // null means the request never reached the server.
+    if (!speech)
+      throw new Error(
+        "Iris's voice server isn't running. Start it and try again.",
+      );
+    if (!speech.ok)
+      throw new Error(
+        await apiError(speech, `Speech generation failed (${speech.status}).`),
+      );
+    const audio = await speech.arrayBuffer();
 
-  // Step 2: upload the MP3 as a file named "file" (it must match api.py).
-  // Don't set Content-Type here: fetch adds it, with the right boundary.
-  const form = new FormData();
-  form.append("file", new Blob([audio], { type: "audio/mpeg" }), "speech.mp3");
-  const playback = await fetch(`${ttsServer}/microphone`, {
-    method: "POST",
-    body: form,
-    // This request waits until the audio has finished playing.
-    signal: AbortSignal.timeout(90_000),
-  }).catch(() => null);
-  if (!playback)
-    throw new Error("Iris's voice server stopped answering while speaking.");
-  if (playback.status === 409)
-    throw new Error("Iris is still speaking. Try again in a moment.");
-  if (!playback.ok)
-    throw new Error(
-      await apiError(playback, `Playback failed (${playback.status}).`),
+    // Same ElevenLabs audio to the window, which plays it on the speakers
+    // (not the system voice), at the same time as the meeting hears it.
+    if (onSpeakers === true && !event.sender.isDestroyed())
+      event.sender.send("iris:tts:audio", new Uint8Array(audio));
+
+    // Step 2: upload the MP3 as a file named "file" (it must match api.py).
+    // Don't set Content-Type here: fetch adds it, with the right boundary.
+    const form = new FormData();
+    form.append(
+      "file",
+      new Blob([audio], { type: "audio/mpeg" }),
+      "speech.mp3",
     );
-});
+    const playback = await fetch(`${ttsServer}/microphone`, {
+      method: "POST",
+      body: form,
+      // This request waits until the audio has finished playing.
+      signal: AbortSignal.timeout(90_000),
+    }).catch(() => null);
+    if (!playback)
+      throw new Error("Iris's voice server stopped answering while speaking.");
+    if (playback.status === 409)
+      throw new Error("Iris is still speaking. Try again in a moment.");
+    if (!playback.ok)
+      throw new Error(
+        await apiError(playback, `Playback failed (${playback.status}).`),
+      );
+  },
+);
 
 /**
  * Turns signed words ("i", "want", "help") into an English sentence with

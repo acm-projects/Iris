@@ -13,6 +13,8 @@ export type TranslationSettings = {
   mirrorPreview: boolean;
   showCaptions: boolean;
   speakSigns: boolean;
+  /** Also play the spoken voice through this computer's speakers. */
+  playOnSpeakers: boolean;
   captionSize: "small" | "medium" | "large";
 };
 
@@ -27,6 +29,7 @@ export const DEFAULT_SETTINGS: TranslationSettings = {
   mirrorPreview: true,
   showCaptions: true,
   speakSigns: true,
+  playOnSpeakers: true,
   captionSize: "medium",
 };
 
